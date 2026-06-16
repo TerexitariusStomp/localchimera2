@@ -24,7 +24,8 @@
       "chutes",
       "fortytwo",
       "earnidle",
-      "routstr"
+      "routstr",
+      "solana"
     ],
     "switchInterval": 60000,
     "cortensor": {
@@ -80,6 +81,17 @@
         "note": "Nostr protocol multisig is shared across all apps. Funds are swept monthly and split between machine owner (70%) and app developer (30%).",
         "autoFundSweep": true
       }
+    },
+    "solana": {
+      "enabled": true,
+      "config": {
+        "network": "solana",
+        "description": "Solana SPL-multisig (auto-generated from EVM) for Solana compute / inference rewards",
+        "multisigType": "spl-multisig",
+        "multisigThreshold": "2-of-3",
+        "note": "Solana protocol multisig is shared across all apps. Funds are swept weekly into the EVM collection multisig, then monthly split between machine owner (70%) and app developer (30%).",
+        "autoFundSweep": true
+      }
     }
   },
   "multisig": {
@@ -118,6 +130,13 @@
         "enabled": true,
         "protocol": "substrate-multisig",
         "address": "5QVACProtocolMultisigBittensorXYZ123",
+        "threshold": 2,
+        "signers": 3
+      },
+      "solana": {
+        "enabled": true,
+        "protocol": "spl-multisig",
+        "address": "QVACProtocolMultisigSolanaXYZ123456789",
         "threshold": 2,
         "signers": 3
       }
