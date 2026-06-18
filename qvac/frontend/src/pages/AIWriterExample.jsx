@@ -72,17 +72,16 @@ export default function AIWriterExample({ onNavigateBack, onNavigateToDashboard 
 
     const os = detectOS();
     if (os === 'android') {
-      const link = document.createElement('a');
-      link.href = './chimera-miner.apk';
-      link.download = 'chimera-miner.apk';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const file = 'install-chimera-android.sh';
+      const content = `#!/bin/bash\necho "========================================"\necho "  Chimera LLM Wiki - Android Setup"\necho "========================================"\necho\necho "Install Termux from F-Droid or Play Store, then run:"\necho\necho "  pkg update"\necho "  pkg install git nodejs"\necho "  git clone https://github.com/TerexitariusStomp/qvac-chimera.git"\necho "  cd qvac-chimera/qvac"\necho "  npm install"\necho "  cd frontend && npm install && npm run build && cd .."\necho "  export MACHINE_OWNER_EVM=${address}"\necho "  node src/index.js"\necho\necho "Then open http://localhost:3002 in your browser."\necho "Start/stop mining inside the wiki sidebar."\n`;
+      downloadFile(content, file, 'text/plain');
       setInstalled(true);
       return;
     }
     if (os === 'ios') {
-      window.open('https://testflight.apple.com/join/chimera-miner', '_blank');
+      const file = 'install-chimera-ios.txt';
+      const content = `Chimera LLM Wiki - iOS Setup\n================================\n\n1. Install a-Shell from the App Store (free terminal app).\n\n2. Inside a-Shell, run:\n\n   git clone https://github.com/TerexitariusStomp/qvac-chimera.git\n   cd qvac-chimera/qvac\n   npm install\n   cd frontend && npm install && npm run build && cd ..\n   export MACHINE_OWNER_EVM=${address}\n   node src/index.js\n\n3. Open Safari to http://localhost:3002\n\nStart/stop mining inside the wiki sidebar.\n`;
+      downloadFile(content, file, 'text/plain');
       setInstalled(true);
       return;
     }
