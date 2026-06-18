@@ -89,23 +89,17 @@ export default function AIWriterExample({ onNavigateBack, onNavigateToDashboard 
 
     const repo = 'https://github.com/TerexitariusStomp/qvac-chimera.git';
     const folder = 'qvac-chimera';
-
-    let startFile, stopFile, startContent, stopContent;
+    let file, content;
 
     if (os === 'windows') {
-      startFile = 'start-chimera.bat';
-      stopFile = 'stop-chimera.bat';
-      startContent = `@echo off\r\necho ======================================\r\necho   Chimera LLM Wiki + Miner - START\r\necho ======================================\r\necho.\r\necho Checking Node.js...\r\nnode --version >nul 2>&1\r\nif errorlevel 1 (\r\n  echo Node.js not found. Please install from https://nodejs.org/\r\n  pause\r\n  exit /b 1\r\n)\r\necho.\r\necho Cloning Chimera...\r\nif not exist ${folder} (\r\n  git clone ${repo} || (echo Git not found ^& pause ^& exit /b 1)\r\n)\r\ncd ${folder}\\qvac\r\necho Installing dependencies...\r\nnpm install\r\ncd frontend\r\nnpm install\r\nnpm run build\r\ncd ..\r\necho Setting EVM address...\r\nset MACHINE_OWNER_EVM=${address}\r\nset APP_ID=protocol-default\r\necho Starting server on port 3002...\r\nnode src/index.js\r\n`;
-      stopContent = `@echo off\r\necho ======================================\r\necho   Chimera LLM Wiki + Miner - STOP\r\necho ======================================\r\necho.\r\necho Stop the server with Ctrl+C in the terminal window.\r\npause\r\n`;
+      file = 'install-chimera.bat';
+      content = `@echo off\r\necho ======================================\r\necho   Chimera LLM Wiki - Setup\r\necho ======================================\r\necho.\r\necho This script downloads and runs the LLM Wiki on your machine.\r\necho Start/stop mining is handled inside the app.\r\necho.\r\necho Checking Node.js...\r\nnode --version >nul 2>&1\r\nif errorlevel 1 (\r\n  echo Node.js not found. Please install from https://nodejs.org/\r\n  pause\r\n  exit /b 1\r\n)\r\necho.\r\necho Downloading Chimera...\r\nif not exist ${folder} (\r\n  git clone ${repo} || (echo Git not found ^& pause ^& exit /b 1)\r\n) else (\r\n  echo Already downloaded, updating...\r\n  cd ${folder}\r\n  git pull\r\n  cd ..\r\n)\r\ncd ${folder}\\qvac\r\necho Installing dependencies...\r\nnpm install\r\ncd frontend\r\nnpm install\r\nnpm run build\r\ncd ..\r\necho Setting EVM address...\r\nset MACHINE_OWNER_EVM=${address}\r\nset APP_ID=protocol-default\r\necho.\r\necho ======================================\r\necho   Ready! Opening http://localhost:3002\r\necho   Start/stop miner inside the wiki sidebar.\r\necho ======================================\r\nstart http://localhost:3002\r\nnode src/index.js\r\n`;
     } else {
-      startFile = 'start-chimera.sh';
-      stopFile = 'stop-chimera.sh';
-      startContent = `#!/bin/bash\necho "========================================"\necho "  Chimera LLM Wiki + Miner - START"\necho "========================================"\necho\necho "Checking Node.js..."\nif ! command -v node &> /dev/null; then\n  echo "Node.js not found. Install from https://nodejs.org/"\n  exit 1\nfi\nnode --version\necho\necho "Cloning Chimera..."\nif [ ! -d "${folder}" ]; then\n  git clone ${repo} || { echo "Git not found"; exit 1; }\nfi\ncd ${folder}/qvac\necho "Installing dependencies..."\nnpm install\ncd frontend\nnpm install\nnpm run build\ncd ..\necho "Setting EVM address..."\nexport MACHINE_OWNER_EVM=${address}\nexport APP_ID=protocol-default\necho "Starting server on port 3002..."\nnode src/index.js\n`;
-      stopContent = `#!/bin/bash\necho "========================================"\necho "  Chimera LLM Wiki + Miner - STOP"\necho "========================================"\necho\necho "Stop the server with Ctrl+C in the terminal window."\n`;
+      file = 'install-chimera.sh';
+      content = `#!/bin/bash\necho "========================================"\necho "  Chimera LLM Wiki - Setup"\necho "========================================"\necho\necho "This script downloads and runs the LLM Wiki on your machine."\necho "Start/stop mining is handled inside the app."\necho\necho "Checking Node.js..."\nif ! command -v node &> /dev/null; then\n  echo "Node.js not found. Install from https://nodejs.org/"\n  exit 1\nfi\nnode --version\necho\necho "Downloading Chimera..."\nif [ ! -d "${folder}" ]; then\n  git clone ${repo} || { echo "Git not found"; exit 1; }\nelse\n  echo "Already downloaded, updating..."\n  cd ${folder}\n  git pull\n  cd ..\nfi\ncd ${folder}/qvac\necho "Installing dependencies..."\nnpm install\ncd frontend\nnpm install\nnpm run build\ncd ..\necho "Setting EVM address..."\nexport MACHINE_OWNER_EVM=${address}\nexport APP_ID=protocol-default\necho\necho "========================================"\necho "  Ready! Opening http://localhost:3002"\necho "  Start/stop miner inside the wiki sidebar."\necho "========================================"\nopen http://localhost:3002 2>/dev/null || xdg-open http://localhost:3002 2>/dev/null || echo "Open http://localhost:3002"\nnode src/index.js\n`;
     }
 
-    downloadFile(startContent, startFile, 'text/plain');
-    setTimeout(() => downloadFile(stopContent, stopFile, 'text/plain'), 500);
+    downloadFile(content, file, 'text/plain');
     setInstalled(true);
   };
 
