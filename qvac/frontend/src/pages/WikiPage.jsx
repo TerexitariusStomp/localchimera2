@@ -654,43 +654,6 @@ export default function WikiPage({ onBack }) {
           )}
         </div>
         <div style={{ padding: '10px 12px', borderTop: '1px solid #1e1e2e', borderBottom: '1px solid #1e1e2e', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>Openviking Memory</div>
-          <div style={{ fontSize: 10, color: '#86efac', lineHeight: 1.5 }}>
-            AI memory store via REST API
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <button
-              style={{ ...s.toolbarBtn, fontSize: 9, padding: '3px 6px', textAlign: 'left' }}
-              onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/llmwiki-docs`)}
-            >
-              📋 Copy docs endpoint
-            </button>
-            <button
-              style={{ ...s.toolbarBtn, fontSize: 9, padding: '3px 6px', textAlign: 'left' }}
-              onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/llmwiki-search?q=`)}
-            >
-              📋 Copy search endpoint
-            </button>
-            <button
-              style={{ ...s.toolbarBtn, fontSize: 9, padding: '3px 6px', textAlign: 'left' }}
-              onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/llmwiki-graph?id=`)}
-            >
-              📋 Copy graph endpoint
-            </button>
-          </div>
-          <details style={{ fontSize: 10, color: '#94a3b8' }}>
-            <summary style={{ cursor: 'pointer', color: '#64748b', fontWeight: 600 }}>How to connect an AI</summary>
-            <div style={{ padding: '6px 0', display: 'flex', flexDirection: 'column', gap: 4, lineHeight: 1.5 }}>
-              <div><b style={{ color: '#e2e2e2' }}>1. Search</b><br/>GET /api/llmwiki-search?q={'{query}'}</div>
-              <div><b style={{ color: '#e2e2e2' }}>2. Read</b><br/>GET /api/llmwiki-docs</div>
-              <div><b style={{ color: '#e2e2e2' }}>3. Graph</b><br/>GET /api/llmwiki-graph?id={'{pageId}'}</div>
-              <div style={{ color: '#64748b', fontSize: 9, marginTop: 2 }}>
-                Use these endpoints in your AI agent's tool calls. The wiki becomes a persistent, queryable memory store that syncs across the P2P swarm.
-              </div>
-            </div>
-          </details>
-        </div>
-        <div style={{ padding: '10px 12px', borderTop: '1px solid #1e1e2e', borderBottom: '1px solid #1e1e2e', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>Miner Node</div>
           <div style={{ fontSize: 10, color: nodeRunning ? '#86efac' : '#94a3b8', lineHeight: 1.5 }}>
             {nodeRunning ? '🟢 Running — earning on inference tasks' : '⚪ Stopped — start to earn'}
@@ -726,9 +689,6 @@ export default function WikiPage({ onBack }) {
               ))}
             </div>
           )}
-          <div style={{ fontSize: 9, color: '#64748b', lineHeight: 1.4 }}>
-            This wiki is powered by the same QVAC node that serves miner task networks.
-          </div>
         </div>
         <div style={s.sidebarFooter}>
           <button style={s.newPageBtn} onClick={() => { setSelectedDoc(null); setEditorText(''); }}>
@@ -1035,6 +995,25 @@ export default function WikiPage({ onBack }) {
                 <div style={s.aiHint}>Generates new wiki sections every 30 seconds while running.</div>
               </>
             )}
+          </div>
+        )}
+        {aiOpen && (
+          <div style={{ padding: '10px 14px', borderTop: '1px solid #1e1e2e', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>Openviking Memory</div>
+            <div style={{ fontSize: 10, color: '#86efac', lineHeight: 1.5 }}>AI memory store via REST API</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <button style={{ ...s.toolbarBtn, fontSize: 9, padding: '3px 6px', textAlign: 'left' }} onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/llmwiki-docs`)}>📋 Copy docs endpoint</button>
+              <button style={{ ...s.toolbarBtn, fontSize: 9, padding: '3px 6px', textAlign: 'left' }} onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/llmwiki-search?q=`)}>📋 Copy search endpoint</button>
+              <button style={{ ...s.toolbarBtn, fontSize: 9, padding: '3px 6px', textAlign: 'left' }} onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/llmwiki-graph?id=`)}>📋 Copy graph endpoint</button>
+            </div>
+            <details style={{ fontSize: 10, color: '#94a3b8' }}>
+              <summary style={{ cursor: 'pointer', color: '#64748b', fontWeight: 600 }}>How to connect an AI</summary>
+              <div style={{ padding: '6px 0', display: 'flex', flexDirection: 'column', gap: 4, lineHeight: 1.5 }}>
+                <div><b style={{ color: '#e2e2e2' }}>1. Search</b><br/>GET /api/llmwiki-search?q={'{query}'}</div>
+                <div><b style={{ color: '#e2e2e2' }}>2. Read</b><br/>GET /api/llmwiki-docs</div>
+                <div><b style={{ color: '#e2e2e2' }}>3. Graph</b><br/>GET /api/llmwiki-graph?id={'{pageId}'}</div>
+              </div>
+            </details>
           </div>
         )}
       </aside>
