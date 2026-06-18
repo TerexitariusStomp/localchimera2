@@ -433,8 +433,8 @@ export default function Landing({ onNavigateToDashboard, onNavigateToMiner, onNa
               { name: 'Linux (.deb)', ext: '@qvac/sdk in Docker', icon: 'L', color: 'green', url: 'https://github.com/TerexitariusStomp/qvac-chimera/releases/latest/download/Chimera_1.0.0_amd64.deb' },
               { name: 'Linux (.rpm)', ext: '@qvac/sdk in Docker', icon: 'L', color: 'green', url: 'https://github.com/TerexitariusStomp/qvac-chimera/releases/latest/download/Chimera-1.0.0-1.x86_64.rpm' },
               { name: 'Linux (AppImage)', ext: '@qvac/sdk in Docker', icon: 'L', color: 'green', url: 'https://github.com/TerexitariusStomp/qvac-chimera/releases/latest' },
-              { name: 'Android', ext: 'Expo + @qvac/sdk', icon: 'A', color: 'amber', url: '#mobile-setup' },
-              { name: 'iOS', ext: 'Expo + @qvac/sdk', icon: 'i', color: 'amber', url: '#mobile-setup' },
+              { name: 'Android', ext: 'Play Store — standalone node', icon: 'A', color: 'amber', url: '#mobile-setup' },
+              { name: 'iOS', ext: 'App Store — standalone node', icon: 'i', color: 'amber', url: '#mobile-setup' },
             ].map((p, i) => (
               <FadeUp key={p.name} delay={i * 80}>
                 <a

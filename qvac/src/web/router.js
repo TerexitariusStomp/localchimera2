@@ -9,9 +9,6 @@ export const ROUTES = [
   ['POST', '/api/signin',             'handleSignIn'],
   ['GET',  '/api/download',           'handleDownload'],
   ['GET',  '/api/status',             'handleStatus'],
-  ['GET',  '/api/relay/status',       'handleRelayStatus'],
-  ['GET',  '/api/relay/earnings',     'handleRelayEarnings'],
-  ['GET',  '/api/relay/devices',      'handleRelayDevices'],
   // AI Writer
   ['POST', '/api/ai-write',           'handleAIWrite'],
   ['GET',  '/api/ai-status',          'handleAIStatus'],

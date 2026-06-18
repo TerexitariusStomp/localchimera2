@@ -10,7 +10,6 @@ import { matchRoute } from './router.js';
 import { ok, accepted, badRequest, serverError, serviceUnavailable, parseBody } from './reply.js';
 import { extractBoundary, readBody, parseMultipart } from './multipart.js';
 import { repoToMarkdown } from './repoDigest.js';
-import { RelayServer } from '../relay/server.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +18,7 @@ const __dirname = path.dirname(__filename);
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'frontend', 'dist');
 
 export class WebServer {
-  constructor(config, nodeManager = null, relayServer = null) {
+  constructor(config, nodeManager = null) {
     this.config = config;
     this.nodeManager = nodeManager;
     this.logger = new Logger('WebServer');
@@ -27,7 +26,6 @@ export class WebServer {
     this.port = process.env.PORT || 3002;
     this.indexer = new MarkdownIndexer();
     this.orchestrator = new NodeOrchestrator();
-    this.relay = relayServer || new RelayServer({ port: 8765 });
   }
 
   async initialize() {
@@ -232,32 +230,6 @@ Copy the topic hex and invite others to join.
   async handleStatus(req, res) {
     if (!this.nodeManager) { serviceUnavailable(res, 'Node manager not available'); return; }
     ok(res, this.nodeManager.getStatus());
-  }
-
-  async handleRelayStatus(req, res) {
-    const devices = this.relay ? this.relay.getConnectedDevices() : [];
-    ok(res, {
-      enabled: !!this.relay,
-      devices: devices.length,
-      deviceIds: devices,
-      relayPort: this.relay?.port || null
-    });
-  }
-
-  async handleRelayEarnings(req, res) {
-    if (!this.relay) { ok(res, { earnings: {} }); return; }
-    ok(res, { earnings: this.relay.getAllEarnings() });
-  }
-
-  async handleRelayDevices(req, res) {
-    if (!this.relay) { ok(res, { devices: [] }); return; }
-    const deviceIds = this.relay.getConnectedDevices();
-    const devices = deviceIds.map(id => ({
-      id,
-      connected: this.relay.isDeviceConnected(id),
-      earnings: this.relay.getEarnings(id)
-    }));
-    ok(res, { devices });
   }
   
   async handleAIWrite(req, res) {
