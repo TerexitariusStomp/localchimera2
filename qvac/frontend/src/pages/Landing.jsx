@@ -12,7 +12,7 @@ function GridOverlay() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
+      className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
       style={{
         backgroundImage: `
           linear-gradient(rgba(0,229,255,1) 1px, transparent 1px),
@@ -26,7 +26,7 @@ function GridOverlay() {
 
 function AmbientGlows() {
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
       <div className="absolute -top-60 left-1/3 w-[700px] h-[700px] rounded-full bg-cyan-500/8 blur-[140px]" />
       <div className="absolute top-1/2 -right-60 w-[600px] h-[600px] rounded-full bg-purple-600/8 blur-[130px]" />
       <div className="absolute bottom-40 left-0 w-[500px] h-[400px] rounded-full bg-cyan-400/5 blur-[120px]" />
@@ -42,10 +42,12 @@ function FadeUp({ children, delay = 0, className = '' }) {
     if (!el) return
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) setVisible(true)
-    }, { threshold: 0.1, rootMargin: '-60px' })
+    }, { threshold: 0.05, rootMargin: '-40px' })
     observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
+    // Fallback: ensure content becomes visible
+    const timer = setTimeout(() => setVisible(true), 300 + delay)
+    return () => { observer.disconnect(); clearTimeout(timer) }
+  }, [delay])
   return (
     <div
       ref={ref}
@@ -205,18 +207,18 @@ export default function Landing({ onNavigateToDashboard, onNavigateToMiner, onNa
 
         <FadeUp delay={150}>
           <h1
-            style={{ fontFamily: "'Oxanium', sans-serif", fontWeight: 800, fontSize: 'clamp(44px, 8vw, 88px)', lineHeight: 1.02, letterSpacing: '-0.025em' }}
+            style={{ fontFamily: "'Oxanium', sans-serif", fontWeight: 800, fontSize: 'clamp(44px, 8vw, 88px)', lineHeight: 1.02, letterSpacing: '-0.025em', color: '#fff' }}
             className="bg-gradient-to-br from-white via-white to-white/35 bg-clip-text text-transparent mb-6 max-w-4xl"
           >
             Decentralized LLM,<br />
-            <span style={{ fontFamily: "'Oxanium', sans-serif" }} className="bg-gradient-to-r from-cyan-400 via-cyan-300 to-purple-400 bg-clip-text text-transparent">
+            <span style={{ fontFamily: "'Oxanium', sans-serif", color: '#fff' }} className="bg-gradient-to-r from-cyan-400 via-cyan-300 to-purple-400 bg-clip-text text-transparent">
               woven into your app.
             </span>
           </h1>
         </FadeUp>
 
         <FadeUp delay={250}>
-          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(15px, 2vw, 19px)', lineHeight: 1.75 }} className="text-white/45 max-w-2xl mb-10">
+          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(15px, 2vw, 19px)', lineHeight: 1.75 }} className="text-white/70 max-w-2xl mb-10">
             A distributed AI wiki and miner node. The LLMwiki is powered by the same QVAC inference backend that serves task networks like Cortensor, Chutes, and Routstr. All inference runs through one unified QVAC instance.
           </p>
         </FadeUp>
