@@ -392,6 +392,15 @@ print(result.text_content)
     ok(res, result);
   }
 
+  async handleLLMWikiDelete(req, res) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const id = url.searchParams.get('id') || '';
+    if (!id) { badRequest(res, 'id is required'); return; }
+    const removed = await this.indexer.removeDocument(id);
+    if (removed) ok(res, { deleted: true });
+    else badRequest(res, 'Document not found');
+  }
+
   async handleLLMWikiSave(req, res) {
     const body = await parseBody(req);
     const { content = '', title = 'Untitled', category = 'concepts', tags = [] } = body;

@@ -140,6 +140,20 @@ export class MarkdownIndexer {
     return this.documents.find(d => d.id === id) || null;
   }
 
+  async removeDocument(id) {
+    const doc = this.getDocument(id);
+    if (!doc) return false;
+    try {
+      await fs.unlink(doc.path);
+      this.logger.info(`Deleted wiki page: ${doc.path}`);
+      await this.index();
+      return true;
+    } catch (e) {
+      this.logger.error(`Failed to delete wiki page ${doc.path}: ${e.message}`);
+      return false;
+    }
+  }
+
   listDocuments() {
     return this.documents.map(d => ({
       id: d.id,

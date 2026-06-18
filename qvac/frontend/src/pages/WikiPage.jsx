@@ -22,7 +22,7 @@ function mdToHtml(text) {
     // Code fences
     if (line.startsWith('```')) {
       if (inCode) {
-        html += `<pre style="background:#0a0a14;padding:12px;border-radius:6px;overflow:auto;font-size:13px;border:1px solid #1e1e2e;margin:8px 0"><code>${esc(codeBuf)}</code></pre>`;
+        html += `<pre style="background:#161410;padding:12px;border-radius:6px;overflow:auto;font-size:13px;border:1px solid rgba(255,255,255,0.06);margin:8px 0"><code style="color:#b0a898;font-family:'JetBrains Mono',monospace">${esc(codeBuf)}</code></pre>`;
         codeBuf = '';
         inCode = false;
         continue;
@@ -41,14 +41,14 @@ function mdToHtml(text) {
     const h1 = line.match(/^#\s+(.+)$/);
     const h2 = line.match(/^##\s+(.+)$/);
     const h3 = line.match(/^###\s+(.+)$/);
-    if (h1) { flushList(); html += `<h1 style="font-size:22px;margin:18px 0 10px;color:#f8fafc;font-weight:700">${renderInline(h1[1])}</h1>`; continue; }
-    if (h2) { flushList(); html += `<h2 style="font-size:18px;margin:16px 0 8px;color:#f8fafc;font-weight:600;border-bottom:1px solid #1e1e2e;padding-bottom:4px">${renderInline(h2[1])}</h2>`; continue; }
-    if (h3) { flushList(); html += `<h3 style="font-size:15px;margin:12px 0 6px;color:#e2e2e2;font-weight:600">${renderInline(h3[1])}</h3>`; continue; }
+    if (h1) { flushList(); html += `<h1 style="font-size:26px;margin:18px 0 10px;color:#e8e2d8;font-weight:700;letter-spacing:-0.02em">${renderInline(h1[1])}</h1>`; continue; }
+    if (h2) { flushList(); html += `<h2 style="font-size:18px;margin:16px 0 8px;color:#e8e2d8;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:4px;letter-spacing:-0.01em">${renderInline(h2[1])}</h2>`; continue; }
+    if (h3) { flushList(); html += `<h3 style="font-size:15px;margin:12px 0 6px;color:#c9a96e;font-weight:600">${renderInline(h3[1])}</h3>`; continue; }
 
     // Blockquote
     if (line.startsWith('> ')) {
       flushList();
-      html += `<blockquote style="border-left:3px solid #3b82f6;padding-left:10px;margin:8px 0;color:#94a3b8">${renderInline(line.slice(2))}</blockquote>`;
+      html += `<blockquote style="border-left:3px solid #c9a96e;padding-left:10px;margin:8px 0;color:#7a7468;font-style:italic">${renderInline(line.slice(2))}</blockquote>`;
       continue;
     }
 
@@ -68,12 +68,12 @@ function mdToHtml(text) {
 
     // Horizontal rule
     if (line.match(/^---+$/)) {
-      html += '<hr style="border:none;border-top:1px solid #1e1e2e;margin:12px 0"/>';
+      html += '<hr style="border:none;border-top:1px solid rgba(255,255,255,0.06);margin:12px 0"/>';
       continue;
     }
 
     // Regular paragraph
-    html += `<p style="margin:6px 0;line-height:1.7">${renderInline(line)}</p>`;
+    html += `<p style="margin:6px 0;line-height:1.7;color:#b0a898">${renderInline(line)}</p>`;
   }
   flushList();
   return html;
@@ -83,9 +83,9 @@ function renderInline(text) {
   return text
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code style="background:#1e1e2e;padding:1px 4px;border-radius:3px;font-size:13px">$1</code>')
-    .replace(/\[\[([^\]]+)\]\]/g, '<a href="#" style="color:#60a5fa;text-decoration:none" onclick="return false">$1</a>')
-    .replace(/#([a-zA-Z0-9_-]+)/g, '<span style="color:#f472b6">#$1</span>');
+    .replace(/`([^`]+)`/g, '<code style="background:#161410;padding:1px 5px;border-radius:3px;font-size:13px;color:#c9a96e;border:1px solid rgba(255,255,255,0.06)">$1</code>')
+    .replace(/\[\[([^\]]+)\]\]/g, '<a href="#" style="color:#c9a96e;text-decoration:none;border-bottom:1px dotted rgba(201,169,110,0.4)" onclick="return false">$1</a>')
+    .replace(/#([a-zA-Z0-9_-]+)/g, '<span style="color:#7a7468">#$1</span>');
 }
 
 /* ─── TOC extraction ─── */
@@ -343,6 +343,32 @@ export default function WikiPage({ onBack }) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedDoc) {
+      setSaveStatus('Select a page first');
+      setTimeout(() => setSaveStatus(''), 2000);
+      return;
+    }
+    if (!window.confirm('Delete this wiki page? This cannot be undone.')) return;
+    try {
+      const res = await fetch(`${API_BASE}/llmwiki-delete?id=${selectedDoc}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        setSaveStatus('Deleted');
+        setSelectedDoc(null);
+        setEditorText('');
+        fetchDocs();
+        setTimeout(() => setSaveStatus(''), 2000);
+      } else {
+        setSaveStatus('Delete failed');
+        setTimeout(() => setSaveStatus(''), 3000);
+      }
+    } catch (e) {
+      setSaveStatus('Delete failed');
+      setTimeout(() => setSaveStatus(''), 3000);
+    }
+  };
+
   const handleRewrite = async () => {
     const ta = editorRef.current;
     if (!ta) return;
@@ -571,38 +597,44 @@ export default function WikiPage({ onBack }) {
           {Object.entries(groupedDocs).sort((a,b) => a[0].localeCompare(b[0])).map(([cat, items]) => (
             <div key={cat}>
               <div style={s.navCategory}>{cat === '.' ? 'Root' : cat}</div>
-              {items.map(doc => (
-                <div
-                  key={doc.id}
-                  style={selectedDoc === doc.id ? s.navItemActive : s.navItem}
-                  onClick={() => {
-                    setSelectedDoc(doc.id);
-                    setEditorText(doc.body || `# ${doc.title}\n\n(No content loaded)`);
-                  }}
-                >
-                  <span style={s.navIcon}>📄</span>
-                  <span style={s.navTitle}>{doc.title}</span>
-                </div>
-              ))}
+              {items.map(doc => {
+                const isActive = selectedDoc === doc.id;
+                return (
+                  <div
+                    key={doc.id}
+                    style={isActive ? s.navItemActive : s.navItem}
+                    onClick={() => {
+                      setSelectedDoc(doc.id);
+                      setEditorText(doc.body || `# ${doc.title}\n\n(No content loaded)`);
+                    }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#161410'; e.currentTarget.style.color = '#b0a898'; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#7a7468'; }}
+                  >
+                    <span style={s.navIcon}>📄</span>
+                    <span style={s.navTitle}>{doc.title}</span>
+                    {isActive && <span style={{ marginLeft: 'auto', width: 4, height: 4, borderRadius: '50%', background: '#c9a96e', flexShrink: 0 }} />}
+                  </div>
+                );
+              })}
             </div>
           ))}
           {docs.length === 0 && (
             <div style={s.emptyNav}>No wiki pages yet.<br/>Generate one with AI →</div>
           )}
         </nav>
-        <div style={{ padding: '10px 12px', borderTop: '1px solid #1e1e2e', borderBottom: '1px solid #1e1e2e', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>Hyperswarm</div>
+        <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ fontSize: 10, color: '#4a4540', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: "'JetBrains Mono', monospace" }}>Hyperswarm</div>
 
           {/* Scope selector */}
-          <div style={{ display: 'flex', gap: 2, background: '#1e1e2e', borderRadius: 4, padding: 2 }}>
+          <div style={{ display: 'flex', gap: 2, background: '#161410', borderRadius: 5, padding: 2, border: '1px solid rgba(255,255,255,0.06)' }}>
             <button
-              style={{ flex: 1, padding: '3px 6px', fontSize: 10, borderRadius: 3, border: 'none', cursor: 'pointer', background: swarmScope === 'wiki' ? '#0a0a14' : 'transparent', color: swarmScope === 'wiki' ? '#e2e2e2' : '#94a3b8' }}
+              style={{ flex: 1, padding: '3px 6px', fontSize: 10, borderRadius: 4, border: 'none', cursor: 'pointer', background: swarmScope === 'wiki' ? '#0e0d0b' : 'transparent', color: swarmScope === 'wiki' ? '#b0a898' : '#4a4540' }}
               onClick={() => setSwarmScope('wiki')}
             >
               Entire Wiki
             </button>
             <button
-              style={{ flex: 1, padding: '3px 6px', fontSize: 10, borderRadius: 3, border: 'none', cursor: 'pointer', background: swarmScope === 'page' ? '#0a0a14' : 'transparent', color: swarmScope === 'page' ? '#e2e2e2' : '#94a3b8' }}
+              style={{ flex: 1, padding: '3px 6px', fontSize: 10, borderRadius: 4, border: 'none', cursor: 'pointer', background: swarmScope === 'page' ? '#0e0d0b' : 'transparent', color: swarmScope === 'page' ? '#b0a898' : '#4a4540' }}
               onClick={() => setSwarmScope('page')}
             >
               This Page
@@ -651,9 +683,9 @@ export default function WikiPage({ onBack }) {
             </div>
           )}
         </div>
-        <div style={{ padding: '10px 12px', borderTop: '1px solid #1e1e2e', borderBottom: '1px solid #1e1e2e', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>Miner Node</div>
-          <div style={{ fontSize: 10, color: nodeRunning ? '#86efac' : '#94a3b8', lineHeight: 1.5 }}>
+        <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ fontSize: 10, color: '#4a4540', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: "'JetBrains Mono', monospace" }}>Miner Node</div>
+          <div style={{ fontSize: 10, color: nodeRunning ? '#86efac' : '#7a7468', lineHeight: 1.5 }}>
             {nodeRunning ? '🟢 Running — earning on inference tasks' : '⚪ Stopped — start to earn'}
           </div>
           <input
@@ -664,14 +696,14 @@ export default function WikiPage({ onBack }) {
           />
           <div style={{ display: 'flex', gap: 4 }}>
             <button
-              style={{ flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 4, border: 'none', cursor: 'pointer', background: nodeRunning ? '#166534' : '#1e1e2e', color: nodeRunning ? '#86efac' : '#94a3b8' }}
+              style={{ flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 5, border: 'none', cursor: 'pointer', background: nodeRunning ? '#166534' : '#161410', color: nodeRunning ? '#86efac' : '#7a7468', border: '1px solid rgba(255,255,255,0.07)' }}
               onClick={startNode}
               disabled={nodeRunning}
             >
               ▶ Start
             </button>
             <button
-              style={{ flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 4, border: 'none', cursor: 'pointer', background: !nodeRunning ? '#450a0a' : '#1e1e2e', color: !nodeRunning ? '#fca5a5' : '#94a3b8' }}
+              style={{ flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 5, border: 'none', cursor: 'pointer', background: !nodeRunning ? '#450a0a' : '#161410', color: !nodeRunning ? '#fca5a5' : '#7a7468', border: '1px solid rgba(255,255,255,0.07)' }}
               onClick={stopNode}
               disabled={!nodeRunning}
             >
@@ -719,6 +751,9 @@ export default function WikiPage({ onBack }) {
           <div style={s.toolbarGroup}>
             <button style={{ ...s.toolbarBtn, background: '#166534', color: '#86efac', borderColor: '#166534' }} onClick={handleSave}>
               💾 Save
+            </button>
+            <button style={{ ...s.toolbarBtn, background: '#7f1d1d', color: '#fca5a5', borderColor: '#7f1d1d' }} onClick={handleDelete}>
+              🗑 Delete
             </button>
             {saveStatus && <span style={{ fontSize: 12, color: '#94a3b8' }}>{saveStatus}</span>}
           </div>
@@ -789,7 +824,7 @@ export default function WikiPage({ onBack }) {
         {aiOpen && (
           <div style={s.aiBody}>
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 3, borderBottom: '1px solid #1e1e2e', paddingBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 3, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 8 }}>
               {['generate','edit','draft','analyze','ingest','auto'].map(tab => (
                 <button
                   key={tab}
@@ -801,11 +836,12 @@ export default function WikiPage({ onBack }) {
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
+                    fontFamily: "'JetBrains Mono', monospace",
                     ...(tab === 'auto'
                       ? { background: aiTab === tab ? '#dc2626' : '#450a0a', color: aiTab === tab ? '#fff' : '#fca5a5', border: '1px solid #b91c1c' }
                       : aiTab === tab
-                        ? { background: '#0a0a14', color: '#e2e2e2', border: '1px solid #3e3e4e' }
-                        : { background: '#1e1e2e', color: '#94a3b8', border: '1px solid #2e2e3e' }
+                        ? { background: '#0e0d0b', color: '#c9a96e', border: '1px solid rgba(255,255,255,0.1)' }
+                        : { background: '#161410', color: '#7a7468', border: '1px solid rgba(255,255,255,0.07)' }
                     )
                   }}
                 >
@@ -884,7 +920,7 @@ export default function WikiPage({ onBack }) {
                 }} disabled={aiLoading || !draftOutline.trim()}>
                   Generate Outline
                 </button>
-                <div style={{ borderTop: '1px solid #1e1e2e', marginTop: 8, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 8, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <span style={s.aiLabel}>Section Writer</span>
                   {['Write intro','Write conclusion','Add objections','Add examples'].map(label => (
                     <button key={label} style={s.miniBtn} onClick={() => aiAction(`${label} based on the current document. Output ONLY the new section.`, 'append')} disabled={aiLoading}>
@@ -892,7 +928,7 @@ export default function WikiPage({ onBack }) {
                     </button>
                   ))}
                 </div>
-                <div style={{ borderTop: '1px solid #1e1e2e', marginTop: 8, paddingTop: 8 }}>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 8, paddingTop: 8 }}>
                   <button style={s.miniBtn} onClick={() => aiAction('Summarize the current document into a TL;DR paragraph. Output ONLY the summary.', 'append')} disabled={aiLoading}>
                     TL;DR Summary
                   </button>
@@ -916,7 +952,7 @@ export default function WikiPage({ onBack }) {
                   Weakness Scan
                 </button>
                 {analysis && (
-                  <div style={{ background: '#0a0a14', border: '1px solid #1e1e2e', borderRadius: 5, padding: 10, fontSize: 12, color: '#94a3b8', lineHeight: 1.6, whiteSpace: 'pre-wrap', marginTop: 4 }}>
+                  <div style={{ background: '#161410', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 5, padding: 10, fontSize: 12, color: '#7a7468', lineHeight: 1.6, whiteSpace: 'pre-wrap', marginTop: 4 }}>
                     {analysis}
                   </div>
                 )}
@@ -926,7 +962,7 @@ export default function WikiPage({ onBack }) {
             {/* ── Ingest Tab ── */}
             {aiTab === 'ingest' && (
               <>
-                <div style={{ padding: '8px', background: '#0a0a14', border: '1px dashed #2e2e3e', borderRadius: 5, textAlign: 'center', fontSize: 12, color: '#64748b' }}>
+                <div style={{ padding: '8px', background: '#161410', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 5, textAlign: 'center', fontSize: 12, color: '#4a4540' }}>
                   <div>Drag & drop files onto the editor</div>
                   <div style={{ fontSize: 10, marginTop: 4 }}>PDFs, Word, PowerPoint, images, HTML → Markdown</div>
                 </div>
@@ -934,7 +970,7 @@ export default function WikiPage({ onBack }) {
                   <label style={s.aiLabel}>Or browse files</label>
                   <input
                     type="file"
-                    style={{ fontSize: 11, color: '#94a3b8' }}
+                    style={{ fontSize: 11, color: '#7a7468' }}
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
@@ -996,20 +1032,20 @@ export default function WikiPage({ onBack }) {
           </div>
         )}
         {aiOpen && (
-          <div style={{ padding: '10px 14px', borderTop: '1px solid #1e1e2e', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>Openviking Memory</div>
+          <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 10, color: '#4a4540', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: "'JetBrains Mono', monospace" }}>Openviking Memory</div>
             <div style={{ fontSize: 10, color: '#86efac', lineHeight: 1.5 }}>AI memory store via REST API</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <button style={{ ...s.toolbarBtn, fontSize: 9, padding: '3px 6px', textAlign: 'left' }} onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/llmwiki-docs`)}>📋 Copy docs endpoint</button>
               <button style={{ ...s.toolbarBtn, fontSize: 9, padding: '3px 6px', textAlign: 'left' }} onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/llmwiki-search?q=`)}>📋 Copy search endpoint</button>
               <button style={{ ...s.toolbarBtn, fontSize: 9, padding: '3px 6px', textAlign: 'left' }} onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/llmwiki-graph?id=`)}>📋 Copy graph endpoint</button>
             </div>
-            <details style={{ fontSize: 10, color: '#94a3b8' }}>
-              <summary style={{ cursor: 'pointer', color: '#64748b', fontWeight: 600 }}>How to connect an AI</summary>
+            <details style={{ fontSize: 10, color: '#7a7468' }}>
+              <summary style={{ cursor: 'pointer', color: '#4a4540', fontWeight: 600 }}>How to connect an AI</summary>
               <div style={{ padding: '6px 0', display: 'flex', flexDirection: 'column', gap: 4, lineHeight: 1.5 }}>
-                <div><b style={{ color: '#e2e2e2' }}>1. Search</b><br/>GET /api/llmwiki-search?q={'{query}'}</div>
-                <div><b style={{ color: '#e2e2e2' }}>2. Read</b><br/>GET /api/llmwiki-docs</div>
-                <div><b style={{ color: '#e2e2e2' }}>3. Graph</b><br/>GET /api/llmwiki-graph?id={'{pageId}'}</div>
+                <div><b style={{ color: '#b0a898' }}>1. Search</b><br/>GET /api/llmwiki-search?q={'{query}'}</div>
+                <div><b style={{ color: '#b0a898' }}>2. Read</b><br/>GET /api/llmwiki-docs</div>
+                <div><b style={{ color: '#b0a898' }}>3. Graph</b><br/>GET /api/llmwiki-graph?id={'{pageId}'}</div>
               </div>
             </details>
           </div>
@@ -1021,62 +1057,62 @@ export default function WikiPage({ onBack }) {
 
 /* ─── Styles ─── */
 const s = {
-  layout: { display: 'flex', height: '100vh', background: '#0f0f1a', color: '#e2e2e2', fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden' },
+  layout: { display: 'flex', height: '100vh', background: '#0e0d0b', color: '#b0a898', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", overflow: 'hidden' },
 
-  sidebar: { width: 240, minWidth: 240, background: '#12121c', borderRight: '1px solid #1e1e2e', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  sidebarHeader: { padding: '14px 16px', borderBottom: '1px solid #1e1e2e', display: 'flex', alignItems: 'center' },
-  logo: { fontSize: 15, fontWeight: 700, color: '#f8fafc' },
-  backBtn: { margin: '8px 12px 0', padding: '6px 10px', background: '#1e1e2e', color: '#94a3b8', border: '1px solid #2e2e3e', borderRadius: 4, fontSize: 12, cursor: 'pointer', textAlign: 'left' },
+  sidebar: { width: 240, minWidth: 240, background: '#0b0a09', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  sidebarHeader: { padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center' },
+  logo: { fontSize: 16, fontWeight: 700, color: '#e8e2d8', letterSpacing: '-0.01em' },
+  backBtn: { margin: '8px 12px 0', padding: '6px 10px', background: '#161410', color: '#7a7468', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 5, fontSize: 12, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' },
   searchBox: { padding: '10px 12px' },
-  searchInput: { width: '100%', background: '#0a0a14', border: '1px solid #1e1e2e', borderRadius: 5, padding: '6px 10px', color: '#e2e2e2', fontSize: 13, outline: 'none' },
-  navHeader: { padding: '8px 14px 4px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: '#64748b' },
+  searchInput: { width: '100%', background: '#161410', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 6, padding: '7px 11px', color: '#b0a898', fontSize: 13, outline: 'none' },
+  navHeader: { padding: '8px 14px 4px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#4a4540', fontFamily: "'JetBrains Mono', monospace" },
   nav: { flex: 1, overflowY: 'auto', padding: '0 8px 8px' },
-  navCategory: { padding: '8px 6px 2px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6, color: '#64748b', borderTop: '1px solid #1e1e2e', marginTop: 4 },
-  navItem: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 13, color: '#94a3b8', transition: 'background 0.15s' },
-  navItemActive: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 13, color: '#e2e2e2', background: '#1e1e2e' },
-  navIcon: { fontSize: 12, opacity: 0.7 },
+  navCategory: { padding: '8px 6px 2px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#4a4540', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" },
+  navItem: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 9px', borderRadius: 5, cursor: 'pointer', fontSize: 13, color: '#7a7468', transition: 'all 0.15s' },
+  navItemActive: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 9px', borderRadius: 5, cursor: 'pointer', fontSize: 13, color: '#c9a96e', background: '#161410' },
+  navIcon: { fontSize: 12, opacity: 0.6 },
   navTitle: { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  emptyNav: { padding: '20px 12px', fontSize: 12, color: '#64748b', textAlign: 'center', lineHeight: 1.6 },
-  sidebarFooter: { padding: '10px 12px', borderTop: '1px solid #1e1e2e' },
-  newPageBtn: { width: '100%', padding: '7px 0', background: '#1e1e2e', color: '#94a3b8', border: '1px solid #2e2e3e', borderRadius: 5, fontSize: 12, cursor: 'pointer' },
+  emptyNav: { padding: '20px 12px', fontSize: 13, color: '#4a4540', textAlign: 'center', lineHeight: 1.6 },
+  sidebarFooter: { padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' },
+  newPageBtn: { width: '100%', padding: '7px 0', background: '#161410', color: '#7a7468', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 5, fontSize: 12, cursor: 'pointer', transition: 'all 0.15s' },
 
   main: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 },
 
-  toolbar: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#12121c', borderBottom: '1px solid #1e1e2e', flexShrink: 0 },
+  toolbar: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#0b0a09', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 },
   toolbarGroup: { display: 'flex', alignItems: 'center', gap: 4 },
-  toolbarBtn: { padding: '4px 10px', background: '#1e1e2e', color: '#94a3b8', border: '1px solid #2e2e3e', borderRadius: 4, fontSize: 11, cursor: 'pointer' },
-  modeBtn: { padding: '4px 12px', background: 'transparent', color: '#64748b', border: '1px solid transparent', borderRadius: 4, fontSize: 12, cursor: 'pointer' },
-  modeBtnActive: { padding: '4px 12px', background: '#1e1e2e', color: '#e2e2e2', border: '1px solid #2e2e3e', borderRadius: 4, fontSize: 12, cursor: 'pointer' },
+  toolbarBtn: { padding: '5px 11px', background: '#161410', color: '#7a7468', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 5, fontSize: 11, cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'JetBrains Mono', monospace" },
+  modeBtn: { padding: '5px 12px', background: 'transparent', color: '#4a4540', border: '1px solid transparent', borderRadius: 5, fontSize: 12, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", transition: 'all 0.15s' },
+  modeBtnActive: { padding: '5px 12px', background: '#161410', color: '#b0a898', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 5, fontSize: 12, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" },
 
   editorPane: { flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' },
   full: { flex: 1, overflow: 'auto' },
-  splitLeft: { width: '50%', overflow: 'auto', borderRight: '1px solid #1e1e2e' },
+  splitLeft: { width: '50%', overflow: 'auto', borderRight: '1px solid rgba(255,255,255,0.06)' },
   splitRight: { flex: 1, overflow: 'auto', display: 'flex' },
 
-  textarea: { width: '100%', height: '100%', background: '#0a0a14', border: 'none', padding: '16px 20px', color: '#e2e2e2', fontSize: 14, lineHeight: 1.7, fontFamily: 'ui-monospace, SFMono-Regular, monospace', resize: 'none', outline: 'none' },
-  preview: { flex: 1, padding: '16px 24px', fontSize: 14, lineHeight: 1.7, overflow: 'auto' },
+  textarea: { width: '100%', height: '100%', background: '#161410', border: 'none', padding: '18px 22px', color: '#b0a898', fontSize: 14, lineHeight: 1.7, fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace", resize: 'none', outline: 'none' },
+  preview: { flex: 1, padding: '18px 26px', fontSize: 14, lineHeight: 1.7, overflow: 'auto', color: '#b0a898' },
 
-  toc: { width: 200, minWidth: 200, padding: '16px 14px', borderLeft: '1px solid #1e1e2e', background: '#12121c', fontSize: 12 },
-  tocTitle: { fontWeight: 700, color: '#94a3b8', marginBottom: 8, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 },
-  tocItem: { padding: '3px 0', color: '#94a3b8', cursor: 'pointer' },
-  tocItem3: { padding: '3px 0 3px 12px', color: '#64748b', cursor: 'pointer' },
+  toc: { width: 200, minWidth: 200, padding: '16px 14px', borderLeft: '1px solid rgba(255,255,255,0.06)', background: '#0b0a09', fontSize: 12 },
+  tocTitle: { fontWeight: 700, color: '#7a7468', marginBottom: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: "'JetBrains Mono', monospace" },
+  tocItem: { padding: '3px 0', color: '#7a7468', cursor: 'pointer' },
+  tocItem3: { padding: '3px 0 3px 12px', color: '#4a4540', cursor: 'pointer' },
 
-  aiPanel: { width: 360, minWidth: 360, background: '#12121c', borderLeft: '1px solid #1e1e2e', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  aiPanelCollapsed: { width: 36, minWidth: 36, background: '#12121c', borderLeft: '1px solid #1e1e2e', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  aiHeader: { padding: '12px 14px', borderBottom: '1px solid #1e1e2e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' },
-  aiToggle: { fontSize: 16, color: '#64748b' },
+  aiPanel: { width: 360, minWidth: 360, background: '#0b0a09', borderLeft: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  aiPanelCollapsed: { width: 36, minWidth: 36, background: '#0b0a09', borderLeft: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  aiHeader: { padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none', color: '#b0a898' },
+  aiToggle: { fontSize: 16, color: '#4a4540' },
   aiBody: { flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 },
   aiField: { display: 'flex', flexDirection: 'column', gap: 5 },
-  aiLabel: { fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 },
-  aiTextarea: { background: '#0a0a14', border: '1px solid #1e1e2e', borderRadius: 5, padding: '8px 10px', color: '#e2e2e2', fontSize: 13, resize: 'vertical', outline: 'none', fontFamily: 'inherit' },
-  aiInput: { background: '#0a0a14', border: '1px solid #1e1e2e', borderRadius: 5, padding: '7px 10px', color: '#e2e2e2', fontSize: 13, outline: 'none' },
-  aiBtn: { background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 5, fontSize: 13, cursor: 'pointer', marginTop: 4 },
-  aiHint: { fontSize: 11, color: '#64748b', lineHeight: 1.5, marginTop: 4 },
+  aiLabel: { fontSize: 10, color: '#4a4540', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" },
+  aiTextarea: { background: '#161410', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 6, padding: '8px 10px', color: '#b0a898', fontSize: 13, resize: 'vertical', outline: 'none', fontFamily: "'Inter', sans-serif" },
+  aiInput: { background: '#161410', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 6, padding: '7px 10px', color: '#b0a898', fontSize: 13, outline: 'none' },
+  aiBtn: { background: '#c9a96e', color: '#0e0d0b', border: 'none', padding: '8px 14px', borderRadius: 5, fontSize: 12, cursor: 'pointer', marginTop: 4, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", transition: 'all 0.15s' },
+  aiHint: { fontSize: 11, color: '#4a4540', lineHeight: 1.5, marginTop: 4 },
 
-  tabBtn: { padding: '4px 8px', background: '#1e1e2e', color: '#94a3b8', border: '1px solid #2e2e3e', borderRadius: 4, fontSize: 10, cursor: 'pointer', whiteSpace: 'nowrap' },
-  tabBtnActive: { background: '#0a0a14', color: '#e2e2e2', border: '1px solid #3e3e4e' },
+  tabBtn: { padding: '4px 8px', background: '#161410', color: '#7a7468', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 4, fontSize: 10, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: "'JetBrains Mono', monospace" },
+  tabBtnActive: { background: '#0e0d0b', color: '#c9a96e', border: '1px solid rgba(255,255,255,0.1)' },
 
-  miniBtn: { padding: '5px 8px', background: '#1e1e2e', color: '#94a3b8', border: '1px solid #2e2e3e', borderRadius: 4, fontSize: 11, cursor: 'pointer', textAlign: 'left' },
+  miniBtn: { padding: '5px 8px', background: '#161410', color: '#7a7468', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 4, fontSize: 11, cursor: 'pointer', textAlign: 'left', fontFamily: "'JetBrains Mono', monospace" },
 
-  inlineBtn: { padding: '4px 8px', background: '#2e2e3e', color: '#e2e2e2', border: '1px solid #3e3e4e', borderRadius: 4, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' },
+  inlineBtn: { padding: '4px 8px', background: '#1e1c18', color: '#b0a898', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: "'JetBrains Mono', monospace" },
 };

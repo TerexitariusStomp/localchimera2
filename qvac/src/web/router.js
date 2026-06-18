@@ -21,6 +21,7 @@ export const ROUTES = [
   ['GET',  '/api/llmwiki-docs',       'handleLLMWikiDocs'],
   ['GET',  '/api/llmwiki-search',     'handleLLMWikiSearch'],
   ['GET',  '/api/llmwiki-graph',      'handleLLMWikiGraph'],
+  ['DELETE', '/api/llmwiki-delete',   'handleLLMWikiDelete'],
   ['GET',  '/api/wiki-status',        'handleWikiStatus'],
   // Swarm
   ['POST', '/api/swarm/create',        'handleSwarmCreate'],
