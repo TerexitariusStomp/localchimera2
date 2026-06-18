@@ -15,7 +15,7 @@ A standalone QVAC inference node running `@qvac/sdk` inside a hardened Docker co
 ┌────────────────────▼────────────────────────────────┐
 │  Docker Container (Hardened)                        │
 │  - Non-root user (chimera)                          │
-│  - @qvac/sdk (llama.cpp + Metal/Vulkan)             │
+│  - @qvac/sdk (QVAK + Metal/Vulkan)                  │
 │  - Node.js backend: miners, P2P, wiki API             │
 │  - LLM Wiki with auto-save (2s debounce)             │
 │  - Hypercore + Pear P2P swarm sync                 │
@@ -107,7 +107,7 @@ npx cap open android  # Android Studio → Generate Signed Bundle
 
 - **LLM Wiki** — Opens directly, no landing page. Auto-saves every 2s.
 - **Time-ago indicator** — "Last saved 12s ago" beside Delete button.
-- **QVAC SDK** — `@qvac/sdk` powers all inference (llama.cpp).
+- **QVAC SDK** — `@qvac/sdk` powers all inference (QVAK).
 - **Standalone** — Each device is its own node. No InferenceRouter, no relay.
 - **Hardened** — Docker container runs as non-root with minimal deps.
 - **P2P** — Pear P2P swarm sync for wiki pages across devices.

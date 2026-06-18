@@ -118,7 +118,7 @@
     Open source · Permissionless
   </div>
   <h1 class="gradient-text">Local AI apps<br>that earn when idle.</h1>
-  <p>Write & earn with AI. Transform unstructured content into structured knowledge. Your device runs the inference. You keep the revenue.</p>
+  <p>Run a QVAC inference node on any device. QVAK powers local AI. Mine tasks, earn revenue — all on your hardware.</p>
   <a href="#download" class="hero-cta">Download</a>
 </section>
 
@@ -127,23 +127,13 @@
     <div class="section-header">
       <div class="section-label">What You Get</div>
       <h2>One node.<br>Two jobs.</h2>
-      <p>Local AI first, shared capacity second.</p>
+      <p>QVAK local inference. P2P networking. Mine tasks. Earn revenue.</p>
     </div>
     <div class="cards">
       <div class="card">
-        <div class="card-icon" style="background:rgba(0,229,255,.1);color:#00e5ff">⚡</div>
-        <h3>Generation Engine</h3>
-        <p>Transform raw content into structured knowledge. AI writes, edits, and organizes your wiki in real time.</p>
-      </div>
-      <div class="card">
-        <div class="card-icon" style="background:rgba(168,85,247,.1);color:#a855f7">🔗</div>
-        <h3>LLM Pipeline</h3>
-        <p>@qvac/sdk runs llama.cpp with Metal and Vulkan acceleration. Every inference happens locally on your device.</p>
-      </div>
-      <div class="card">
-        <div class="card-icon" style="background:rgba(34,197,94,.1);color:#22c55e">🗄</div>
-        <h3>Knowledge Storage</h3>
-        <p>Hypercore-backed wiki with auto-save. Your pages persist across devices and sync via Pear P2P swarms.</p>
+        <div class="card-icon" style="background:rgba(0,229,255,.1);color:#00e5ff">🧠</div>
+        <h3>QVAK Inference</h3>
+        <p>@qvac/sdk runs QVAK with Metal (Apple) and Vulkan (Android) acceleration. Every inference happens locally on your device.</p>
       </div>
       <div class="card">
         <div class="card-icon" style="background:rgba(249,115,22,.1);color:#f97316">🤖</div>
@@ -151,61 +141,48 @@
         <p>Mine tasks from Cortensor, Chutes, Fortytwo, Earnidle, and Routstr. Your device earns while you sleep.</p>
       </div>
       <div class="card">
+        <div class="card-icon" style="background:rgba(34,197,94,.1);color:#22c55e">🌐</div>
+        <h3>Peer-to-peer</h3>
+        <p>Pear P2P networking syncs data across swarms. Join topic-specific groups and broadcast content peer-to-peer.</p>
+      </div>
+      <div class="card">
         <div class="card-icon" style="background:rgba(59,130,246,.1);color:#3b82f6">🏗</div>
         <h3>Infrastructure Layers</h3>
         <p>Hardened Docker container with non-root user. Tauri shell on desktop. Capacitor sandbox on mobile.</p>
       </div>
       <div class="card">
+        <div class="card-icon" style="background:rgba(168,85,247,.1);color:#a855f7">📡</div>
+        <h3>Swarm Intelligence</h3>
+        <p>Commander/worker fleet mode for distributed task orchestration. Register, distribute, collect.</p>
+      </div>
+      <div class="card">
         <div class="card-icon" style="background:rgba(236,72,153,.1);color:#ec4899">🧩</div>
-        <h3>Knowledge Layer</h3>
-        <p>Open source stack: llama.cpp, Pear P2P, Hypercore, Tauri. Transparent, auditable, community-driven.</p>
+        <h3>Built on Open Source</h3>
+        <p>QVAK, Pear P2P, Hypercore, and Tauri. Transparent, auditable, community-driven.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="section" style="background:rgba(255,255,255,.01)">
+<section class="section" id="apps" style="background:rgba(255,255,255,.01);border-top:1px solid rgba(255,255,255,.06)">
   <div class="container">
     <div class="section-header">
-      <div class="section-label">Local AI first. Shared capacity second.</div>
-      <h2>Two installations.<br>One knowledge base.</h2>
-      <p>Each device is a self-contained node. The container holds your backend. The shell owns the experience.</p>
+      <div class="section-label">Apps</div>
+      <h2>Built on Chimera.</h2>
+      <p>The first apps running on the QVAC SDK.</p>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:32px">
-      <div class="code-section">
-        <div class="code-section-header">
-          <span class="code-dot" style="background:#ff5f56"></span>
-          <span class="code-dot" style="background:#ffbd2e"></span>
-          <span class="code-dot" style="background:#27c93f"></span>
-          <span style="font-size:12px;color:#7a7468;margin-left:4px">Terminal</span>
-        </div>
-        <div class="code-block">
-          <span class="output"># Install on macOS</span><br>
-          <span class="prompt">$</span> curl -fsSL chimera.sh | bash<br>
-          <span class="output">==> Downloading Chimera...</span><br>
-          <span class="output">==> Installing to /Applications...</span><br>
-          <span class="output">==> Starting supervisor...</span><br><br>
-          <span class="output"># Install on Linux</span><br>
-          <span class="prompt">$</span> docker-compose up -d<br>
-          <span class="output">==> Container running on localhost:3002</span><br>
-          <span class="prompt">$</span> <span style="animation:blink 1s infinite">_</span>
-        </div>
+    <div class="cards" style="grid-template-columns:1fr 1fr">
+      <div class="card" style="border-color:rgba(0,229,255,.2)">
+        <div class="card-icon" style="background:rgba(0,229,255,.1);color:#00e5ff">📝</div>
+        <h3>LLM Wiki</h3>
+        <p>The first app built on Chimera. A personal wiki powered by QVAK local inference. AI-assisted writing, auto-save, and P2P sync across your devices.</p>
+        <a href="https://github.com/TerexitariusStomp/qvac-chimera" target="_blank" rel="noopener" style="display:inline-block;margin-top:12px;font-size:13px;color:#00e5ff">Learn more →</a>
       </div>
-      <div class="code-section">
-        <div class="code-section-header">
-          <span class="code-dot" style="background:#ff5f56"></span>
-          <span class="code-dot" style="background:#ffbd2e"></span>
-          <span class="code-dot" style="background:#27c93f"></span>
-          <span style="font-size:12px;color:#7a7468;margin-left:4px">Knowledge Base</span>
-        </div>
-        <div class="code-block">
-          <span class="output">GET /api/llmwiki-docs</span><br>
-          <span class="output">{ "pages": 42, "categories": ["concepts"] }</span><br><br>
-          <span class="output">POST /api/llmwiki-save</span><br>
-          <span class="output">{ "title": "Quantum", "content": "# ..." }</span><br><br>
-          <span class="output">GET /api/swarm/status</span><br>
-          <span class="output">{ "peers": 3, "topics": ["wiki"] }</span>
-        </div>
+      <div class="card" style="border-color:rgba(255,255,255,.06)">
+        <div class="card-icon" style="background:rgba(255,255,255,.06);color:#7a7468">?</div>
+        <h3 style="color:#7a7468">Your app here</h3>
+        <p style="color:#5a5448">Build on the QVAC SDK. Ship an app that runs local inference and mines tasks. Get in touch to showcase your project.</p>
+        <a href="https://github.com/TerexitariusStomp/qvac-chimera" target="_blank" rel="noopener" style="display:inline-block;margin-top:12px;font-size:13px;color:#7a7468">Read the SDK docs →</a>
       </div>
     </div>
   </div>
@@ -284,8 +261,8 @@
       </div>
       <div class="how-step">
         <div class="how-num">2</div>
-        <h3>Write with AI</h3>
-        <p>Open the LLM Wiki. Start typing. AI assists in real time. Auto-save every 2 seconds. Your knowledge base grows as you work.</p>
+        <h3>Configure your node</h3>
+        <p>Set your wallet addresses. The QVAC SDK initializes QVAK inference. Your node is ready to accept and complete tasks.</p>
       </div>
       <div class="how-step">
         <div class="how-num">3</div>
@@ -299,11 +276,11 @@
 <section class="cta-section">
   <div class="container">
     <h2 class="gradient-text">Built on proven open source<br>and P2P infrastructure.</h2>
-    <p>llama.cpp · Pear P2P · Hypercore · Tauri · Capacitor</p>
+    <p>QVAK · Pear P2P · Hypercore · Tauri · Capacitor</p>
     <div class="footer-logos">
       <div class="footer-logo">
-        <div class="box" style="background:rgba(0,229,255,.1);color:#00e5ff">ll</div>
-        llama.cpp
+        <div class="box" style="background:rgba(0,229,255,.1);color:#00e5ff">Qv</div>
+        QVAK
       </div>
       <div class="footer-logo">
         <div class="box" style="background:rgba(168,85,247,.1);color:#a855f7">P2</div>

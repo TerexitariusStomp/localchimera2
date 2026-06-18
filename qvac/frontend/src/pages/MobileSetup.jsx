@@ -55,7 +55,7 @@ export function MobileSetup() {
             </div>
             <ul className="text-white/30 text-xs space-y-2 list-disc pl-4">
               <li>Full QVAC inference node with @qvac/sdk</li>
-              <li>llama.cpp with Metal GPU acceleration</li>
+              <li>QVAK with Metal GPU acceleration</li>
               <li>P2P networking via Bare runtime (Holepunch)</li>
               <li>LLM Wiki interface</li>
               <li>Mining capabilities for task networks</li>
@@ -110,7 +110,7 @@ export function MobileSetup() {
             </div>
             <ul className="text-white/30 text-xs space-y-2 list-disc pl-4">
               <li>Full QVAC inference node with @qvac/sdk</li>
-              <li>llama.cpp with Vulkan GPU acceleration</li>
+              <li>QVAK with Vulkan GPU acceleration</li>
               <li>P2P networking via Bare runtime (Holepunch)</li>
               <li>LLM Wiki interface</li>
               <li>Mining capabilities for task networks</li>
