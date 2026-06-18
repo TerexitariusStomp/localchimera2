@@ -53,6 +53,24 @@ sudo dpkg -i chimera-desktop/src-tauri/target/release/bundle/deb/Chimera_1.0.0_a
 ./chimera-desktop/src-tauri/target/release/chimera-desktop
 ```
 
+## Quick Start (Mobile — iOS/Android)
+
+The mobile app is a Capacitor-wrapped web app that runs `@qvac/sdk` natively on device. Each phone is a standalone node — no relay, no desktop dependency.
+
+```bash
+cd qvac/frontend
+npm install && npm run build
+npx cap sync
+
+# iOS → Xcode → Archive → App Store
+npx cap open ios
+
+# Android → Android Studio → Generate Signed Bundle → Play Store
+npx cap open android
+```
+
+All platforms open directly to the LLM Wiki with auto-save.
+
 ## Build from Source
 
 ### Prerequisites
