@@ -4,7 +4,6 @@ import { ChutesMiner } from './ChutesMiner.js';
 import { FortytwoMiner } from './FortytwoMiner.js';
 import { EarnidleMiner } from './EarnidleMiner.js';
 import { RoutstrMiner } from './RoutstrMiner.js';
-import { SolanaMiner } from './SolanaMiner.js';
 
 export class MinerManager {
   constructor(config, dataStore, taskMonitor = null, inferenceRouter = null) {
@@ -56,12 +55,6 @@ export class MinerManager {
       const miner = new RoutstrMiner(this.config.routstr.config, this.inferenceRouter, this.evmAddress);
       await miner.initialize();
       this.miners.set('routstr', miner);
-    }
-
-    if (this.config.solana.enabled) {
-      const miner = new SolanaMiner(this.config.solana.config, this.inferenceRouter, this.evmAddress);
-      await miner.initialize();
-      this.miners.set('solana', miner);
     }
 
     this.logger.info(`Initialized ${this.miners.size} miners`);
