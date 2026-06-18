@@ -161,8 +161,6 @@ export default function WikiPage({ onBack }) {
     fetchStatus();
     const saved = localStorage.getItem('chimeraEvmAddress');
     if (saved) setEvmAddress(saved);
-    const poll = setInterval(fetchMinerStatus, 5000);
-    return () => clearInterval(poll);
   }, []);
   useEffect(() => { setToc(extractToc(editorText)); }, [editorText]);
   useEffect(() => () => { if (autoIntervalRef) clearInterval(autoIntervalRef); }, []);
