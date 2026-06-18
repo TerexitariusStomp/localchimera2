@@ -131,34 +131,34 @@
     </div>
     <div class="cards">
       <div class="card">
-        <div class="card-icon" style="background:rgba(0,229,255,.1);color:#00e5ff">💰</div>
-        <h3>Earn when idle</h3>
-        <p>Your device mines inference tasks from Cortensor, Chutes, Fortytwo, Earnidle, and Routstr. Get paid for every completion.</p>
+        <div class="card-icon" style="background:rgba(0,229,255,.1);color:#00e5ff">⚡</div>
+        <h3>Generation Engine</h3>
+        <p>Transform raw content into structured knowledge. AI writes, edits, and organizes your wiki in real time.</p>
       </div>
       <div class="card">
-        <div class="card-icon" style="background:rgba(168,85,247,.1);color:#a855f7">🧠</div>
-        <h3>LLM Inference</h3>
-        <p>Powered by @qvac/sdk running llama.cpp with Metal (Apple) and Vulkan (Android) acceleration. Fully local.</p>
+        <div class="card-icon" style="background:rgba(168,85,247,.1);color:#a855f7">🔗</div>
+        <h3>LLM Pipeline</h3>
+        <p>@qvac/sdk runs llama.cpp with Metal and Vulkan acceleration. Every inference happens locally on your device.</p>
       </div>
       <div class="card">
-        <div class="card-icon" style="background:rgba(34,197,94,.1);color:#22c55e">🌐</div>
-        <h3>Peer-to-peer</h3>
-        <p>Pear P2P networking syncs wiki pages across swarms. Join topic-specific groups and broadcast content.</p>
+        <div class="card-icon" style="background:rgba(34,197,94,.1);color:#22c55e">🗄</div>
+        <h3>Knowledge Storage</h3>
+        <p>Hypercore-backed wiki with auto-save. Your pages persist across devices and sync via Pear P2P swarms.</p>
       </div>
       <div class="card">
-        <div class="card-icon" style="background:rgba(249,115,22,.1);color:#f97316">🛡</div>
-        <h3>Hardened sandbox</h3>
-        <p>Desktop runs in Docker with a non-root user and minimal runtime. Mobile runs in the native OS sandbox.</p>
+        <div class="card-icon" style="background:rgba(249,115,22,.1);color:#f97316">🤖</div>
+        <h3>Inference / Agents</h3>
+        <p>Mine tasks from Cortensor, Chutes, Fortytwo, Earnidle, and Routstr. Your device earns while you sleep.</p>
       </div>
       <div class="card">
-        <div class="card-icon" style="background:rgba(59,130,246,.1);color:#3b82f6">📡</div>
-        <h3>Swarm intelligence</h3>
-        <p>Commander/worker fleet mode for distributed task orchestration. Register, distribute, collect.</p>
+        <div class="card-icon" style="background:rgba(59,130,246,.1);color:#3b82f6">🏗</div>
+        <h3>Infrastructure Layers</h3>
+        <p>Hardened Docker container with non-root user. Tauri shell on desktop. Capacitor sandbox on mobile.</p>
       </div>
       <div class="card">
-        <div class="card-icon" style="background:rgba(236,72,153,.1);color:#ec4899">📖</div>
-        <h3>Built on open source</h3>
-        <p>llama.cpp, Pear P2P, Hypercore, and Tauri. Transparent, auditable, community-driven.</p>
+        <div class="card-icon" style="background:rgba(236,72,153,.1);color:#ec4899">🧩</div>
+        <h3>Knowledge Layer</h3>
+        <p>Open source stack: llama.cpp, Pear P2P, Hypercore, Tauri. Transparent, auditable, community-driven.</p>
       </div>
     </div>
   </div>
@@ -167,8 +167,8 @@
 <section class="section" style="background:rgba(255,255,255,.01)">
   <div class="container">
     <div class="section-header">
-      <div class="section-label">Architecture</div>
-      <h2>Local AI first.<br>Shared capacity second.</h2>
+      <div class="section-label">Local AI first. Shared capacity second.</div>
+      <h2>Two installations.<br>One knowledge base.</h2>
       <p>Each device is a self-contained node. The container holds your backend. The shell owns the experience.</p>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:32px">
@@ -180,10 +180,13 @@
           <span style="font-size:12px;color:#7a7468;margin-left:4px">Terminal</span>
         </div>
         <div class="code-block">
+          <span class="output"># Install on macOS</span><br>
           <span class="prompt">$</span> curl -fsSL chimera.sh | bash<br>
           <span class="output">==> Downloading Chimera...</span><br>
           <span class="output">==> Installing to /Applications...</span><br>
-          <span class="output">==> Starting supervisor...</span><br>
+          <span class="output">==> Starting supervisor...</span><br><br>
+          <span class="output"># Install on Linux</span><br>
+          <span class="prompt">$</span> docker-compose up -d<br>
           <span class="output">==> Container running on localhost:3002</span><br>
           <span class="prompt">$</span> <span style="animation:blink 1s infinite">_</span>
         </div>
@@ -193,15 +196,15 @@
           <span class="code-dot" style="background:#ff5f56"></span>
           <span class="code-dot" style="background:#ffbd2e"></span>
           <span class="code-dot" style="background:#27c93f"></span>
-          <span style="font-size:12px;color:#7a7468;margin-left:4px">Wiki API</span>
+          <span style="font-size:12px;color:#7a7468;margin-left:4px">Knowledge Base</span>
         </div>
         <div class="code-block">
-          <span class="output">GET /api/status</span><br>
-          <span class="output">{ "qvac": true, "model": "llama-3.2-1b" }</span><br><br>
-          <span class="output">POST /api/ai-write</span><br>
-          <span class="output">{ "prompt": "Explain quantum..." }</span><br><br>
           <span class="output">GET /api/llmwiki-docs</span><br>
-          <span class="output">{ "pages": 42, "swarmPeers": 3 }</span>
+          <span class="output">{ "pages": 42, "categories": ["concepts"] }</span><br><br>
+          <span class="output">POST /api/llmwiki-save</span><br>
+          <span class="output">{ "title": "Quantum", "content": "# ..." }</span><br><br>
+          <span class="output">GET /api/swarm/status</span><br>
+          <span class="output">{ "peers": 3, "topics": ["wiki"] }</span>
         </div>
       </div>
     </div>
@@ -269,25 +272,25 @@
 <section class="section" id="how" style="border-top:1px solid rgba(255,255,255,.06)">
   <div class="container">
     <div class="section-header">
-      <div class="section-label">Architecture</div>
-      <h2>How it works</h2>
+      <div class="section-label">How it works</div>
+      <h2>Install. Write. Earn.</h2>
       <p>Three layers. One app window.</p>
     </div>
     <div class="how-grid">
       <div class="how-step">
         <div class="how-num">1</div>
-        <h3>Tauri Desktop Shell</h3>
-        <p>The native window bundles the React frontend and loads it via the internal Tauri protocol. Start/Stop Supervisor controls live in the native header.</p>
+        <h3>Install the app</h3>
+        <p>One-line installer for macOS, Linux, and Windows. Docker compose for servers. The supervisor spins up the container automatically.</p>
       </div>
       <div class="how-step">
         <div class="how-num">2</div>
-        <h3>Supervisor Sidecar</h3>
-        <p>A Go binary bundled as externalBin manages the Docker container lifecycle: pull image, start container, health checks, log streaming.</p>
+        <h3>Write with AI</h3>
+        <p>Open the LLM Wiki. Start typing. AI assists in real time. Auto-save every 2 seconds. Your knowledge base grows as you work.</p>
       </div>
       <div class="how-step">
         <div class="how-num">3</div>
-        <h3>Hardened Container</h3>
-        <p>The Docker container runs Node.js, @qvac/sdk, miners, P2P networking, and the wiki API server on localhost:3002. Non-root user. Minimal deps.</p>
+        <h3>Earn when idle</h3>
+        <p>Connect your wallets. The node mines inference tasks in the background. Revenue streams to you while the device is idle.</p>
       </div>
     </div>
   </div>
@@ -295,7 +298,7 @@
 
 <section class="cta-section">
   <div class="container">
-    <h2 class="gradient-text">Built on proven local-first<br>and P2P infrastructure.</h2>
+    <h2 class="gradient-text">Built on proven open source<br>and P2P infrastructure.</h2>
     <p>llama.cpp · Pear P2P · Hypercore · Tauri · Capacitor</p>
     <div class="footer-logos">
       <div class="footer-logo">
