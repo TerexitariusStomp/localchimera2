@@ -112,17 +112,27 @@ export class CasperEscrowBridge {
 
   async getAccountBalance(accountHashStr) {
     try {
-      const entityRes = await rpcCall('state_get_entity', {
-        entity_identifier: { AccountHash: 'account-hash-' + accountHashStr },
-      });
-      const mainPurse = entityRes.result?.entity?.AddressableEntity?.entity?.Account?.main_purse;
-      if (!mainPurse) return '0 CSPR';
-
+      // Try query_balance first (Casper 2.x)
       const balanceRes = await rpcCall('query_balance', {
         purse_identifier: { main_purse_under_account_hash: 'account-hash-' + accountHashStr },
       });
-      const balanceValue = balanceRes.result?.balance || '0';
-      return (Number(balanceValue) / 1e9).toFixed(4) + ' CSPR';
+      const balanceValue = balanceRes.result?.balance;
+      if (balanceValue !== undefined) {
+        return (Number(balanceValue) / 1e9).toFixed(4) + ' CSPR';
+      }
+
+      // Fallback: read main purse from entity then query balance by URef
+      const entityRes = await rpcCall('state_get_entity', {
+        entity_identifier: { AccountHash: 'account-hash-' + accountHashStr },
+      });
+      const mainPurse = entityRes.result?.entity?.Account?.main_purse;
+      if (!mainPurse) return '0 CSPR';
+
+      const balanceRes2 = await rpcCall('state_get_balance', {
+        purse_uref: mainPurse,
+      });
+      const balanceValue2 = balanceRes2.result?.balance_value || '0';
+      return (Number(balanceValue2) / 1e9).toFixed(4) + ' CSPR';
     } catch (e) {
       return 'Error: ' + e.message;
     }

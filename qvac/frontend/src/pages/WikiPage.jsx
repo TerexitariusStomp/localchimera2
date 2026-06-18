@@ -115,6 +115,8 @@ export default function WikiPage({ onBack }) {
   const [saveStatus, setSaveStatus] = useState('');
   const [saveTitle, setSaveTitle] = useState('');
   const [saveCategory, setSaveCategory] = useState('concepts');
+  const [lastSavedAt, setLastSavedAt] = useState(Date.now());
+  const [timeAgo, setTimeAgo] = useState('Last saved just now');
   const [rewriteStyle, setRewriteStyle] = useState('concise');
   const [toc, setToc] = useState([]);
   const editorRef = useRef(null);
@@ -152,10 +154,10 @@ export default function WikiPage({ onBack }) {
         const json = await res.json();
         if (json.success) {
           lastSavedRef.current = editorText;
-          setSaveStatus('Saved');
+          setSaveStatus('');
           setSaveTitle('');
+          setLastSavedAt(Date.now());
           await fetchDocs();
-          setTimeout(() => setSaveStatus(''), 2000);
         } else {
           setSaveStatus('Save failed');
         }
@@ -166,6 +168,20 @@ export default function WikiPage({ onBack }) {
     }, 2000);
     return () => clearTimeout(saveTimeoutRef.current);
   }, [editorText, saveTitle, saveCategory]);
+
+  // Update time-ago text every second
+  useEffect(() => {
+    const update = () => {
+      const diff = Math.floor((Date.now() - lastSavedAt) / 1000);
+      if (diff < 5) setTimeAgo('Last saved just now');
+      else if (diff < 60) setTimeAgo(`Last saved ${diff}s ago`);
+      else if (diff < 3600) setTimeAgo(`Last saved ${Math.floor(diff / 60)}m ago`);
+      else setTimeAgo(`Last saved ${Math.floor(diff / 3600)}h ago`);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [lastSavedAt]);
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoIntervalRef, setAutoIntervalRef] = useState(null);
   const [autoStatus, setAutoStatus] = useState('');
@@ -795,7 +811,7 @@ export default function WikiPage({ onBack }) {
             <button style={{ ...s.toolbarBtn, background: '#7f1d1d', color: '#fca5a5', borderColor: '#7f1d1d' }} onClick={handleDelete}>
               🗑 Delete
             </button>
-            <span style={{ fontSize: 12, color: '#94a3b8', minWidth: 120, textAlign: 'right' }}>{saveStatus || ' '}</span>
+            <span style={{ fontSize: 12, color: '#94a3b8', minWidth: 140, textAlign: 'right' }}>{saveStatus || timeAgo}</span>
           </div>
         </div>
 
