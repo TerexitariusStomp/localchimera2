@@ -10,7 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # ─── Backend deps ───
 COPY package*.json ./
-RUN npm install
+RUN npm install && \
+    find node_modules -path "*/prebuilds/android-*" -delete && \
+    find node_modules -path "*/prebuilds/ios-*" -delete && \
+    find node_modules -path "*/prebuilds/darwin-*" -delete && \
+    find node_modules -path "*/prebuilds/win32-*" -delete && \
+    find node_modules -path "*/prebuilds/linux-arm64" -delete && \
+    rm -rf node_modules/.cache 2>/dev/null || true
 
 # ─── Frontend deps & build ───
 COPY frontend/package*.json ./frontend/

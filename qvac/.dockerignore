@@ -3,6 +3,21 @@ node_modules
 npm-debug.log
 package-lock.json
 
+# QVAC prebuilds (not needed in container, will install for target platform)
+**/prebuilds/android-*
+**/prebuilds/ios-*
+**/prebuilds/linux-arm64
+**/prebuilds/darwin-*
+**/prebuilds/win32-*
+
+# Large model files
+*.gguf
+*.bin
+*.onnx
+*.pt
+*.pth
+*.safetensors
+
 # Data
 data
 *.db
