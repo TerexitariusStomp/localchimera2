@@ -193,11 +193,6 @@ export default function Landing({ onNavigateToDashboard, onNavigateToMiner, onNa
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 pt-24 pb-16">
-        <div aria-hidden className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-[560px] h-[560px] rounded-full border border-cyan-400/6 shadow-[0_0_80px_#00e5ff0a]" />
-          <div className="absolute w-[380px] h-[380px] rounded-full border border-purple-500/6" />
-        </div>
-
         <FadeUp delay={50}>
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/8 bg-white/3 mb-8 text-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_6px_#4ade80] animate-pulse" />
