@@ -6,11 +6,11 @@ import { EarnidleMiner } from './EarnidleMiner.js';
 import { RoutstrMiner } from './RoutstrMiner.js';
 
 export class MinerManager {
-  constructor(config, dataStore, taskMonitor = null, inferenceRouter = null) {
+  constructor(config, dataStore, taskMonitor = null, inferenceLayer = null) {
     this.config = config;
     this.dataStore = dataStore;
     this.taskMonitor = taskMonitor;
-    this.inferenceRouter = inferenceRouter;
+    this.inferenceLayer = inferenceLayer;
     this.logger = new Logger('MinerManager');
     this.miners = new Map();
     this.currentMiner = null;
@@ -28,31 +28,31 @@ export class MinerManager {
 
     // Initialize miners based on config
     if (this.config.cortensor.enabled) {
-      const miner = new CortensorMiner(this.config.cortensor.config, this.inferenceRouter);
+      const miner = new CortensorMiner(this.config.cortensor.config, this.inferenceLayer);
       await miner.initialize();
       this.miners.set('cortensor', miner);
     }
 
     if (this.config.chutes.enabled) {
-      const miner = new ChutesMiner(this.config.chutes.config, this.inferenceRouter, this.evmAddress);
+      const miner = new ChutesMiner(this.config.chutes.config, this.inferenceLayer, this.evmAddress);
       await miner.initialize();
       this.miners.set('chutes', miner);
     }
 
     if (this.config.fortytwo.enabled) {
-      const miner = new FortytwoMiner(this.config.fortytwo.config, this.inferenceRouter);
+      const miner = new FortytwoMiner(this.config.fortytwo.config, this.inferenceLayer);
       await miner.initialize();
       this.miners.set('fortytwo', miner);
     }
 
     if (this.config.earnidle.enabled) {
-      const miner = new EarnidleMiner(this.config.earnidle.config, this.inferenceRouter);
+      const miner = new EarnidleMiner(this.config.earnidle.config, this.inferenceLayer);
       await miner.initialize();
       this.miners.set('earnidle', miner);
     }
 
     if (this.config.routstr.enabled) {
-      const miner = new RoutstrMiner(this.config.routstr.config, this.inferenceRouter, this.evmAddress);
+      const miner = new RoutstrMiner(this.config.routstr.config, this.inferenceLayer, this.evmAddress);
       await miner.initialize();
       this.miners.set('routstr', miner);
     }

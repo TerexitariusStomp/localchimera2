@@ -1,9 +1,9 @@
 import { Logger } from '../core/Logger.js';
 
 export class CortensorMiner {
-  constructor(config, inferenceRouter = null) {
+  constructor(config, inferenceLayer = null) {
     this.config = config;
-    this.inferenceRouter = inferenceRouter;
+    this.inferenceLayer = inferenceLayer;
     this.name = 'cortensor';
     this.logger = new Logger('CortensorMiner');
     this.isRunning = false;
@@ -91,9 +91,9 @@ export class CortensorMiner {
   async onInferenceTask(task) {
     this.logger.info(`Inference task detected: ${task.id || 'unknown'}`);
     
-    if (this.inferenceRouter) {
+    if (this.inferenceLayer) {
       this.logger.info('Routing task through centralized inference router');
-      const result = await this.inferenceRouter.routeInferenceRequest(task, this.name);
+      const result = await this.inferenceLayer.handleInferenceRequest(task, this.name);
       this.logger.info(`Inference result: ${result.success ? 'success' : 'failed'}`);
       return result;
     } else {

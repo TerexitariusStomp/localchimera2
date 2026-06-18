@@ -1,6 +1,5 @@
 import { Logger } from './Logger.js';
 import { QVACInferenceLayer } from '../inference/QVACInferenceLayer.js';
-import { InferenceRouter } from '../inference/InferenceRouter.js';
 import { LocalLLM } from '../inference/LocalLLM.js';
 import { HypercoreStore } from '../storage/HypercoreStore.js';
 import { PearP2P } from '../p2p/PearP2P.js';
@@ -17,7 +16,6 @@ export class NodeManager {
     this.config = config;
     this.logger = new Logger('NodeManager');
     this.inferenceLayer = null;
-    this.inferenceRouter = null;
     this.localLLM = null;
     this.dataStore = null;
     this.p2pNetwork = null;
@@ -66,19 +64,15 @@ export class NodeManager {
     this.inferenceLayer = new QVACInferenceLayer(this.config.inference, this.taskMonitor);
     await this.inferenceLayer.initialize();
     
-    // Initialize relay server for mobile edge inference
+    // Initialize relay server for mobile edge inference (optional)
     this.relay = new RelayServer({ port: this.config.relay?.port || 8765 });
-    
-    // Initialize centralized inference router (with relay for mobile forwarding)
-    this.inferenceRouter = new InferenceRouter(this.inferenceLayer, this.relay, this.config);
-    await this.inferenceRouter.initialize();
 
     // Initialize local LLM for AI writing
     this.localLLM = new LocalLLM(this.config.inference?.localLLM || {});
     await this.localLLM.initialize();
     
-    // Initialize miner manager with task monitor and inference router
-    this.minerManager = new MinerManager(this.config.miners, this.dataStore, this.taskMonitor, this.inferenceRouter);
+    // Initialize miner manager with task monitor and inference layer (each node is standalone)
+    this.minerManager = new MinerManager(this.config.miners, this.dataStore, this.taskMonitor, this.inferenceLayer);
     await this.minerManager.initialize();
     
     // Initialize web server for dashboard API (pass existing relay)
@@ -145,10 +139,7 @@ export class NodeManager {
     // Start inference layer
     await this.inferenceLayer.start();
     
-    // Start centralized inference router
-    await this.inferenceRouter.start();
-    
-    // Start relay server for mobile edge inference
+    // Start relay server for mobile edge inference (optional)
     try {
       await this.relay.start();
       this.logger.info('Relay server started for mobile edge inference');
@@ -179,7 +170,6 @@ export class NodeManager {
     await this.webServer.stop();
     await this.minerManager.stop();
     if (this.relay) await this.relay.stop();
-    await this.inferenceRouter.stop();
     await this.inferenceLayer.stop();
     await this.taskMonitor.stop();
     await this.walletManager.disconnectAllWallets();
@@ -197,7 +187,6 @@ export class NodeManager {
       // mode removed
       inference: this.inferenceLayer?.getStatus(),
       localLLM: this.localLLM?.getStatus(),
-      inferenceRouter: this.inferenceRouter?.getStatus(),
       mining: this.minerManager?.getStatus(),
       tasks: this.taskMonitor?.getStatus(),
       p2p: this.p2pNetwork?.getStatus(),

@@ -266,27 +266,42 @@ Copy the topic hex and invite others to join.
     const title = body.title?.trim();
     if (!prompt) { badRequest(res, 'Prompt is required'); return; }
 
-    const localLLM = this.nodeManager?.localLLM;
-    if (!localLLM) { serviceUnavailable(res, 'LocalLLM not initialized'); return; }
+    // Use QVAC inference layer (@qvac/sdk) for AI writing
+    const inference = this.nodeManager?.inferenceLayer;
+    if (!inference) { serviceUnavailable(res, 'QVAC inference not initialized'); return; }
 
     this.logger.info(`AI write request: ${title || prompt}`);
-    const result = await localLLM.generate(prompt, { title });
+    const result = await inference.handleInferenceRequest({
+      prompt: `Write a wiki article${title ? ` titled "${title}"` : ''} about: ${prompt}`,
+      maxTokens: 1024,
+      temperature: 0.7,
+      source: 'llmwiki-ai-write'
+    });
 
     const docId = `ai-${Date.now()}`;
-    const doc = { id: docId, title: result.title, body: result.body, source: result.source, model: result.model, prompt, createdAt: Date.now() };
+    const generatedTitle = title || result.output.split('\n')[0].replace(/^#\s*/, '').slice(0, 100);
+    const doc = {
+      id: docId,
+      title: generatedTitle,
+      body: result.output,
+      source: 'qvac-sdk',
+      model: result.model || 'llama',
+      prompt,
+      createdAt: Date.now()
+    };
 
     if (this.nodeManager?.dataStore) await this.nodeManager.dataStore.appendAIDoc(doc);
 
     const docPath = path.join(process.cwd(), 'data', 'ai-docs', `${docId}.md`);
     await fs.mkdir(path.dirname(docPath), { recursive: true });
-    await fs.writeFile(docPath, `# ${result.title}\n\n${result.body}\n\n<!-- source: ${result.source} | model: ${result.model} | prompt: ${prompt} -->\n`);
+    await fs.writeFile(docPath, `# ${doc.title}\n\n${doc.body}\n\n<!-- source: qvac-sdk | model: ${doc.model} | prompt: ${prompt} -->\n`);
 
     ok(res, doc);
   }
 
   async handleAIStatus(req, res) {
-    const localLLM = this.nodeManager?.localLLM;
-    ok(res, localLLM ? localLLM.getStatus() : { available: false });
+    const inference = this.nodeManager?.inferenceLayer;
+    ok(res, inference ? inference.getStatus() : { available: false });
   }
 
   async handleAIDocs(req, res) {
