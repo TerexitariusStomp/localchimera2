@@ -9,6 +9,7 @@ import { TaskMonitor } from '../scheduler/TaskMonitor.js';
 import { WebServer } from '../web/server.js';
 import { WalletManager } from './WalletManager.js';
 import { MultisigManager } from './MultisigManager.js';
+import { MonthlyDistributor } from '../payout/MonthlyDistributor.js';
 
 export class NodeManager {
   constructor(config) {
@@ -24,6 +25,7 @@ export class NodeManager {
     this.webServer = null;
     this.walletManager = null;
     this.multisigManager = null;
+    this.monthlyDistributor = null;
     this.isRunning = false;
   }
 
@@ -73,7 +75,10 @@ export class NodeManager {
     // Initialize web server for dashboard API
     this.webServer = new WebServer(this.config.web || {}, this);
     await this.webServer.initialize();
-    
+
+    // Initialize monthly payout distributor
+    this.monthlyDistributor = new MonthlyDistributor(this.webServer.payoutRouter);
+
     this.logger.info('All components initialized successfully');
   }
   
@@ -139,7 +144,10 @@ export class NodeManager {
     
     // Start web server for dashboard API
     await this.webServer.start();
-    
+
+    // Start monthly distributor
+    this.monthlyDistributor.start();
+
     this.isRunning = true;
     this.logger.info('Node started successfully');
     this.logger.info(`Node ID: ${this.config.node.id}`);
@@ -161,7 +169,10 @@ export class NodeManager {
     await this.walletManager.disconnectAllWallets();
     await this.p2pNetwork.stop();
     await this.dataStore.stop();
-    
+
+    // Stop monthly distributor
+    if (this.monthlyDistributor) this.monthlyDistributor.stop();
+
     this.isRunning = false;
     this.logger.info('Node stopped successfully');
   }

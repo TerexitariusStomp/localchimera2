@@ -42,6 +42,17 @@ export const ROUTES = [
   ['POST', '/api/start',              'handleStart'],
   ['POST', '/api/stop',               'handleStop'],
   ['POST', '/api/miner-test',         'handleMinerTest'],
+  // Payout Router
+  ['POST', '/api/payout/register-app',     'handlePayoutRegisterApp'],
+  ['GET',  '/api/payout/apps',            'handlePayoutGetApps'],
+  ['POST', '/api/payout/register-user',    'handlePayoutRegisterUser'],
+  ['GET',  '/api/payout/users',           'handlePayoutGetUsers'],
+  ['POST', '/api/payout/record-order',     'handlePayoutRecordOrder'],
+  ['GET',  '/api/payout/orders',           'handlePayoutGetOrders'],
+  ['GET',  '/api/payout/calculate',        'handlePayoutCalculate'],
+  ['GET',  '/api/payout/manifest',         'handlePayoutGetManifest'],
+  ['POST', '/api/payout/mark-distributed', 'handlePayoutMarkDistributed'],
+  ['GET',  '/api/payout/stats',            'handlePayoutStats'],
 ];
 
 /**

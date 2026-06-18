@@ -10,6 +10,7 @@ import { matchRoute } from './router.js';
 import { ok, accepted, badRequest, serverError, serviceUnavailable, parseBody } from './reply.js';
 import { extractBoundary, readBody, parseMultipart } from './multipart.js';
 import { repoToMarkdown } from './repoDigest.js';
+import { PayoutRouter } from '../payout/PayoutRouter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,7 @@ export class WebServer {
     this.port = process.env.PORT || 3002;
     this.indexer = new MarkdownIndexer();
     this.orchestrator = new NodeOrchestrator();
+    this.payoutRouter = new PayoutRouter();
   }
 
   async initialize() {
@@ -38,6 +40,7 @@ export class WebServer {
     // Create default welcome page if wiki is empty
     await this.ensureDefaultWelcomePage();
     this.logger.info('Web server initialized');
+    await this.payoutRouter.store._ensureDir();
   }
 
   async ensureDefaultWelcomePage() {
@@ -651,6 +654,74 @@ print(result.text_content)
       task: testTask.id,
       results
     });
+  }
+
+  // ─── Payout Router ───
+
+  async handlePayoutRegisterApp(req, res) {
+    const body = await parseBody(req);
+    const result = await this.payoutRouter.registerApp(body);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handlePayoutGetApps(req, res) {
+    ok(res, await this.payoutRouter.getApps());
+  }
+
+  async handlePayoutRegisterUser(req, res) {
+    const body = await parseBody(req);
+    const result = await this.payoutRouter.registerUser(body);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handlePayoutGetUsers(req, res) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const appId = url.searchParams.get('appId');
+    ok(res, await this.payoutRouter.getUsers(appId));
+  }
+
+  async handlePayoutRecordOrder(req, res) {
+    const body = await parseBody(req);
+    const result = await this.payoutRouter.recordOrder(body);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handlePayoutGetOrders(req, res) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const userId = url.searchParams.get('userId');
+    const appId = url.searchParams.get('appId');
+    const year = parseInt(url.searchParams.get('year') || '0', 10) || undefined;
+    const month = parseInt(url.searchParams.get('month') || '0', 10) || undefined;
+    ok(res, await this.payoutRouter.getOrders({ userId, appId, year, month }));
+  }
+
+  async handlePayoutCalculate(req, res) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const year = parseInt(url.searchParams.get('year') || String(new Date().getUTCFullYear()), 10);
+    const month = parseInt(url.searchParams.get('month') || String(new Date().getUTCMonth() + 1), 10);
+    const result = await this.payoutRouter.calculateMonthlyPayout(year, month);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handlePayoutGetManifest(req, res) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const year = parseInt(url.searchParams.get('year') || String(new Date().getUTCFullYear()), 10);
+    const month = parseInt(url.searchParams.get('month') || String(new Date().getUTCMonth() + 1), 10);
+    ok(res, await this.payoutRouter.getPayoutManifest(year, month));
+  }
+
+  async handlePayoutMarkDistributed(req, res) {
+    const body = await parseBody(req);
+    const { year, month, txHash } = body;
+    ok(res, await this.payoutRouter.markDistributed(year, month, txHash));
+  }
+
+  async handlePayoutStats(req, res) {
+    ok(res, await this.payoutRouter.getStats());
   }
 
   /* ─── Private helpers ─── */

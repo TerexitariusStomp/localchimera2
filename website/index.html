@@ -265,6 +265,51 @@
   </div>
 </section>
 
+<section class="section" id="payouts" style="background:rgba(255,255,255,.01);border-top:1px solid rgba(255,255,255,.06)">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label">Payouts</div>
+      <h2>Developer payouts. On-chain.</h2>
+      <p>Every app that integrates Chimera is tracked. Every order is recorded. Payments distributed monthly.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:800px;margin:0 auto">
+      <div class="mining-dashboard">
+        <div style="font-size:14px;font-weight:600;margin-bottom:16px">Register your app</div>
+        <input type="text" id="payoutAppId" class="mining-input" placeholder="App ID (e.g. myapp)" style="margin-bottom:8px">
+        <input type="text" id="payoutAppName" class="mining-input" placeholder="App name" style="margin-bottom:8px">
+        <input type="text" id="payoutDevWallet" class="mining-input" placeholder="Developer EVM address (0x...)" style="margin-bottom:8px">
+        <input type="number" id="payoutFeePercent" class="mining-input" placeholder="Fee % (e.g. 30)" min="0" max="100" style="margin-bottom:12px">
+        <button class="mining-btn start" onclick="registerApp()">Register App</button>
+        <div id="payoutAppResult" style="font-size:12px;color:#7a7468;margin-top:8px;min-height:16px"></div>
+      </div>
+      <div class="mining-dashboard">
+        <div style="font-size:14px;font-weight:600;margin-bottom:16px">Network stats</div>
+        <div class="mining-row">
+          <span class="mining-label">Apps registered</span>
+          <span class="mining-value" id="stat-apps">—</span>
+        </div>
+        <div class="mining-row">
+          <span class="mining-label">Users registered</span>
+          <span class="mining-value" id="stat-users">—</span>
+        </div>
+        <div class="mining-row">
+          <span class="mining-label">Total orders</span>
+          <span class="mining-value" id="stat-orders">—</span>
+        </div>
+        <div class="mining-row">
+          <span class="mining-label">Total revenue</span>
+          <span class="mining-value" id="stat-revenue">—</span>
+        </div>
+        <div class="mining-row">
+          <span class="mining-label">Last distribution</span>
+          <span class="mining-value" id="stat-dist">—</span>
+        </div>
+        <button class="mining-btn start" style="margin-top:12px" onclick="refreshPayoutStats()">↻ Refresh</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="section" id="download" style="border-top:1px solid rgba(255,255,255,.06)">
   <div class="container">
     <div class="section-header">
@@ -548,6 +593,81 @@
     if (saved) { document.getElementById('miningWallet').value = saved; validateWallet(document.getElementById('miningWallet')); }
     pollMiningStatus();
     miningPoll = setInterval(pollMiningStatus, 5000);
+  })();
+
+  // ─── Payout Dashboard ───
+  async function registerApp() {
+    const appId = document.getElementById('payoutAppId').value.trim();
+    const name = document.getElementById('payoutAppName').value.trim();
+    const developerEVM = document.getElementById('payoutDevWallet').value.trim();
+    const feePct = parseFloat(document.getElementById('payoutFeePercent').value);
+    const resultEl = document.getElementById('payoutAppResult');
+
+    if (!appId || !developerEVM || isNaN(feePct)) {
+      resultEl.textContent = 'App ID, developer EVM, and fee % are required';
+      resultEl.style.color = '#fca5a5';
+      return;
+    }
+    if (!/^0x[a-fA-F0-9]{40}$/.test(developerEVM)) {
+      resultEl.textContent = 'Invalid EVM address';
+      resultEl.style.color = '#fca5a5';
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/payout/register-app`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appId, name, developerEVM, feePercent: feePct / 100 })
+      });
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
+      if (json.success) {
+        resultEl.textContent = 'App registered: ' + appId;
+        resultEl.style.color = '#4ade80';
+        refreshPayoutStats();
+      } else {
+        resultEl.textContent = json.error || 'Registration failed';
+        resultEl.style.color = '#fca5a5';
+      }
+    } catch (e) {
+      resultEl.textContent = 'Backend not reachable';
+      resultEl.style.color = '#fca5a5';
+    }
+  }
+
+  async function refreshPayoutStats() {
+    try {
+      const res = await fetch(`${API}/payout/stats`);
+      const json = await res.json();
+      if (json.success && json.stats) {
+        const s = json.stats;
+        document.getElementById('stat-apps').textContent = s.appsRegistered;
+        document.getElementById('stat-users').textContent = s.usersRegistered;
+        document.getElementById('stat-orders').textContent = s.totalOrders;
+        document.getElementById('stat-revenue').textContent = s.totalRevenue.toFixed(6);
+      }
+      const now = new Date();
+      const prevMonth = now.getUTCMonth() === 0 ? 12 : now.getUTCMonth();
+      const prevYear = now.getUTCMonth() === 0 ? now.getUTCFullYear() - 1 : now.getUTCFullYear();
+      const distRes = await fetch(`${API}/payout/manifest?year=${prevYear}&month=${prevMonth}`);
+      const distJson = await distRes.json();
+      if (distJson.success && distJson.manifest) {
+        document.getElementById('stat-dist').textContent = `${prevYear}-${String(prevMonth).padStart(2, '0')}: ${distJson.manifest.totalRevenue.toFixed(4)}`;
+      } else {
+        document.getElementById('stat-dist').textContent = 'No distribution yet';
+      }
+    } catch (e) {
+      document.getElementById('stat-apps').textContent = '—';
+      document.getElementById('stat-users').textContent = '—';
+      document.getElementById('stat-orders').textContent = '—';
+      document.getElementById('stat-revenue').textContent = '—';
+      document.getElementById('stat-dist').textContent = '—';
+    }
+  }
+
+  (function initPayouts() {
+    refreshPayoutStats();
   })();
 </script>
 
