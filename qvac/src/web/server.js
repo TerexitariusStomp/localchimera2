@@ -10,6 +10,7 @@ import { matchRoute } from './router.js';
 import { ok, accepted, badRequest, serverError, serviceUnavailable, parseBody } from './reply.js';
 import { extractBoundary, readBody, parseMultipart } from './multipart.js';
 import { repoToMarkdown } from './repoDigest.js';
+import { RelayServer } from '../relay/server.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,7 @@ export class WebServer {
     this.port = process.env.PORT || 3002;
     this.indexer = new MarkdownIndexer();
     this.orchestrator = new NodeOrchestrator();
+    this.relay = new RelayServer({ port: 8765 });
   }
 
   async initialize() {
@@ -115,6 +117,14 @@ Copy the topic hex and invite others to join.
     this.server.listen(this.port, () => {
       this.logger.info(`Web server listening on port ${this.port}`);
     });
+    
+    // Start relay server for iOS/mobile edge inference
+    try {
+      await this.relay.start();
+      this.logger.info('Relay server started for mobile edge inference');
+    } catch (err) {
+      this.logger.warn(`Relay server failed to start: ${err.message}`);
+    }
   }
   
   async stop() {
@@ -122,6 +132,11 @@ Copy the topic hex and invite others to join.
     
     if (this.server) {
       this.server.close();
+    }
+    
+    if (this.relay) {
+      await this.relay.stop();
+      this.logger.info('Relay server stopped');
     }
     
     this.logger.info('Web server stopped');
@@ -225,6 +240,16 @@ Copy the topic hex and invite others to join.
   async handleStatus(req, res) {
     if (!this.nodeManager) { serviceUnavailable(res, 'Node manager not available'); return; }
     ok(res, this.nodeManager.getStatus());
+  }
+
+  async handleRelayStatus(req, res) {
+    const devices = this.relay ? this.relay.getConnectedDevices() : [];
+    ok(res, {
+      enabled: !!this.relay,
+      devices: devices.length,
+      deviceIds: devices,
+      relayPort: this.relay?.port || null
+    });
   }
   
   async handleAIWrite(req, res) {

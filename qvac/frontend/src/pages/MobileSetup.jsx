@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Terminal, Shield, Cpu, Wifi, Copy, Check, Zap, AlertTriangle } from 'lucide-react';
+import { Terminal, Shield, Cpu, Wifi, Copy, Check, Zap, ArrowRight } from 'lucide-react';
 
 const ANDROID_SCRIPT = `pkg update -y
 pkg install nodejs git -y
@@ -39,70 +39,65 @@ export function MobileSetup() {
           <div className="w-14 h-14 rounded-xl bg-cyan-400/10 flex items-center justify-center mx-auto mb-4">
             <Cpu size={24} className="text-cyan-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-3">iOS — Local Inference via Core ML</h2>
+          <h2 className="text-2xl font-bold text-white mb-3">iOS — Relayed P2P with Local Inference</h2>
           <p className="text-white/40 text-sm max-w-lg mx-auto leading-relaxed">
-            The iOS app bundles a Core ML model and runs inference inside the app sandbox.
-            It cannot join the P2P network or run the full QVAC node, but it can serve inference
-            to other apps on the same device via a local HTTP endpoint.
+            Your iPhone runs inference locally via Core ML, while a relay server handles all P2P networking on your behalf.
+            The relay is the "face" of your device on the network — your phone is the "brain."
           </p>
         </div>
 
         <div className="space-y-4">
           <div className="rounded-xl border border-white/8 bg-black/30 p-5">
             <div className="flex items-center gap-2 mb-3">
-              <Cpu size={14} className="text-cyan-400" />
-              <span className="text-cyan-300 text-sm font-medium">What works</span>
+              <Zap size={14} className="text-cyan-400" />
+              <span className="text-cyan-300 text-sm font-medium">How it works</span>
             </div>
-            <ul className="text-white/30 text-xs space-y-2 list-disc pl-4">
-              <li>Load and run Core ML models (TinyLlama, Phi, Mistral — converted to .mlmodelc)</li>
-              <li>Expose inference via local HTTP endpoint on localhost</li>
-              <li>Apple Neural Engine acceleration on A12+ devices</li>
-              <li>Sandboxed execution inside the iOS app container</li>
-            </ul>
-          </div>
-
-          <div className="rounded-xl border border-white/8 bg-black/30 p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle size={14} className="text-amber-400" />
-              <span className="text-amber-300 text-sm font-medium">What does not work</span>
-            </div>
-            <ul className="text-white/30 text-xs space-y-2 list-disc pl-4">
-              <li>P2P networking (Hyperswarm, DHT, UDP hole punching blocked by iOS)</li>
-              <li>Background execution (app gets suspended after ~30 seconds)</li>
-              <li>Full QVAC node (Node.js, native modules, file system APIs)</li>
-            </ul>
+            <ol className="text-white/30 text-xs space-y-2 list-decimal pl-4">
+              <li>A relay server runs on your desktop, home server, or cloud VM</li>
+              <li>The relay joins the P2P network (Hyperswarm, DHT) as your proxy</li>
+              <li>When a task arrives, the relay forwards it to your iPhone via WebSocket</li>
+              <li>Your iPhone runs Core ML inference locally (Apple Neural Engine)</li>
+              <li>Result goes back through the relay to the requester on the P2P network</li>
+            </ol>
           </div>
 
           <div className="rounded-xl border border-green-400/10 bg-green-400/5 p-5">
             <div className="flex items-center gap-2 mb-2">
-              <Zap size={14} className="text-green-400" />
-              <span className="text-green-300 text-sm font-medium">How to add a model</span>
+              <Shield size={14} className="text-green-400" />
+              <span className="text-green-300 text-sm font-medium">Why this architecture</span>
             </div>
-            <p className="text-white/30 text-xs leading-relaxed mb-2">
-              1. Convert your model to Core ML using coremltools or mlc-llm
-            </p>
-            <pre className="text-[10px] text-green-400 font-mono bg-black/40 p-2 rounded overflow-x-auto">
-{`pip install coremltools
-# Convert ONNX -> Core ML
-ct.converters.convert(onnx_model, source="onnx", outputs=["my_model.mlpackage"])`}
-            </pre>
-            <p className="text-white/30 text-xs leading-relaxed mt-2">
-              2. Add the .mlpackage to the Xcode project under <strong className="text-white/50">ios/App/App/Models/</strong>
-            </p>
-            <p className="text-white/30 text-xs leading-relaxed mt-1">
-              3. Call <code className="text-cyan-400">OnnxInference.loadModel({ modelPath: "my_model" })</code> from the app
+            <p className="text-white/30 text-xs leading-relaxed">
+              iOS blocks raw UDP sockets, DHT bootstrap, and background execution. The relay handles all networking
+              while your phone does what it does best: fast, efficient inference on the Neural Engine.
             </p>
           </div>
 
           <div className="rounded-xl border border-purple-400/10 bg-purple-400/5 p-5">
             <div className="flex items-center gap-2 mb-2">
               <Wifi size={14} className="text-purple-400" />
-              <span className="text-purple-300 text-sm font-medium">Remote monitor</span>
+              <span className="text-purple-300 text-sm font-medium">Setup</span>
             </div>
-            <p className="text-white/30 text-xs leading-relaxed">
-              For full QVAC functionality (P2P sync, mining, multi-network support), run the desktop node
-              and use this iOS app to monitor status when on the same WiFi.
-            </p>
+            <ol className="text-white/30 text-xs space-y-2 list-decimal pl-4">
+              <li>Install the desktop app (or run the Docker image) on a always-on machine</li>
+              <li>The relay server starts automatically on port 8765</li>
+              <li>Install the iOS app, enter the relay URL (e.g., <code className="text-cyan-400">ws://192.168.1.50:8765</code>)</li>
+              <li>Add a Core ML model to the iOS app bundle</li>
+              <li>Your iPhone now earns by serving inference to the P2P network</li>
+            </ol>
+          </div>
+
+          <div className="rounded-xl border border-amber-400/10 bg-amber-400/5 p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap size={14} className="text-amber-400" />
+              <span className="text-amber-300 text-sm font-medium">Adding a Core ML model</span>
+            </div>
+            <pre className="text-[10px] text-green-400 font-mono bg-black/40 p-2 rounded overflow-x-auto mt-2">
+{`pip install coremltools
+# Convert ONNX / PyTorch -> Core ML
+ct.converters.convert(model, source="pytorch", outputs=["my_model.mlpackage"])
+# Add .mlpackage to Xcode project under ios/App/App/Models/
+# Call OnnxInference.loadModel({ modelPath: "my_model" })`}
+            </pre>
           </div>
         </div>
       </div>

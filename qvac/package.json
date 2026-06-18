@@ -29,7 +29,8 @@
     "hypercore": "^10.0.0",
     "hyperswarm": "^4.0.0",
     "pear-runtime": "^1.0.0",
-    "pm2": "^7.0.1"
+    "pm2": "^7.0.1",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0"
