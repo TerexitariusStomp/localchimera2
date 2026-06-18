@@ -45,10 +45,67 @@ export default function AIWriterExample({ onNavigateBack, onNavigateToDashboard 
     }
   };
 
+  const downloadFile = (content, filename, mimeType = 'text/plain') => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const detectOS = () => {
+    const ua = navigator.userAgent;
+    if (/Android/i.test(ua)) return 'android';
+    if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+    if (ua.indexOf('Win') !== -1) return 'windows';
+    if (ua.indexOf('Mac') !== -1) return 'mac';
+    return 'linux';
+  };
+
   const handleInstall = () => {
     const address = evmAddress || '0x0000000000000000000000000000000000000000';
     localStorage.setItem('chimeraEvmAddress', address);
-    window.open('/wiki', '_blank');
+
+    const os = detectOS();
+    if (os === 'android') {
+      const link = document.createElement('a');
+      link.href = './chimera-miner.apk';
+      link.download = 'chimera-miner.apk';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setInstalled(true);
+      return;
+    }
+    if (os === 'ios') {
+      window.open('https://testflight.apple.com/join/chimera-miner', '_blank');
+      setInstalled(true);
+      return;
+    }
+
+    const repo = 'https://github.com/TerexitariusStomp/qvac-chimera.git';
+    const folder = 'qvac-chimera';
+
+    let startFile, stopFile, startContent, stopContent;
+
+    if (os === 'windows') {
+      startFile = 'start-chimera.bat';
+      stopFile = 'stop-chimera.bat';
+      startContent = `@echo off\r\necho ======================================\r\necho   Chimera LLM Wiki + Miner - START\r\necho ======================================\r\necho.\r\necho Checking Node.js...\r\nnode --version >nul 2>&1\r\nif errorlevel 1 (\r\n  echo Node.js not found. Please install from https://nodejs.org/\r\n  pause\r\n  exit /b 1\r\n)\r\necho.\r\necho Cloning Chimera...\r\nif not exist ${folder} (\r\n  git clone ${repo} || (echo Git not found ^& pause ^& exit /b 1)\r\n)\r\ncd ${folder}\\qvac\r\necho Installing dependencies...\r\nnpm install\r\ncd frontend\r\nnpm install\r\nnpm run build\r\ncd ..\r\necho Setting EVM address...\r\nset MACHINE_OWNER_EVM=${address}\r\nset APP_ID=protocol-default\r\necho Starting server on port 3002...\r\nnode src/index.js\r\n`;
+      stopContent = `@echo off\r\necho ======================================\r\necho   Chimera LLM Wiki + Miner - STOP\r\necho ======================================\r\necho.\r\necho Stop the server with Ctrl+C in the terminal window.\r\npause\r\n`;
+    } else {
+      startFile = 'start-chimera.sh';
+      stopFile = 'stop-chimera.sh';
+      startContent = `#!/bin/bash\necho "========================================"\necho "  Chimera LLM Wiki + Miner - START"\necho "========================================"\necho\necho "Checking Node.js..."\nif ! command -v node &> /dev/null; then\n  echo "Node.js not found. Install from https://nodejs.org/"\n  exit 1\nfi\nnode --version\necho\necho "Cloning Chimera..."\nif [ ! -d "${folder}" ]; then\n  git clone ${repo} || { echo "Git not found"; exit 1; }\nfi\ncd ${folder}/qvac\necho "Installing dependencies..."\nnpm install\ncd frontend\nnpm install\nnpm run build\ncd ..\necho "Setting EVM address..."\nexport MACHINE_OWNER_EVM=${address}\nexport APP_ID=protocol-default\necho "Starting server on port 3002..."\nnode src/index.js\n`;
+      stopContent = `#!/bin/bash\necho "========================================"\necho "  Chimera LLM Wiki + Miner - STOP"\necho "========================================"\necho\necho "Stop the server with Ctrl+C in the terminal window."\n`;
+    }
+
+    downloadFile(startContent, startFile, 'text/plain');
+    setTimeout(() => downloadFile(stopContent, stopFile, 'text/plain'), 500);
     setInstalled(true);
   };
 
@@ -110,11 +167,11 @@ export default function AIWriterExample({ onNavigateBack, onNavigateToDashboard 
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-4 h-4 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 text-white text-[8px] font-bold">2</div>
-                  <span className="text-[10px] text-white">Open LLM Wiki — your miner node</span>
+                  <span className="text-[10px] text-white">Download auto-detected installer</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-4 h-4 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 text-white text-[8px] font-bold">3</div>
-                  <span className="text-[10px] text-white">Start mining & earn</span>
+                  <span className="text-[10px] text-white">Run start script — LLM Wiki + miner on localhost:3002</span>
                 </div>
               </div>
               <input
@@ -128,10 +185,10 @@ export default function AIWriterExample({ onNavigateBack, onNavigateToDashboard 
                 disabled={!evmAddress.match(/^0x[a-fA-F0-9]{40}$/)}
                 className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xs font-medium py-1.5 rounded transition-colors flex items-center justify-center gap-1"
               >
-                <Download className="w-3 h-3" /> Open LLM Wiki
+                <Download className="w-3 h-3" /> Download & Install
               </button>
               <p className="text-[9px] text-indigo-200/70 text-center">
-                Wiki runs the miner node. Start/stop in sidebar.
+                {detectOS() === 'android' ? 'Android (.apk)' : detectOS() === 'ios' ? 'iOS (TestFlight)' : detectOS() === 'windows' ? 'Windows (.bat)' : detectOS() === 'mac' ? 'macOS (.sh)' : 'Linux (.sh)'}
               </p>
               <button
                 onClick={() => setShowSetup(false)}
