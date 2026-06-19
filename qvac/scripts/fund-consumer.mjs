@@ -22,7 +22,7 @@ async function main() {
   const publicKey = privateKey.publicKey;
 
   const consumer = 'e39ac4daa9a8fe88d9f074cecfd537d18eb0fbf1196c1b4dd85749bcc50723e9';
-  const amount = '30000000000'; // 30 CSPR
+  const amount = '5000000000'; // 5 CSPR
 
   const wasmBytes = (await import('fs')).readFileSync('/tmp/transfer_session.wasm');
   const args = Args.fromMap({
@@ -31,7 +31,7 @@ async function main() {
   });
 
   const session = ExecutableDeployItem.newModuleBytes(wasmBytes, args);
-  const payment = ExecutableDeployItem.standardPayment('10000000000');
+  const payment = ExecutableDeployItem.standardPayment('5000000000');
   const header = DeployHeader.default();
   header.account = publicKey;
   header.chainName = CHAIN_NAME;

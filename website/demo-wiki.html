@@ -80,19 +80,17 @@
   .miner-btns{display:flex;gap:4;margin-top:6px}
   .miner-btn{flex:1;padding:5px 0;font-size:10px;border-radius:5px;border:none;cursor:default;background:#161410;color:#7a7468;border:1px solid rgba(255,255,255,.07)}
 
-  /* Openviking Memory */
-  .openviking-memory{margin-top:auto;padding:12px 14px;border-top:1px solid rgba(255,255,255,.06);background:#0b0a09}
-  .memory-header{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:#e8e2d8;margin-bottom:8px}
-  .memory-status{font-size:10px;color:#4ade80;text-shadow:0 0 6px rgba(74,222,128,.3)}
-  .memory-body{display:flex;flex-direction:column;gap:5px}
-  .memory-item{display:flex;align-items:center;justify-content:space-between;font-size:11px}
-  .memory-key{color:#4a4540;font-family:ui-monospace,SFMono-Regular,monospace}
-  .memory-val{color:#7a7468;font-family:ui-monospace,SFMono-Regular,monospace}
-  .memory-bar{height:4px;border-radius:2px;background:#161410;overflow:hidden;margin-top:4px}
-  .memory-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#00e5ff,#a855f7)}
-  .memory-label{font-size:10px;color:#4a4540;text-align:right;margin-top:2px;font-family:ui-monospace,SFMono-Regular,monospace}
-  .memory-btn{margin-top:10px;padding:7px 0;border-radius:5px;border:1px solid rgba(255,255,255,.07);background:#161410;color:#c9a96e;font-size:11px;font-weight:600;font-family:ui-monospace,SFMono-Regular,monospace;text-align:center;cursor:pointer;transition:.15s}
-  .memory-btn:hover{background:rgba(201,169,110,.1);border-color:rgba(201,169,110,.2)}
+  /* Memory Panel */
+  .memory-panel{margin-top:auto;padding:10px 14px;border-top:1px solid rgba(255,255,255,.06);background:#0b0a09;display:flex;flex-direction:column;gap:6px}
+  .memory-header{font-size:10px;color:#4a4540;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;font-family:ui-monospace,SFMono-Regular,monospace}
+  .memory-subtitle{font-size:10px;color:#86efac;line-height:1.5}
+  .memory-btns{display:flex;flex-direction:column;gap:3px}
+  .memory-endpoint-btn{padding:3px 6px;font-size:9px;border-radius:4px;border:1px solid rgba(255,255,255,.07);background:#161410;color:#7a7468;font-family:ui-monospace,SFMono-Regular,monospace;text-align:left;cursor:pointer;transition:.15s}
+  .memory-endpoint-btn:hover{background:#0e0d0b;color:#b0a898;border-color:rgba(255,255,255,.1)}
+  .memory-details{font-size:10px;color:#7a7468}
+  .memory-details summary{cursor:pointer;color:#4a4540;font-weight:600;font-size:10px}
+  .memory-details .memory-help{padding:6px 0;display:flex;flex-direction:column;gap:4px;line-height:1.5}
+  .memory-details .memory-help b{color:#b0a898}
 </style>
 </head>
 <body>
@@ -383,30 +381,22 @@ console.log("Hello, wiki!");</code></pre>
 
       <div class="ai-hint">AI runs locally on your device via QVAK. No data leaves your machine.</div>
 
-      <div class="openviking-memory">
-        <div class="memory-header">
-          <span>🧠 Openviking Memory</span>
-          <span class="memory-status">● Live</span>
+      <div class="memory-panel">
+        <div class="memory-header">Chimera Memory</div>
+        <div class="memory-subtitle">AI memory store via REST API</div>
+        <div class="memory-btns">
+          <button class="memory-endpoint-btn" onclick="navigator.clipboard.writeText(window.location.origin + '/api/llmwiki-docs')">📋 Copy docs endpoint</button>
+          <button class="memory-endpoint-btn" onclick="navigator.clipboard.writeText(window.location.origin + '/api/llmwiki-search?q=')">📋 Copy search endpoint</button>
+          <button class="memory-endpoint-btn" onclick="navigator.clipboard.writeText(window.location.origin + '/api/llmwiki-graph?id=')">📋 Copy graph endpoint</button>
         </div>
-        <div class="memory-body">
-          <div class="memory-item">
-            <span class="memory-key">Context:</span>
-            <span class="memory-val">Chimera Wiki</span>
+        <details class="memory-details">
+          <summary>How to connect an AI</summary>
+          <div class="memory-help">
+            <div><b>1. Search</b><br>GET /api/llmwiki-search?q={query}</div>
+            <div><b>2. Read</b><br>GET /api/llmwiki-docs</div>
+            <div><b>3. Graph</b><br>GET /api/llmwiki-graph?id={pageId}</div>
           </div>
-          <div class="memory-item">
-            <span class="memory-key">Engine:</span>
-            <span class="memory-val">Volcengine QVAK</span>
-          </div>
-          <div class="memory-item">
-            <span class="memory-key">Sync:</span>
-            <span class="memory-val">P2P Hypercore</span>
-          </div>
-          <div class="memory-bar">
-            <div class="memory-fill" style="width:72%"></div>
-          </div>
-          <div class="memory-label">72% cached</div>
-          <div class="memory-btn" onclick="alert('Ingest: select text in the editor or use the Ingest tab in the AI Writer panel')">⬆ Ingest into Memory</div>
-        </div>
+        </details>
       </div>
     </div>
   </aside>

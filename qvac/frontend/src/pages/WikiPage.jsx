@@ -1135,7 +1135,7 @@ export default function WikiPage({ onBack }) {
         )}
         {aiOpen && (
           <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 10, color: '#4a4540', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: "ui-monospace, SFMono-Regular, 'Cascadia Code', 'Fira Code', monospace" }}>Openviking Memory</div>
+            <div style={{ fontSize: 10, color: '#4a4540', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: "ui-monospace, SFMono-Regular, 'Cascadia Code', 'Fira Code', monospace" }}>Chimera Memory</div>
             <div style={{ fontSize: 10, color: '#86efac', lineHeight: 1.5 }}>AI memory store via REST API</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <button style={{ ...s.toolbarBtn, fontSize: 9, padding: '3px 6px', textAlign: 'left' }} onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/llmwiki-docs`)}>📋 Copy docs endpoint</button>
