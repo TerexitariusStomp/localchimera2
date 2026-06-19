@@ -249,7 +249,7 @@ jobs:
       - name: Compress iOS app
         run: |
           cd apps/mobile/ios
-          tar -czf Chimera-iOS.tar.gz -C ../../ Chimera-iOS
+          tar -czf Chimera-iOS.tar.gz -C .. Chimera-iOS
       - name: Upload iOS to release
         uses: softprops/action-gh-release@v2
         with:
