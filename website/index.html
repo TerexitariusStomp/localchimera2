@@ -380,7 +380,7 @@
         </div>
         <div class="arrow">→</div>
       </a>
-      <a href="https://github.com/TerexitariusStomp/localchimera/pkgs/container/qvac-chimera" target="_blank" rel="noopener" class="platform">
+      <a href="https://github.com/TerexitariusStomp/localchimera/pkgs/container/localchimera" target="_blank" rel="noopener" class="platform">
         <div class="icon" style="background:rgba(34,197,94,.1);color:#22c55e">D</div>
         <div>
           <div class="name">Docker</div>
@@ -388,20 +388,22 @@
         </div>
         <div class="arrow">→</div>
       </a>
-      <div class="platform disabled">
+      <a href="https://github.com/TerexitariusStomp/localchimera/releases/latest" target="_blank" rel="noopener" class="platform" data-os="ios">
         <div class="icon" style="background:rgba(251,191,36,.1);color:#fbbf24">i</div>
         <div>
           <div class="name">iOS</div>
-          <div class="meta">App Store — coming soon</div>
+          <div class="meta">.tar.gz sideload</div>
         </div>
-      </div>
-      <div class="platform disabled">
+        <div class="arrow">→</div>
+      </a>
+      <a href="https://github.com/TerexitariusStomp/localchimera/releases/latest" target="_blank" rel="noopener" class="platform" data-os="android">
         <div class="icon" style="background:rgba(251,191,36,.1);color:#fbbf24">A</div>
         <div>
           <div class="name">Android</div>
-          <div class="meta">Play Store — coming soon</div>
+          <div class="meta">.apk download</div>
         </div>
-      </div>
+        <div class="arrow">→</div>
+      </a>
     </div>
     <div class="auto-detect-wrap">
       <button class="auto-detect-btn" id="autoDownload" onclick="autoDownload()">
@@ -508,40 +510,65 @@
     }
     window._chimeraOS = os;
 
-    // Show latest release version
+    // Pre-fetch latest release and cache for 5 minutes
+    window._chimeraRelease = null;
     (async () => {
       try {
-        const res = await fetch('https://api.github.com/repos/TerexitariusStomp/localchimera/releases/latest');
-        if (!res.ok) return;
-        const data = await res.json();
-        const tag = data.tag_name || '';
+        const cached = sessionStorage.getItem('chimeraRelease');
+        const cachedAt = sessionStorage.getItem('chimeraReleaseAt');
+        const now = Date.now();
+        if (cached && cachedAt && (now - parseInt(cachedAt, 10)) < 300_000) {
+          window._chimeraRelease = JSON.parse(cached);
+        } else {
+          const res = await fetch('https://api.github.com/repos/TerexitariusStomp/localchimera/releases/latest');
+          if (res.ok) {
+            const data = await res.json();
+            window._chimeraRelease = data;
+            sessionStorage.setItem('chimeraRelease', JSON.stringify(data));
+            sessionStorage.setItem('chimeraReleaseAt', String(now));
+          }
+        }
+        const tag = window._chimeraRelease?.tag_name || '';
         if (tag) {
           document.getElementById('versionNote').textContent = 'Latest release: ' + tag;
+          const btnLabel = document.getElementById('osLabel');
+          if (btnLabel && os !== 'unknown') {
+            const osName = os.charAt(0).toUpperCase() + os.slice(1);
+            btnLabel.textContent = 'Download ' + tag + ' for ' + osName;
+          }
         }
       } catch (_) {}
     })();
   })();
 
   function pickAsset(assets, os) {
+    if (!assets || !assets.length) return null;
     if (os === 'android') {
-      return assets.find(a => a.name.includes('Android') && a.name.endsWith('.apk'))
-        || assets.find(a => a.name.endsWith('.apk'));
+      return assets.find(a => /android.*\.apk$/.test(a.name.toLowerCase()))
+        || assets.find(a => a.name.toLowerCase().endsWith('.apk'));
     }
     if (os === 'ios') {
-      return assets.find(a => a.name.includes('iOS') && a.name.endsWith('.tar.gz'))
-        || assets.find(a => a.name.endsWith('.tar.gz') && a.name.toLowerCase().includes('ios'));
+      return assets.find(a => /ios.*\.tar\.gz$/.test(a.name.toLowerCase()))
+        || assets.find(a => a.name.toLowerCase().endsWith('.tar.gz') && a.name.toLowerCase().includes('ios'));
     }
     if (os === 'windows') {
-      return assets.find(a => a.name.includes('Windows') && (a.name.endsWith('.msi') || a.name.endsWith('.exe')))
-        || assets.find(a => a.name.endsWith('.msi')) || assets.find(a => a.name.endsWith('.exe'));
+      return assets.find(a => /windows.*\.msi$/.test(a.name.toLowerCase()))
+        || assets.find(a => /windows.*\.exe$/.test(a.name.toLowerCase()))
+        || assets.find(a => a.name.toLowerCase().endsWith('.msi'))
+        || assets.find(a => a.name.toLowerCase().endsWith('.exe'));
     }
     if (os === 'macos') {
-      return assets.find(a => a.name.includes('macOS') && a.name.endsWith('.dmg'))
-        || assets.find(a => a.name.endsWith('.dmg')) || assets.find(a => a.name.endsWith('.app.tar.gz'));
+      return assets.find(a => /mac.*\.dmg$/.test(a.name.toLowerCase()))
+        || assets.find(a => /darwin.*\.dmg$/.test(a.name.toLowerCase()))
+        || assets.find(a => a.name.toLowerCase().endsWith('.dmg'))
+        || assets.find(a => a.name.toLowerCase().endsWith('.app.tar.gz'));
     }
     if (os === 'linux') {
-      return assets.find(a => a.name.includes('Linux') && (a.name.endsWith('.deb') || a.name.endsWith('.rpm') || a.name.endsWith('.AppImage')))
-        || assets.find(a => a.name.endsWith('.deb')) || assets.find(a => a.name.endsWith('.AppImage')) || assets.find(a => a.name.endsWith('.rpm'));
+      return assets.find(a => /linux.*\.deb$/.test(a.name.toLowerCase()))
+        || assets.find(a => /linux.*\.appimage$/.test(a.name.toLowerCase()))
+        || assets.find(a => a.name.toLowerCase().endsWith('.deb'))
+        || assets.find(a => a.name.toLowerCase().endsWith('.appimage'))
+        || assets.find(a => a.name.toLowerCase().endsWith('.rpm'));
     }
     return null;
   }
@@ -566,31 +593,51 @@
   async function autoDownload() {
     const os = window._chimeraOS || 'unknown';
     const fallback = 'https://github.com/TerexitariusStomp/localchimera/releases/latest';
+    const btn = document.getElementById('autoDownload');
+    const originalLabel = document.getElementById('osLabel').textContent;
+
     if (os === 'unknown') {
       window.open(fallback, '_blank');
       return;
     }
+
+    if (btn) btn.style.opacity = '0.6';
+    document.getElementById('osLabel').textContent = 'Fetching latest release...';
+
     try {
-      const res = await fetch('https://api.github.com/repos/TerexitariusStomp/localchimera/releases/latest');
-      if (!res.ok) throw new Error('API error');
-      const data = await res.json();
+      let data = window._chimeraRelease;
+      if (!data) {
+        const res = await fetch('https://api.github.com/repos/TerexitariusStomp/localchimera/releases/latest');
+        if (!res.ok) { window.open(fallback, '_blank'); return; }
+        data = await res.json();
+        window._chimeraRelease = data;
+        sessionStorage.setItem('chimeraRelease', JSON.stringify(data));
+        sessionStorage.setItem('chimeraReleaseAt', String(Date.now()));
+      }
+
       const asset = pickAsset(data.assets || [], os);
-      if (asset && asset.browser_download_url) {
-        // GitHub asset URLs redirect to a CDN with expiring tokens.
-        // On mobile browsers this redirect chain causes "perpetual downloading"
-        // for generically-named files. With OS-identified names (Chimera-Android.apk)
-        // direct download usually works. For iOS we still open the release page
-        // since .tar.gz requires manual extraction.
-        if (os === 'ios') {
-          window.open(fallback, '_blank');
-        } else {
-          window.open(asset.browser_download_url, '_blank');
-        }
+      if (asset && asset.browser_download_url && os !== 'ios') {
+        const a = document.createElement('a');
+        a.href = asset.browser_download_url;
+        a.download = asset.name;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        document.getElementById('osLabel').textContent = 'Downloading ' + asset.name + '...';
+        setTimeout(() => {
+          document.getElementById('osLabel').textContent = originalLabel;
+          if (btn) btn.style.opacity = '1';
+        }, 3000);
       } else {
         window.open(fallback, '_blank');
       }
     } catch (e) {
       window.open(fallback, '_blank');
+    } finally {
+      if (btn) btn.style.opacity = '1';
+      const label = document.getElementById('osLabel');
+      if (label && label.textContent.startsWith('Fetching')) label.textContent = originalLabel;
     }
   }
 
