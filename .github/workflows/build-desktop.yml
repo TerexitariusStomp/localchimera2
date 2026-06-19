@@ -52,18 +52,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libsoup-3.0-dev
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.21"
-      - name: Build supervisor
+      - name: Install QVAC backend deps
         run: |
-          cd apps/desktop/supervisor
-          go build -o supervisor main.go
-      - name: Copy supervisor binary
-        run: |
-          mkdir -p apps/desktop/src-tauri/bin
-          cp apps/desktop/supervisor/supervisor apps/desktop/src-tauri/bin/supervisor-x86_64-unknown-linux-gnu
+          cd qvac
+          npm install
       - name: Build QVAC frontend
         run: |
           cd qvac/frontend
@@ -95,18 +87,10 @@ jobs:
         with:
           node-version: 20
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.21"
-      - name: Build supervisor
+      - name: Install QVAC backend deps
         run: |
-          cd apps/desktop/supervisor
-          go build -o supervisor.exe main.go
-      - name: Copy supervisor binary
-        run: |
-          mkdir -p apps/desktop/src-tauri/bin
-          copy apps/desktop/supervisor/supervisor.exe apps/desktop/src-tauri/bin/supervisor-x86_64-pc-windows-msvc.exe
+          cd qvac
+          npm install
       - name: Build QVAC frontend
         run: |
           cd qvac/frontend
@@ -140,18 +124,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.21"
-      - name: Build supervisor
+      - name: Install QVAC backend deps
         run: |
-          cd apps/desktop/supervisor
-          go build -o supervisor main.go
-      - name: Copy supervisor binary
-        run: |
-          mkdir -p apps/desktop/src-tauri/bin
-          cp apps/desktop/supervisor/supervisor apps/desktop/src-tauri/bin/supervisor-aarch64-apple-darwin
+          cd qvac
+          npm install
       - name: Build QVAC frontend
         run: |
           cd qvac/frontend
