@@ -43,9 +43,14 @@ export class EmbeddingService {
       this.logger.warn('EmbeddingService cannot start — QVAC SDK unavailable');
       return;
     }
-    await this._ensureModel();
-    this.ready = true;
-    this.logger.info('EmbeddingService ready');
+    try {
+      await this._ensureModel();
+      this.ready = true;
+      this.logger.info('EmbeddingService ready');
+    } catch (e) {
+      this.logger.warn(`EmbeddingService degraded — model load failed: ${e.message}`);
+      this.ready = false;
+    }
   }
 
   async _ensureModel() {
@@ -62,7 +67,7 @@ export class EmbeddingService {
       this.logger.info(`Loading QVAC embedding model: ${this.config.model}`);
       this.modelId = await loadModel({
         modelSrc: modelConst,
-        modelType: 'embedding',
+        modelType: 'llamacpp-embedding',
         modelConfig: { device: this.config.device },
         onProgress: (p) => {
           if (p.percent % 10 === 0) this.logger.info(`Embedding model load: ${p.percent}%`);
