@@ -11,15 +11,16 @@ oUQDQgAEJ9jdXMqmAORbNuWY2Q74wmtsZ++Bvf696PpYOZepHqWCFmTFZDzW+JYO
 fZf7vQid4otudHLFJBWkiazcayJz9g==
 -----END EC PRIVATE KEY-----`;
 
-const PROVIDER_PEM = `-----BEGIN EC PRIVATE KEY-----
-MHQCAQEEIBJLNm8sYi/pVIcbF2soCZTxr9wO3EGtlEtkA2X5bOQvoAcGBSuBBAAK
-oUQDQgAE7jl1qDI712D51EeKgfIZ974LmOYjjwkjQ3mHFrpLpL/mbwQ7mz/zmBjf
-Rm6VsWCs2wbZAkjyLfzmUUrmzvWIhQ==
------END EC PRIVATE KEY-----`;
-
 const CONTRACT_HASH = '0a8ec17ba7e8e2992b2d726675cc0c91850a9fac28667b288a34e7cee4239e5d';
+const CONTRACT_PURSE = 'uref-33418da0d442412e7513ee1660493282efdb47a3fd95a5ec7420ef7b5b18654f-007';
 
-async function callEntryPoint(pem, entryPoint, argsMap, jobId) {
+function hexToBytes(hex) {
+  const bytes = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return bytes;
+}
+
+async function callEntryPoint(pem, entryPoint, argsMap) {
   const privateKey = PrivateKey.fromPem(pem, KeyAlgorithm.SECP256K1);
   const publicKey = privateKey.publicKey;
 
@@ -70,31 +71,74 @@ async function callEntryPoint(pem, entryPoint, argsMap, jobId) {
 }
 
 async function main() {
-  const jobId = 'job:e39ac4daa9a8fe88d9f074cecfd537d18eb0fbf1196c1b4dd85749bcc50723e9:0';
+  const privateKey = PrivateKey.fromPem(CONSUMER_PEM, KeyAlgorithm.SECP256K1);
+  const publicKey = privateKey.publicKey;
+  const accountHashHex = publicKey.accountHash().toHex();
 
-  console.log('=== Testing job lifecycle ===');
+  console.log('=== Testing job lifecycle (self-provider) ===');
+  console.log('Account hash:', accountHashHex);
+
+  // Step 0: Transfer to contract purse
+  const transferPayment = ExecutableDeployItem.standardPayment('10000000000');
+  const transferHeader = DeployHeader.default();
+  transferHeader.account = publicKey;
+  transferHeader.chainName = CHAIN_NAME;
+  const transferDeployItem = sdk.TransferDeployItem.newTransfer(
+    '2500000000',
+    sdk.URef.fromString(CONTRACT_PURSE)
+  );
+  const transferSession = new ExecutableDeployItem();
+  transferSession.transfer = transferDeployItem;
+  const transferDeploy = Deploy.makeDeploy(transferHeader, transferPayment, transferSession);
+  transferDeploy.sign(privateKey);
+
+  const transferRes = await fetch(RPC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0', id: 1,
+      method: 'account_put_deploy',
+      params: { deploy: Deploy.toJSON(transferDeploy) }
+    })
+  });
+  const transferData = await transferRes.json();
+  console.log('Transfer result:', transferData.error ? 'ERROR: ' + JSON.stringify(transferData.error) : 'submitted');
+  await new Promise(r => setTimeout(r, 25000));
+
+  // Step 1: create_job
+  let status = await callEntryPoint(CONSUMER_PEM, 'create_job', {
+    consumer: CLValue.newCLByteArray(hexToBytes(accountHashHex)),
+    provider: CLValue.newCLByteArray(hexToBytes(accountHashHex)),
+    amount: CLValue.newCLUInt512('2500000000'),
+    provider_fee_bps: CLValue.newCLUint64('100'),
+    order_id: CLValue.newCLString('test-job-self'),
+  });
+  if (status !== 'SUCCESS') return;
+
+  const jobId = `job:${accountHashHex}:0`;
   console.log('Job ID:', jobId);
 
-  // Step 1: provider_ack
-  let status = await callEntryPoint(PROVIDER_PEM, 'provider_ack', {
+  // Step 2: provider_ack (self)
+  status = await callEntryPoint(CONSUMER_PEM, 'provider_ack', {
     job_id: CLValue.newCLString(jobId),
   });
   if (status !== 'SUCCESS') return;
 
-  // Step 2: provider_complete
-  status = await callEntryPoint(PROVIDER_PEM, 'provider_complete', {
+  // Step 3: provider_complete (self)
+  status = await callEntryPoint(CONSUMER_PEM, 'provider_complete', {
     job_id: CLValue.newCLString(jobId),
+    response_hash: CLValue.newCLString('response-hash-123'),
   });
   if (status !== 'SUCCESS') return;
 
-  // Step 3: consumer_confirm
+  // Step 4: consumer_confirm (self)
   status = await callEntryPoint(CONSUMER_PEM, 'consumer_confirm', {
     job_id: CLValue.newCLString(jobId),
   });
   if (status !== 'SUCCESS') return;
 
-  // Step 4: claim_payment
-  status = await callEntryPoint(PROVIDER_PEM, 'claim_payment', {
+  // Step 5: claim_payment (self)
+  status = await callEntryPoint(CONSUMER_PEM, 'claim_payment', {
     job_id: CLValue.newCLString(jobId),
   });
   if (status !== 'SUCCESS') return;
