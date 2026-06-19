@@ -134,6 +134,7 @@ async function main() {
   // Step 4: consumer_confirm (self)
   status = await callEntryPoint(CONSUMER_PEM, 'consumer_confirm', {
     job_id: CLValue.newCLString(jobId),
+    rating: CLValue.newCLUint64('5'),
   });
   if (status !== 'SUCCESS') return;
 
