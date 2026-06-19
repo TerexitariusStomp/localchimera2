@@ -412,7 +412,6 @@
         <span id="osLabel">Detecting your OS...</span>
       </button>
       <div class="auto-detect-note" id="osNote"></div>
-      <div class="auto-detect-note" id="versionNote" style="margin-top:4px;font-size:11px;color:#4a4540"></div>
     </div>
   </div>
 </section>
@@ -529,15 +528,7 @@
             sessionStorage.setItem('chimeraReleaseAt', String(now));
           }
         }
-        const tag = window._chimeraRelease?.tag_name || '';
-        if (tag) {
-          document.getElementById('versionNote').textContent = 'Latest release: ' + tag;
-          const btnLabel = document.getElementById('osLabel');
-          if (btnLabel && os !== 'unknown') {
-            const osName = os.charAt(0).toUpperCase() + os.slice(1);
-            btnLabel.textContent = 'Download ' + tag + ' for ' + osName;
-          }
-        }
+        // version info intentionally omitted from button label
       } catch (_) {}
     })();
   })();
@@ -660,7 +651,7 @@
         document.body.appendChild(iframe);
         setTimeout(() => { try { iframe.remove(); } catch(e) {} }, 30000);
 
-        if (osLabel) osLabel.textContent = 'Download started: ' + asset.name;
+        if (osLabel) osLabel.textContent = 'Downloading...';
         reset();
       } else {
         window.open(fallback, '_blank');
