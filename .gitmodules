@@ -7,3 +7,12 @@
 [submodule "upstream/llmwiki"]
 	path = upstream/llmwiki
 	url = https://github.com/lucasastorian/llmwiki.git
+[submodule "upstream/openviking"]
+	path = upstream/openviking
+	url = https://github.com/volcengine/OpenViking.git
+[submodule "upstream/otterwiki"]
+	path = upstream/otterwiki
+	url = https://github.com/redimp/otterwiki.git
+[submodule "upstream/knowledge-catalog"]
+	path = upstream/knowledge-catalog
+	url = https://github.com/GoogleCloudPlatform/knowledge-catalog.git

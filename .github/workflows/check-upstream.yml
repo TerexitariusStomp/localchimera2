@@ -86,18 +86,33 @@ jobs:
         run: |
           echo "checking<<EOF" >> $GITHUB_OUTPUT
 
-          # repo-to-markdown
-          echo "## puter-apps/repo-to-markdown" >> $GITHUB_OUTPUT
-          curl -s https://api.github.com/repos/puter-apps/repo-to-markdown/commits/main | jq -r '.[0] | \"Last commit: \" + (.commit.author.date // \"unknown\") + \" \" + (.commit.message | split(\"\\n\")[0] | .[0:60])\"' >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-
           # markitdown
           echo "## microsoft/markitdown" >> $GITHUB_OUTPUT
           curl -s https://api.github.com/repos/microsoft/markitdown/releases/latest | jq -r '"Latest release: \" + (.tag_name // \"none\") + \" \" + (.published_at // \"\")' >> $GITHUB_OUTPUT
           echo "" >> $GITHUB_OUTPUT
 
-          # OKF spec
-          echo "## GoogleCloudPlatform/knowledge-catalog OKF spec" >> $GITHUB_OUTPUT
+          # llmwiki
+          echo "## lucasastorian/llmwiki" >> $GITHUB_OUTPUT
+          curl -s https://api.github.com/repos/lucasastorian/llmwiki/commits/main | jq -r '.[0] | \"Last commit: \" + (.commit.author.date // \"unknown\") + \" \" + (.commit.message | split(\"\\n\")[0] | .[0:60])\"' >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+
+          # repo-to-markdown
+          echo "## puter-apps/repo-to-markdown" >> $GITHUB_OUTPUT
+          curl -s https://api.github.com/repos/puter-apps/repo-to-markdown/commits/main | jq -r '.[0] | \"Last commit: \" + (.commit.author.date // \"unknown\") + \" \" + (.commit.message | split(\"\\n\")[0] | .[0:60])\"' >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+
+          # openviking
+          echo "## volcengine/OpenViking" >> $GITHUB_OUTPUT
+          curl -s https://api.github.com/repos/volcengine/OpenViking/commits/main | jq -r '.[0] | \"Last commit: \" + (.commit.author.date // \"unknown\") + \" \" + (.commit.message | split(\"\\n\")[0] | .[0:60])\"' >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+
+          # otterwiki
+          echo "## redimp/otterwiki" >> $GITHUB_OUTPUT
+          curl -s https://api.github.com/repos/redimp/otterwiki/commits/main | jq -r '.[0] | \"Last commit: \" + (.commit.author.date // \"unknown\") + \" \" + (.commit.message | split(\"\\n\")[0] | .[0:60])\"' >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+
+          # knowledge-catalog / OKF spec
+          echo "## GoogleCloudPlatform/knowledge-catalog" >> $GITHUB_OUTPUT
           curl -s https://api.github.com/repos/GoogleCloudPlatform/knowledge-catalog/commits/main | jq -r '.[0] | \"Last commit: \" + (.commit.author.date // \"unknown\") + \" \" + (.commit.message | split(\"\\n\")[0] | .[0:60])\"' >> $GITHUB_OUTPUT
           echo "" >> $GITHUB_OUTPUT
 

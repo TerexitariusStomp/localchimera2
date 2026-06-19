@@ -8,7 +8,7 @@ const RPC_URL = 'http://localhost:7778/rpc';
 const CHAIN_NAME = 'casper-test';
 
 const CONTRACTS = {
-  escrowVault: '603ae9a666c3f314ae05195d3962dcbbf9146cf70443922a206358475fc75657',
+  escrowVault: '91b76e645851ae323063d38bcb23351a9bc89e46825f7e9a1df3adff4cdee833',
   computeRegistry: 'f8c969bfa7553a23deab0f77fb43210d4810156a977e0cc2695b23182e5b41d0',
   orderBook: 'cecfc698508213f63e7e7fe6f0729b090af23c87c7e444db7fc90be73736e399',
   reputation: 'fd0bf02161433c13c3070b7d0ea383c976bcbc799413638b4fedc703d4efa1db',

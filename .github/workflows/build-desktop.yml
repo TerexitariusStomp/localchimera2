@@ -184,7 +184,7 @@ jobs:
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -237,7 +237,7 @@ jobs:
       - name: Build iOS archive
         run: |
           cd apps/mobile/ios/App
-          xcodebuild -scheme App -destination 'platform=iOS Simulator,name=iPhone 15' -archivePath ../../Chimera-iOS.xcarchive archive
+          xcodebuild -project App.xcodeproj -target App -destination 'platform=iOS Simulator,name=iPhone 15' -archivePath ../../Chimera-iOS.xcarchive archive
       - name: Compress iOS archive
         run: |
           cd apps/mobile/ios

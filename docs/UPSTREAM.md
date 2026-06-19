@@ -28,9 +28,9 @@ This repo integrates and extends several open-source projects. This document tra
 | Project | Upstream Repo | How We Consume | Our Code | Update Method |
 |---|---|---|---|---|
 | **LLMwiki** | `github.com/lucasastorian/llmwiki` | **Git submodule** — vendored in `upstream/llmwiki/` | `qvac/src/llmwiki/bridge.py` | `git submodule update --remote upstream/llmwiki` |
-| **Openviking** | `github.com/volcengine/OpenViking` | Concept reference (not integrated) | N/A | Review upstream for indexing ideas |
-| **OtterWiki** | `github.com/redimp/otterwiki` | Concept reference | N/A (influence only) | Review upstream for UX ideas |
-| **OKF Spec** | `github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md` | Specification reference | `docs/UPSTREAM.md` | Review spec for format changes |
+| **Openviking** | `github.com/volcengine/OpenViking` | **Git submodule** — vendored in `upstream/openviking/` | N/A (review for future integration) | `git submodule update --remote upstream/openviking` |
+| **OtterWiki** | `github.com/redimp/otterwiki` | **Git submodule** — vendored in `upstream/otterwiki/` | N/A (review for UX ideas) | `git submodule update --remote upstream/otterwiki` |
+| **Knowledge Catalog / OKF** | `github.com/GoogleCloudPlatform/knowledge-catalog` | **Git submodule** — vendored in `upstream/knowledge-catalog/` | `docs/UPSTREAM.md` (OKF spec) | `git submodule update --remote upstream/knowledge-catalog` |
 
 ## Tools / File Conversion
 
@@ -63,6 +63,9 @@ git add upstream/ && git commit -m "chore: bump upstream submodules"
 git submodule update --remote upstream/markitdown
 git submodule update --remote upstream/llmwiki
 git submodule update --remote upstream/repo-to-markdown
+git submodule update --remote upstream/openviking
+git submodule update --remote upstream/otterwiki
+git submodule update --remote upstream/knowledge-catalog
 ```
 
 ### Current submodules
@@ -72,6 +75,9 @@ git submodule update --remote upstream/repo-to-markdown
 | `microsoft/markitdown` | `upstream/markitdown/` | `pip install -e upstream/markitdown/packages/markitdown` |
 | `lucasastorian/llmwiki` | `upstream/llmwiki/` | Referenced directly; thin wrapper in `qvac/src/llmwiki/` |
 | `puter-apps/repo-to-markdown` | `upstream/repo-to-markdown/` | Referenced directly; custom adapter in `qvac/src/web/repoDigest.js` |
+| `volcengine/OpenViking` | `upstream/openviking/` | Review for context database / indexing integration |
+| `redimp/otterwiki` | `upstream/otterwiki/` | Review for UX ideas |
+| `GoogleCloudPlatform/knowledge-catalog` | `upstream/knowledge-catalog/` | Reference OKF spec at `upstream/knowledge-catalog/okf/SPEC.md` |
 
 ## Updating npm Dependencies
 
@@ -155,13 +161,17 @@ When upstream changes their protocol or API:
 
 ## Updating Wiki / Knowledge Base
 
-These are **conceptual influences**, not vendored code. The implementations in `qvac/src/llmwiki/` and `qvac/src/web/` are custom:
+These are now **vendored as git submodules** in `upstream/`. The implementations in `qvac/src/llmwiki/` and `qvac/src/web/` are custom wrappers:
 
-- **LLMwiki** — Our `bridge.py` generates wiki pages via QVAC AI and writes them with YAML frontmatter
-- **Openviking** — Our `MarkdownIndexer.js` builds an in-memory index for search and graph queries
-- **OtterWiki** — UX influence only; no direct code dependency
+- **LLMwiki** — Vendored at `upstream/llmwiki/`. Our `bridge.py` is a thin QVAC-specific wrapper
+- **Openviking** — Vendored at `upstream/openviking/`. Review for context database / indexing integration
+- **OtterWiki** — Vendored at `upstream/otterwiki/`. Review for UX ideas
+- **Knowledge Catalog / OKF** — Vendored at `upstream/knowledge-catalog/`. Reference `upstream/knowledge-catalog/okf/SPEC.md`
 
-To incorporate upstream improvements, compare the upstream repos against our custom implementations and port changes manually.
+To incorporate upstream improvements:
+1. Update the submodule: `git submodule update --remote upstream/<name>`
+2. Compare upstream changes against our custom implementations
+3. Port changes manually where applicable
 
 ## Automated Upstream Checks
 
