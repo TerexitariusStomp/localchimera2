@@ -21,7 +21,7 @@ This repo integrates and extends several open-source projects. This document tra
 | **Chutes** | `github.com/chutesai/chutes-miner` | Protocol integration | `qvac/src/miners/ChutesMiner.js` | Check upstream miner for API changes |
 | **Routstr** | `github.com/routstr` | Protocol integration | `qvac/src/miners/RoutstrMiner.js` | Check upstream for NIP-60 / Cashu changes |
 | **Fortytwo** | `github.com/Fortytwo-Network` | Protocol integration | `qvac/src/miners/FortytwoMiner.js` | Check upstream for console app changes |
-| **Earnidle** | N/A (protocol) | Protocol integration | `qvac/src/miners/EarnidleMiner.js` | Monitor IDLE Protocol docs |
+| **Earnidle** | `earnidle.com` | Protocol integration | `qvac/src/miners/EarnidleMiner.js` | Monitor website + protocol docs |
 
 ## Wiki / Knowledge Base
 
@@ -30,6 +30,14 @@ This repo integrates and extends several open-source projects. This document tra
 | **LLMwiki** | `github.com/lucasastorian/llmwiki` | Concept + custom bridge | `qvac/src/llmwiki/bridge.py` | Compare upstream, port improvements |
 | **Openviking** | `github.com/volcengine/OpenViking` | Concept + custom index | `qvac/src/llmwiki/MarkdownIndexer.js` | Compare upstream indexing approach |
 | **OtterWiki** | `github.com/redimp/otterwiki` | Concept reference | N/A (influence only) | Review upstream for UX ideas |
+| **OKF Spec** | `github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md` | Specification reference | `docs/UPSTREAM.md` | Review spec for format changes |
+
+## Tools / File Conversion
+
+| Project | Upstream Repo | How We Consume | Our Code | Update Method |
+|---|---|---|---|---|
+| **repo-to-markdown** | `github.com/puter-apps/repo-to-markdown` | npm dependency / CLI | `qvac/src/web/server.js` (`handleRepoToMd`) | Check upstream for API/format changes |
+| **markitdown** | `github.com/microsoft/markitdown` | Python CLI | `qvac/src/web/server.js` (`handleConvertToMd`) | Check upstream for converter changes |
 
 ## Updating npm Dependencies
 
