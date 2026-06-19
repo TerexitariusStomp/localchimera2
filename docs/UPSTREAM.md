@@ -164,7 +164,7 @@ When upstream changes their protocol or API:
 These are now **vendored as git submodules** in `upstream/` and integrated into the codebase:
 
 - **LLMwiki** — Vendored at `upstream/llmwiki/`. Our `bridge.py` is a thin QVAC-specific wrapper
-- **Openviking** — Vendored at `upstream/openviking/`. Integrated via `qvac/src/llmwiki/openviking_bridge.py` using the pure-Python HTTP client (`SyncHTTPClient`). Stores wiki content as session memory. Requires an OpenViking server running at `OPENVIKING_URL` (default `http://localhost:1933`).
+- **Openviking** — Vendored at `upstream/openviking/`. Integrated via `qvac/src/llmwiki/openviking_bridge.py` using plain urllib over HTTP (no compiled Rust extension needed). Stores wiki content as session memory. Requires the real OpenViking server running at `OPENVIKING_URL` (default `http://localhost:1933`). We also ship a custom image with `llama-cpp-python` and local embeddings pre-installed: `upstream/openviking/Dockerfile.local` + `upstream/openviking/ov.conf`.
 - **OtterWiki** — Vendored at `upstream/otterwiki/`. Integrated via `qvac/src/llmwiki/otterwiki_bridge.py` wrapping `GitStorage`. All wiki CRUD (`save`, `get`, `list`, `search`, `delete`) delegates to OtterWiki's git-backed storage.
 - **Knowledge Catalog / OKF** — Vendored at `upstream/knowledge-catalog/`. Reference `upstream/knowledge-catalog/okf/SPEC.md`
 
@@ -181,10 +181,10 @@ These are now **vendored as git submodules** in `upstream/` and integrated into 
 - `server.js` calls the bridge via Python subprocess for every wiki operation
 
 **OpenViking** (`qvac/src/llmwiki/openviking_bridge.py`)
-- Uses `SyncHTTPClient` from the upstream SDK (pure Python, no compilation needed)
+- Uses plain urllib to talk to the real OpenViking server over HTTP (no compiled Rust extension needed)
 - Stores each saved wiki page as an assistant message in the `chimera-default` session
 - Retrieves session context for AI prompts
-- Requires an OpenViking server (start with Docker or cargo)
+- Requires the real OpenViking server (see `docs/OPENVIKING.md`)
 
 To incorporate upstream improvements:
 1. Update the submodule: `git submodule update --remote upstream/<name>`
