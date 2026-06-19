@@ -48,17 +48,19 @@
             for (const w of workers) {
               const color = w.online ? '#86efac' : '#7a7468';
               const bg = w.online ? 'rgba(34,197,94,0.08)' : 'rgba(255,255,255,0.02)';
-              const shortUrl = w.url.replace(/^https?:\/\//, '').replace(/\/$/, '');
               const evmShort = w.evmAddress ? w.evmAddress.slice(0, 6) + '...' + w.evmAddress.slice(-4) : '—';
+              const shortUrl = w.url.replace(/^https?:\/\//, '').replace(/\/$/, '');
               html +=
                 '<div style="padding:8px 10px;border-radius:6px;background:' + bg + ';border:1px solid ' + (w.online ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.04)') + ';">' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                 '<span style="width:6px;height:6px;border-radius:50%;background:' + color + ';"></span>' +
-                '<span style="font-weight:600;color:' + color + ';">' + shortUrl + '</span>' +
+                '<span style="font-weight:600;color:' + color + ';">' + evmShort + '</span>' +
+                '<span style="font-size:10px;color:#4a4540;margin-left:4px;">' + (w.online ? 'online' : 'offline') + '</span>' +
                 '</div>' +
                 '<div style="font-size:11px;color:#7a7468;margin-top:4px;">' +
-                'EVM: ' + evmShort + ' · Cap: ' + (w.capacity || 1) +
+                'Cap: ' + (w.capacity || 1) +
                 (w.inferenceReady ? ' · Inference' : '') +
+                '<span style="color:#4a4540;margin-left:6px;">(' + shortUrl + ')</span>' +
                 '</div>' +
                 '</div>';
             }
