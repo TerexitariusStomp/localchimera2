@@ -1,0 +1,51 @@
+# Orchard Cashu Mint Configuration
+# Docs: https://github.com/cashubtc/orchard
+
+[mint]
+# Public URL where the mint is reachable
+# Change this to your domain or public IP when deployed
+url = "http://localhost:3338"
+
+# Mint name shown in wallets
+name = "Chimera-Cashu-Mint"
+
+# Description
+description = "QVAC-Chimera self-hosted Cashu eCash mint"
+
+# Contact (NOSTR npub or email)
+contact = "npub1f60vyl802rs2nt8n3lrw89jq9xt6rqzuw8ddxz0vwdqwm8v3xk5sgj9aef"
+
+# Supported nuts (protocol versions)
+nuts = ["nut-04", "nut-05"]
+
+# Fee (satoshis per token)
+fee = 0
+
+[database]
+# Postgres connection
+url = "postgres://cashu:cashu@postgres:5432/orchard"
+
+[lightning]
+# Lightning backend for the mint
+# Options: "lnd", "cln", "greenlight", "fakewallet"
+#
+# fakewallet = test mode, no real sats (for development only)
+# lnd        = Lightning Network Daemon
+# cln        = Core Lightning
+# greenlight = Blockstream Greenlight
+backend = "fakewallet"
+
+# --- LND configuration (if backend = "lnd") ---
+# [lnd]
+# host = "lnd:10009"
+# macaroon_path = "/app/lnd/admin.macaroon"
+# tls_cert_path = "/app/lnd/tls.cert"
+
+# --- Core Lightning configuration (if backend = "cln") ---
+# [cln]
+# rpc_path = "/app/cln/lightning-rpc"
+
+# --- Greenlight configuration (if backend = "greenlight") ---
+# [greenlight]
+# device_cert_path = "/app/greenlight/device.crt"
+# device_key_path  = "/app/greenlight/device-key.pem"

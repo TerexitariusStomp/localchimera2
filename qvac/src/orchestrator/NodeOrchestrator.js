@@ -62,10 +62,18 @@ export class CommanderOrchestrator {
     clearInterval(this._cleanupTimer);
   }
 
-  registerWorker(workerUrl) {
+  registerWorker(workerUrl, meta = {}) {
     const url = normalizeUrl(workerUrl);
     const existing = this.workers.get(url) ?? { registeredAt: Date.now(), activeJobs: 0, totalPages: 0 };
-    this.workers.set(url, { ...existing, url, lastSeen: Date.now(), online: true });
+    this.workers.set(url, {
+      ...existing,
+      url,
+      lastSeen: Date.now(),
+      online: true,
+      evmAddress: meta.evmAddress || existing.evmAddress || '',
+      casperProvider: meta.casperProvider || existing.casperProvider || '',
+      capacity: meta.capacity ?? existing.capacity ?? 1,
+    });
     this.logger.info(`Worker registered: ${url} (total: ${this.workers.size})`);
     return { ok: true, workers: this.workers.size };
   }
@@ -78,6 +86,9 @@ export class CommanderOrchestrator {
       activeJobs: w.activeJobs,
       totalPages: w.totalPages,
       lastSeen: new Date(w.lastSeen).toISOString(),
+      evmAddress: w.evmAddress || '',
+      casperProvider: w.casperProvider || '',
+      capacity: w.capacity ?? 1,
     }));
   }
 

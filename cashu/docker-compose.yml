@@ -1,0 +1,62 @@
+version: '3.8'
+
+# Cashu Mint (Orchard) — https://github.com/cashubtc/orchard
+# This compose sets up a self-hosted Cashu eCash mint.
+#
+# REQUIREMENTS:
+#   1. A Lightning backend (LND, Core Lightning, or Greenlight).
+#      Set LIGHTNING_BACKEND and fill the config below.
+#   2. For TESTING without real Lightning, set MINT_BACKEND=FakeWallet
+#         (no real sats, only for local dev).
+#
+# To start:
+#   cd cashu && docker compose up -d
+#
+# The mint will be available at: http://localhost:3338
+# Mint URL for wallets: http://localhost:3338
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cashu-postgres
+    environment:
+      POSTGRES_USER: cashu
+      POSTGRES_PASSWORD: cashu
+      POSTGRES_DB: orchard
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cashu -d orchard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mint:
+    # TODO: Replace with official Orchard image once published
+    # For now, build from source or use a community image.
+    # See: https://github.com/cashubtc/orchard
+    image: ghcr.io/cashubtc/orchard:latest
+    container_name: cashu-mint
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3338:3338"
+    volumes:
+      - ./orchard.toml:/app/orchard.toml:ro
+      - mint-data:/app/data
+    environment:
+      RUST_LOG: info
+      ORCHARD_CONFIG: /app/orchard.toml
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:3338/v1/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg-data:
+  mint-data:

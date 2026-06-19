@@ -719,8 +719,8 @@ Copy the topic hex and invite others to join.
   /* ─── Orchestrator Handlers ─── */
 
   async handleCommanderRegister(req, res) {
-    const { workerUrl } = await parseBody(req);
-    const result = this.orchestrator.registerWorker(workerUrl);
+    const { workerUrl, evmAddress, casperProvider, capacity } = await parseBody(req);
+    const result = this.orchestrator.registerWorker(workerUrl, { evmAddress, casperProvider, capacity });
     ok(res, result);
   }
 
@@ -766,22 +766,37 @@ Copy the topic hex and invite others to join.
     if (!this.nodeManager) { serviceUnavailable(res, 'Node manager not available'); return; }
     const body = await parseBody(req);
     if (!this.nodeManager.isRunning) await this.nodeManager.start();
+
+    let machineOwner = body.machineOwnerEVM || '';
+    let appDev = body.appDeveloperEVM || '';
+
     if (this.nodeManager.minerManager) {
-      // User EVM addresses for monthly distribution
-      if (body.machineOwnerEVM) {
-        this.nodeManager.minerManager.machineOwnerEVM = body.machineOwnerEVM;
-        this.logger.info(`[miner] Machine owner EVM: ${body.machineOwnerEVM}`);
+      if (machineOwner) {
+        this.nodeManager.minerManager.machineOwnerEVM = machineOwner;
+        this.logger.info(`[miner] Machine owner EVM: ${machineOwner}`);
       }
-      if (body.appDeveloperEVM) {
-        this.nodeManager.minerManager.appDeveloperEVM = body.appDeveloperEVM;
-        this.logger.info(`[miner] App developer EVM: ${body.appDeveloperEVM}`);
+      if (appDev) {
+        this.nodeManager.minerManager.appDeveloperEVM = appDev;
+        this.logger.info(`[miner] App developer EVM: ${appDev}`);
       }
       if (body.revenueSplit) {
         this.nodeManager.minerManager.revenueSplit = body.revenueSplit;
         this.logger.info(`[miner] Revenue split — machine owner: ${(body.revenueSplit.machineOwner * 100).toFixed(0)}%, app developer: ${(body.revenueSplit.appDeveloper * 100).toFixed(0)}%`);
       }
     }
-    ok(res, { message: 'Mining started', running: true });
+
+    // ─── Auto-register this machine on the routing network ───
+    const localUrl = `http://localhost:${this.port}`;
+    const providerHash = body.casperProvider || '';
+    const evmAddr = machineOwner || appDev || '';
+    this.orchestrator.registerWorker(localUrl, {
+      evmAddress: evmAddr,
+      casperProvider: providerHash,
+      capacity: body.capacity || 1,
+    });
+    this.logger.info(`[router] Auto-registered node ${localUrl} (EVM: ${evmAddr}, Provider: ${providerHash})`);
+
+    ok(res, { message: 'Mining started', running: true, registered: { url: localUrl, evmAddress: evmAddr, casperProvider: providerHash } });
   }
 
   async handleStop(req, res) {
@@ -905,6 +920,116 @@ Copy the topic hex and invite others to join.
 
   async handlePayoutStats(req, res) {
     ok(res, await this.payoutRouter.getStats());
+  }
+
+  // ─── OpenAI-compatible proxy (for Routstr upstream) ───
+
+  async handleOpenAIModels(req, res) {
+    ok(res, {
+      object: 'list',
+      data: [
+        { id: 'llama-3.2-1b-instruct', object: 'model', created: Math.floor(Date.now() / 1000), owned_by: 'chimera' },
+        { id: 'llama-3.2-3b-instruct', object: 'model', created: Math.floor(Date.now() / 1000), owned_by: 'chimera' },
+        { id: 'chimera-local',        object: 'model', created: Math.floor(Date.now() / 1000), owned_by: 'chimera' }
+      ]
+    });
+  }
+
+  async handleOpenAIChat(req, res) {
+    const body = await parseBody(req);
+    const messages = body.messages || [];
+    const stream = body.stream === true;
+    const model = body.model || 'chimera-local';
+    const maxTokens = body.max_tokens || 512;
+    const temperature = body.temperature || 0.7;
+
+    // Convert messages array to a single prompt
+    const systemMsg = messages.find(m => m.role === 'system')?.content || '';
+    const userMsgs = messages.filter(m => m.role === 'user').map(m => m.content);
+    const prompt = userMsgs.join('\n\n') || JSON.stringify(messages);
+
+    const inference = this.nodeManager?.inferenceLayer;
+    if (!inference) {
+      if (stream) {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+        res.write(`data: ${JSON.stringify({ id: 'chatcmpl-error', object: 'chat.completion.chunk', choices: [{ delta: { content: 'Inference layer not available' }, index: 0 }] })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      } else {
+        serviceUnavailable(res, 'QVAC inference not initialized');
+      }
+      return;
+    }
+
+    const requestId = `chatcmpl-${Date.now()}`;
+    const created = Math.floor(Date.now() / 1000);
+
+    try {
+      this.logger.info(`[openai-proxy] ${model} | ${prompt.slice(0, 80)}…`);
+      const result = await inference.handleInferenceRequest({
+        prompt: systemMsg ? `[System: ${systemMsg}]\n${prompt}` : prompt,
+        maxTokens,
+        temperature,
+        source: 'routstr-openai-proxy'
+      });
+
+      if (stream) {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        });
+
+        // Send chunks word-by-word for streaming effect
+        const words = (result.output || '').split(/\s+/);
+        for (let i = 0; i < words.length; i++) {
+          const chunk = {
+            id: requestId,
+            object: 'chat.completion.chunk',
+            created,
+            model,
+            choices: [{
+              index: 0,
+              delta: { content: (i > 0 ? ' ' : '') + words[i] },
+              finish_reason: null
+            }]
+          };
+          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        }
+
+        // Final chunk
+        res.write(`data: ${JSON.stringify({ id: requestId, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      } else {
+        ok(res, {
+          id: requestId,
+          object: 'chat.completion',
+          created,
+          model,
+          choices: [{
+            index: 0,
+            message: { role: 'assistant', content: result.output || '' },
+            finish_reason: 'stop'
+          }],
+          usage: {
+            prompt_tokens: prompt.length / 4,
+            completion_tokens: (result.output || '').length / 4,
+            total_tokens: (prompt.length + (result.output || '').length) / 4
+          }
+        });
+      }
+    } catch (e) {
+      this.logger.error(`[openai-proxy] Inference failed: ${e.message}`);
+      if (stream) {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+        res.write(`data: ${JSON.stringify({ id: 'chatcmpl-error', object: 'chat.completion.chunk', choices: [{ delta: { content: `Error: ${e.message}` }, index: 0 }] })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      } else {
+        serverError(res, e);
+      }
+    }
   }
 
   /* ─── Private helpers ─── */

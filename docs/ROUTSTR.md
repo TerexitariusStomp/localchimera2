@@ -4,10 +4,10 @@
 
 Routstr is a decentralized AI inference router that uses **Nostr** for censorship-resistant discovery and **Cashu / Bitcoin Lightning** for private, instant payments.
 
-As a Routstr provider, your Chimera node:
-1. Connects to upstream AI providers (OpenAI, Anthropic, etc.)
-2. Accepts Bitcoin payments via Cashu eCash
-3. Serves AI requests to clients on the network
+This integration is **fully self-hosted**:
+1. **Inference** — Chimera's local QVAC inference handles all AI requests (no external API keys)
+2. **Payments** — Self-hosted Cashu eCash mint for private Bitcoin payments (no KYC)
+3. **Discovery** — Nostr relay announcements make your node visible to clients
 
 ## Where Your Node Appears
 
@@ -22,57 +22,75 @@ Your node announces itself on Nostr relays. Clients discover it there.
 ### Step 1 — Prerequisites
 
 - Docker + Docker Compose installed
-- At least one upstream AI provider API key (OpenAI, Anthropic, OpenRouter, etc.)
-- A Lightning address for receiving payouts (e.g. Wallet of Satoshi, Alby, etc.)
+- Chimera node already set up and running (for local inference)
 
-### Step 2 — Configure
-
-Edit `~/.routstr/.env` (auto-created on first init):
-
-```bash
-# Lightning payout address (required to earn)
-RECEIVE_LN_ADDRESS=yourname@walletofsatoshi.com
-
-# Upstream AI provider (add at least one)
-OPENAI_API_KEY=sk-...
-# ANTHROPIC_API_KEY=...
-# OPENROUTER_API_KEY=...
-```
-
-### Step 3 — Start Chimera Node
+### Step 2 — Start Chimera Node
 
 ```bash
 cd qvac && node src/index.js
 ```
 
-The `RoutstrMiner` will:
-1. Create `~/.routstr/.env` with your Nostr identity
-2. Pull the latest Routstr Docker image
-3. Start the container on port 8000
-4. Wait for the API to be ready
+This starts:
+- **Chimera web server** on port 3002 (includes OpenAI-compatible `/v1/chat/completions`)
+- **RoutstrMiner** auto-starts the Routstr container on port 8000
+- **Cashu mint** (when configured) on port 3338
 
-### Step 4 — Configure via Dashboard
+### Step 3 — Configure Cashu Mint (optional, for receiving payments)
 
-Open http://localhost:8000 and log in with the admin password from `.env`.
+Edit `cashu/orchard.toml` and set your Lightning backend:
+
+```toml
+[lightning]
+backend = "lnd"  # or "cln", "greenlight", or "fakewallet" for testing
+```
+
+For testing without real Bitcoin, use `backend = "fakewallet"`.
+
+Start the mint:
+```bash
+cd cashu && docker compose up -d
+```
+
+### Step 4 — Verify via Dashboard
+
+Open http://localhost:8000 and log in with the admin password from `~/.routstr/.env`.
 
 In the dashboard:
-- Connect upstream AI providers
+- Confirm the upstream provider is pointing to `http://host.docker.internal:3002/v1`
 - Set your profit margin
 - Verify Nostr relay announcements
 
-### Step 5 — Start Earning
+### Step 5 — Create a Cashu Wallet
 
-Once configured, your node appears in Nostr relay discovery. Clients find you and pay via Cashu / Lightning.
+Any Cashu wallet app can connect to your mint:
+
+**Mint URL:** `http://localhost:3338`
+
+Recommended wallets:
+- **Nutstash** (Web): https://nutstash.app
+- **eNuts** (iOS/Android)
+- **Cashu.me** (Web)
+
+1. Open the wallet app
+2. Add mint: `http://localhost:3338`
+3. Mint tokens (if using fakewallet, tokens have no real value — for testing only)
+4. Your wallet balance is stored locally in the app
+
+For **real Bitcoin** payouts, configure a Lightning backend in `orchard.toml`.
 
 ## Architecture
 
 ```
-[Client] ──Nostr──> [Routstr Node :8000] ──HTTP──> [OpenAI / Anthropic / etc.]
-                             │
-                             └── Cashu / Lightning payments
+┌──────────┐   Nostr   ┌──────────────────┐   HTTP    ┌──────────────────┐
+│  Client  │ ────────> │  Routstr :8000   │ ────────> │ Chimera :3002  │
+│  Wallet  │           │                  │           │  (QVAC local)    │
+└──────────┘           │  - discovery     │           └──────────────────┘
+                       │  - billing       │
+                       │  - proxy         │   Cashu   ┌──────────────────┐
+                       └──────────────────┘ <───────> │  Cashu Mint      │
+                                                     │  :3338           │
+                                                     └──────────────────┘
 ```
-
-Chimera manages the Routstr container lifecycle via `docker compose`.
 
 ## API Reference
 
@@ -80,9 +98,24 @@ Chimera manages the Routstr container lifecycle via `docker compose`.
 |---|---|
 | `GET /v1/info` | Node info and status |
 | `GET /v1/models` | Available models |
-| `POST /v1/chat/completions` | Chat completion proxy |
+| `POST /v1/chat/completions` | Chat completion proxy (→ Chimera local) |
 | `GET /admin/api/settings` | Admin settings (requires auth) |
 | `PATCH /admin/api/settings` | Update settings |
+
+## Chimera OpenAI-Compatible Proxy
+
+Chimera exposes an OpenAI-compatible endpoint that Routstr uses as its upstream provider:
+
+```bash
+curl http://localhost:3002/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "chimera-local",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+This runs inference through the local QVAC SDK — no external API calls.
 
 ## Troubleshooting
 
@@ -90,9 +123,10 @@ Chimera manages the Routstr container lifecycle via `docker compose`.
 |---|---|
 | `docker not available` | Install Docker Desktop or Docker Engine |
 | `Compose dir missing` | Ensure `routstr/docker-compose.yml` exists |
-| `No upstream providers` | Add `OPENAI_API_KEY` or similar to `.env` |
-| `No earnings` | Set `RECEIVE_LN_ADDRESS` for Lightning payouts |
+| `Inference not working` | Make sure Chimera node is running on port 3002 |
+| `No earnings` | Configure Lightning backend in `cashu/orchard.toml` |
 | `Not in discovery` | Check Nostr relay connections in dashboard |
+| `Cannot reach Chimera from Routstr` | Verify `host.docker.internal` resolves in container |
 
 ## Config Fields
 
@@ -104,7 +138,7 @@ Chimera manages the Routstr container lifecycle via `docker compose`.
     "npub": "npub1...",           // Nostr public key
     "name": "My Node",
     "description": "...",
-    "receiveLnAddress": "...",     // Lightning address for payouts
+    "receiveLnAddress": "...",     // Lightning address for payouts (optional)
     "adminPassword": "...",
     "apiPort": 8000
   }

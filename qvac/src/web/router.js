@@ -47,6 +47,10 @@ export const ROUTES = [
   ['POST', '/api/start',              'handleStart'],
   ['POST', '/api/stop',               'handleStop'],
   ['POST', '/api/miner-test',         'handleMinerTest'],
+  // OpenAI-compatible proxy (for Routstr upstream)
+  ['POST', '/v1/chat/completions',          'handleOpenAIChat'],
+  ['GET',  '/v1/models',                   'handleOpenAIModels'],
+
   // Payout Router
   ['POST', '/api/payout/register-app',     'handlePayoutRegisterApp'],
   ['GET',  '/api/payout/apps',            'handlePayoutGetApps'],
