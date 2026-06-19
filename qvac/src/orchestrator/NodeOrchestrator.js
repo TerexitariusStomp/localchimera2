@@ -73,6 +73,8 @@ export class CommanderOrchestrator {
       evmAddress: meta.evmAddress || existing.evmAddress || '',
       casperProvider: meta.casperProvider || existing.casperProvider || '',
       capacity: meta.capacity ?? existing.capacity ?? 1,
+      inferenceUrl: meta.inferenceUrl || existing.inferenceUrl || `${url}/v1/chat/completions`,
+      inferenceReady: meta.inferenceReady ?? existing.inferenceReady ?? false,
     });
     this.logger.info(`Worker registered: ${url} (total: ${this.workers.size})`);
     return { ok: true, workers: this.workers.size };
@@ -89,6 +91,8 @@ export class CommanderOrchestrator {
       evmAddress: w.evmAddress || '',
       casperProvider: w.casperProvider || '',
       capacity: w.capacity ?? 1,
+      inferenceUrl: w.inferenceUrl || '',
+      inferenceReady: w.inferenceReady ?? false,
     }));
   }
 
@@ -97,10 +101,57 @@ export class CommanderOrchestrator {
     return {
       workers: workers.length,
       online: workers.filter(w => w.online).length,
+      inferenceReady: workers.filter(w => w.online && w.inferenceReady).length,
       queueLength: this.jobQueue.length,
       completedJobs: this.completedJobs.length,
       stopFlag: this.stopFlag,
     };
+  }
+
+  /**
+   * Route an inference request to the least-loaded available worker.
+   * Falls back to local inference if no workers are available.
+   */
+  async routeInference(request) {
+    const workers = this.getWorkers()
+      .filter(w => w.online && w.inferenceReady && w.inferenceUrl);
+
+    if (!workers.length) {
+      return { fallback: true, reason: 'no_inference_workers', error: 'No workers with inference available' };
+    }
+
+    // Sort by active load (ascending) — pick least busy
+    workers.sort((a, b) => (a.activeJobs ?? 0) - (b.activeJobs ?? 0));
+    const worker = workers[0];
+
+    this.logger.info(`Routing inference to worker: ${worker.url} (activeJobs: ${worker.activeJobs})`);
+
+    const w = this.workers.get(worker.url);
+    if (w) w.activeJobs += 1;
+
+    try {
+      const res = await fetch(worker.inferenceUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+
+      if (w) w.activeJobs = Math.max(0, w.activeJobs - 1);
+
+      if (!res.ok) {
+        return { fallback: true, reason: 'worker_error', status: res.status, error: data.error || text };
+      }
+
+      return { success: true, worker: worker.url, data };
+    } catch (e) {
+      if (w) w.activeJobs = Math.max(0, w.activeJobs - 1);
+      this.logger.error(`Inference routing failed for ${worker.url}: ${e.message}`);
+      return { fallback: true, reason: 'worker_unreachable', error: e.message };
+    }
   }
 
   addJobs(jobs) {
@@ -227,12 +278,13 @@ export class WorkerOrchestrator {
   /* Commander API stubs — worker defers to commander over HTTP */
   registerWorker()  { return { ok: false, error: 'not a commander' }; }
   getWorkers()      { return []; }
-  getFleetStats()   { return { workers: 0, online: 0, queueLength: 0, completedJobs: 0, stopFlag: this.stopFlag }; }
+  getFleetStats()   { return { workers: 0, online: 0, inferenceReady: 0, queueLength: 0, completedJobs: 0, stopFlag: this.stopFlag }; }
   addJobs()         { return { ok: false, error: 'not a commander' }; }
   claimJob()        { return { jobs: [] }; }
   completeJob()     {}
   stopFleet()       { return { ok: false, error: 'not a commander' }; }
   startFleet()      { return { ok: false, error: 'not a commander' }; }
+  routeInference()  { return { fallback: true, reason: 'not_commander', error: 'Worker cannot route inference. Use local inference or connect to a commander node.' }; }
 
   get _myUrl() {
     return `http://${getLocalIp()}:${this.localPort}`;
@@ -240,13 +292,19 @@ export class WorkerOrchestrator {
 
   async _register() {
     try {
+      const inferenceUrl = `http://${getLocalIp()}:${this.localPort}/v1/chat/completions`;
       const res = await fetch(`${this.commanderUrl}/api/commander/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workerUrl: this._myUrl }),
+        body: JSON.stringify({
+          workerUrl: this._myUrl,
+          inferenceUrl,
+          inferenceReady: true,
+          capacity: 1,
+        }),
       });
       const json = await res.json();
-      if (json.success) this.logger.info('Registered with commander');
+      if (json.success) this.logger.info('Registered with commander (inference ready)');
     } catch { /* retry on next interval */ }
   }
 

@@ -155,6 +155,16 @@
     "nightEnd": 6,
     "timezone": "UTC"
   },
+  "swarm": {
+    "enabled": true,
+    "inference": {
+      "enabled": true,
+      "commanderUrl": "http://localchimera.com:3002",
+      "role": "commander",
+      "workerPollInterval": 5000,
+      "workerRegisterInterval": 30000
+    }
+  },
   "p2p": {
     "enabled": true,
     "pear": {

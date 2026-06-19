@@ -51,6 +51,9 @@ export const ROUTES = [
   ['POST', '/v1/chat/completions',          'handleOpenAIChat'],
   ['GET',  '/v1/models',                   'handleOpenAIModels'],
 
+  // Inference Swarm
+  ['POST', '/api/swarm/infer',             'handleSwarmInfer'],
+
   // Payout Router
   ['POST', '/api/payout/register-app',     'handlePayoutRegisterApp'],
   ['GET',  '/api/payout/apps',            'handlePayoutGetApps'],

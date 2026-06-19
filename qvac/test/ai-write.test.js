@@ -82,6 +82,7 @@ describe('WebServer handleAIWrite', () => {
 
   after(async () => {
     if (httpServer) {
+      httpServer.closeAllConnections?.();
       await new Promise((resolve) => httpServer.close(resolve));
     }
   });
@@ -129,6 +130,7 @@ describe('WebServer handleAIWrite', () => {
     });
 
     assert.equal(res.status, 503);
+    bareHttp.closeAllConnections?.();
     bareHttp.close();
   });
 

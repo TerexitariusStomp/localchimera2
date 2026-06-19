@@ -292,7 +292,7 @@ Copy the topic hex and invite others to join.
     const title = body.title?.trim();
     if (!prompt) { badRequest(res, 'Prompt is required'); return; }
 
-    // Use QVAC inference layer (@qvac/sdk) for AI writing
+    // Use QVAC inference layer (@qvac/sdk) for AI writing — always local
     const inference = this.nodeManager?.inferenceLayer;
     if (!inference) { serviceUnavailable(res, 'QVAC inference not initialized'); return; }
 
@@ -716,11 +716,64 @@ Copy the topic hex and invite others to join.
     });
   }
 
+  /* ─── Inference Swarm ─── */
+
+  async handleSwarmInfer(req, res) {
+    const body = await parseBody(req);
+    const prompt = body.prompt?.trim();
+    if (!prompt) { badRequest(res, 'Prompt is required'); return; }
+
+    // If this node is a commander with active workers, route inference to the swarm
+    const orch = this.orchestrator;
+    const useSwarm = orch?.role === 'commander' && orch?.getWorkers && orch.getWorkers().some(w => w.online && w.inferenceReady);
+
+    if (useSwarm) {
+      this.logger.info(`[swarm-infer] Routing inference to swarm: ${prompt.slice(0, 80)}…`);
+      const result = await orch.routeInference({
+        model: body.model || 'chimera-local',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: body.maxTokens || 1024,
+        temperature: body.temperature ?? 0.7,
+      });
+
+      if (result.success) {
+        ok(res, {
+          swarm: true,
+          worker: result.worker,
+          output: result.data?.choices?.[0]?.message?.content || result.data?.output || JSON.stringify(result.data),
+          model: body.model || 'chimera-local',
+        });
+        return;
+      }
+
+      this.logger.warn(`[swarm-infer] Routing failed (${result.reason}), falling back to local inference`);
+    }
+
+    // Fallback: run inference locally
+    const inference = this.nodeManager?.inferenceLayer;
+    if (!inference) { serviceUnavailable(res, 'QVAC inference not initialized'); return; }
+
+    this.logger.info(`[swarm-infer] Local inference: ${prompt.slice(0, 80)}…`);
+    const result = await inference.handleInferenceRequest({
+      prompt,
+      maxTokens: body.maxTokens || 1024,
+      temperature: body.temperature ?? 0.7,
+      source: 'swarm-infer',
+    });
+
+    ok(res, {
+      swarm: false,
+      fallback: true,
+      output: result.output,
+      model: result.model || 'llama',
+    });
+  }
+
   /* ─── Orchestrator Handlers ─── */
 
   async handleCommanderRegister(req, res) {
-    const { workerUrl, evmAddress, casperProvider, capacity } = await parseBody(req);
-    const result = this.orchestrator.registerWorker(workerUrl, { evmAddress, casperProvider, capacity });
+    const { workerUrl, evmAddress, casperProvider, capacity, inferenceUrl, inferenceReady } = await parseBody(req);
+    const result = this.orchestrator.registerWorker(workerUrl, { evmAddress, casperProvider, capacity, inferenceUrl, inferenceReady });
     ok(res, result);
   }
 
