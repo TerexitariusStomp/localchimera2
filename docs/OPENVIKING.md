@@ -69,21 +69,8 @@ USER_KEY=$(podman exec openviking-chimera curl -s \
 export OPENVIKING_API_KEY="$USER_KEY"
 ```
 
-## OpenViking Shim (Fallback)
-
-`qvac/src/llmwiki/openviking_shim_server.py` is a lightweight drop-in that
-implements the same HTTP API but stores data in SQLite with **no embeddings**:
-
-```bash
-./scripts/start-openviking-shim.sh
-```
-
-The bridge (`qvac/src/llmwiki/openviking_bridge.py`) works with **either**
-the real server or the shim — no code changes needed.
-
 ## Current Status
 
 - **Real server**: Running on `http://127.0.0.1:1933` with local CPU embeddings ✅
-- **Shim server**: Available as fallback ✅
 - **Bridge**: `openviking_bridge.py` connects via plain urllib ✅
 - **Integration**: `server.js` stores wiki pages as memory on every save ✅
