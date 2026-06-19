@@ -9,7 +9,7 @@ services:
     volumes:
       - routstr-data:/data
     env_file:
-      - ../.routstr/.env
+      - /home/user/.routstr/.env
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

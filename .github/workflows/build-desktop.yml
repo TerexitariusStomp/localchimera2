@@ -269,6 +269,6 @@ jobs:
           path: mobile-assets
       - name: Upload mobile assets to release
         run: |
-          gh release upload "${{ needs.create-release.outputs.tag_name }}" mobile-assets/* --clobber
+          gh release upload "${{ needs.create-release.outputs.tag_name }}" mobile-assets/* --clobber --repo TerexitariusStomp/qvac-chimera
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
