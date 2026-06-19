@@ -21,7 +21,7 @@ async function main() {
   const privateKey = PrivateKey.fromPem(PEM, KeyAlgorithm.SECP256K1);
   const publicKey = privateKey.publicKey;
   
-  const escrowAccount = '7e00d7dd02ea921ad3271811d6c0f8928f2e83d91c6f4a5b89048e23683cdf6c';
+  const escrowAccount = '5e21a72c075e750053e12a212482d86afb59b8444cae254f64f6e12eb8405fc6';
   const amount = '500000000000'; // 500 CSPR
   
   const wasmBytes = (await import('fs')).readFileSync('/tmp/transfer_session.wasm');
