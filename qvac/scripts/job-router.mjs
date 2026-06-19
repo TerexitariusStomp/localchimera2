@@ -17,11 +17,11 @@ const CONTRACT_HASH = 'a2b36559e7da9f0a3fc10afc23eceb54022ab41649ad976c52802e37a
 const GAS_PAYMENT = '10000000000';
 const POLL_INTERVAL_MS = 15000;
 
-// Inference nodes registry (QVAC Chimera AI Write API)
+// Inference nodes registry (real GPT-2 inference server)
 const INFERENCE_NODES = [
-  { id: 'node-1', url: 'http://localhost:3002/api/ai-write', capacity: 1, currentJobs: 0 },
-  // Add more nodes here:
-  // { id: 'node-2', url: 'http://localhost:3003/api/ai-write', capacity: 2, currentJobs: 0 },
+  { id: 'gpt2-local', url: 'http://localhost:3005/infer', capacity: 2, currentJobs: 0 },
+  // Fallback to Chimera AI Write API if inference server is down:
+  // { id: 'chimera-api', url: 'http://localhost:3002/api/ai-write', capacity: 1, currentJobs: 0 },
 ];
 
 const providerPk = PrivateKey.fromPem(PROVIDER_PEM, KeyAlgorithm.SECP256K1);

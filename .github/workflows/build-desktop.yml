@@ -254,7 +254,7 @@ jobs:
           name: chimera-ios
           path: apps/mobile/ios/Chimera-iOS.tar.gz
   upload-mobile-assets:
-    needs: [build-android, build-ios]
+    needs: [create-release, build-android, build-ios]
     runs-on: ubuntu-22.04
     steps:
       - name: Download Android artifact
@@ -268,9 +268,7 @@ jobs:
           name: chimera-ios
           path: mobile-assets
       - name: Upload mobile assets to release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.create-release.outputs.tag_name }}
-          files: mobile-assets/*
+        run: |
+          gh release upload "${{ needs.create-release.outputs.tag_name }}" mobile-assets/* --clobber
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
