@@ -28,7 +28,7 @@
   "miners": {
     "enabled": true,
     "parallelMode": true,
-    "priority": ["cortensor", "chutes", "fortytwo", "earnidle", "routstr"],
+    "priority": ["cortensor", "routstr", "chutes", "fortytwo", "earnidle"],
     "switchInterval": 60000,
     "cortensor": {
       "enabled": true,
@@ -39,19 +39,6 @@
         "cortensorHome": "~/.cortensor",
         "envFile": "~/.cortensor/.env",
         "cortensordPath": "",
-        "autoFundSweep": true
-      }
-    },
-    "chutes": {
-      "enabled": true,
-      "config": {
-        "network": "bittensor",
-        "protocolAddress": "5QVACProtocolMultisigBittensorXYZ123",
-        "multisigType": "substrate",
-        "multisigThreshold": "2-of-3",
-        "requiresK8s": true,
-        "stackCompatible": false,
-        "compatibilityMode": true,
         "autoFundSweep": true
       }
     },
@@ -90,6 +77,20 @@
         "adminPassword": "chimera-routstr-admin",
         "apiPort": 8000,
         "autoFundSweep": true
+      }
+    },
+    "chutes": {
+      "enabled": true,
+      "config": {
+        "network": "bittensor",
+        "platform": "https://chutes.ai",
+        "walletAddress": "",
+        "hotkeyAddress": "",
+        "apiKey": "",
+        "apiBaseUrl": "https://api.chutes.ai",
+        "inferenceBaseUrl": "https://llm.chutes.ai/v1",
+        "chutesHome": "~/.chutes",
+        "endpoint": "http://localchimera.com:3002/v1"
       }
     },
     "casper": {
