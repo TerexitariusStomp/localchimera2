@@ -12,22 +12,8 @@
     "resources": {
       "../../../qvac": "qvac"
     },
-    "linux": {
-      "desktop": {
-        "Name": "Chimera",
-        "Comment": "Local AI that earns when idle",
-        "Type": "Application",
-        "Categories": "Network;"
-      }
-    },
     "macOS": {
       "minimumSystemVersion": "10.13"
-    },
-    "windows": {
-      "nsis": {
-        "installMode": "perMachine",
-        "shortcutPolicy": "SelectInstallDirAndDesktop"
-      }
     }
   },
   "productName": "Chimera",
