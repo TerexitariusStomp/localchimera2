@@ -17,7 +17,7 @@ oUQDQgAEJ9jdXMqmAORbNuWY2Q74wmtsZ++Bvf696PpYOZepHqWCFmTFZDzW+JYO
 fZf7vQid4otudHLFJBWkiazcayJz9g==
 -----END EC PRIVATE KEY-----`;
 
-const CONTRACT_HASH = 'efbf9bc1257159e37cd8610ede623b65195854f5bca23b8c1b4c9dda4089f54e';
+const CONTRACT_HASH = '603ae9a666c3f314ae05195d3962dcbbf9146cf70443922a206358475fc75657';
 const JOB_ID = 'job:e39ac4daa9a8fe88d9f074cecfd537d18eb0fbf1196c1b4dd85749bcc50723e9:0';
 
 async function sendDeploy(pem, entryPoint, argsMap) {

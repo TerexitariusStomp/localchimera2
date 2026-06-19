@@ -11,13 +11,15 @@ oUQDQgAEJ9jdXMqmAORbNuWY2Q74wmtsZ++Bvf696PpYOZepHqWCFmTFZDzW+JYO
 fZf7vQid4otudHLFJBWkiazcayJz9g==
 -----END EC PRIVATE KEY-----`;
 
-const CONTRACT_HASH = 'efbf9bc1257159e37cd8610ede623b65195854f5bca23b8c1b4c9dda4089f54e';
+const CONTRACT_HASH = '603ae9a666c3f314ae05195d3962dcbbf9146cf70443922a206358475fc75657';
 
 function hexToBytes(hex) {
   const bytes = new Uint8Array(32);
   for (let i = 0; i < 32; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
   return bytes;
 }
+
+const { URef } = sdk;
 
 async function main() {
   const privateKey = PrivateKey.fromPem(PEM, KeyAlgorithm.SECP256K1);
@@ -27,12 +29,16 @@ async function main() {
   console.log('Account hash:', accountHashHex);
   console.log('Contract hash:', CONTRACT_HASH);
   
+  const CONTRACT_PURSE = 'uref-56a8e55765ee82e21f9f8454d5e39968f7866ba135c526af06b15bb86c93a48f-007';
+
   const argsMap = {
     consumer: CLValue.newCLByteArray(hexToBytes(accountHashHex)),
     provider: CLValue.newCLByteArray(hexToBytes('f227d4fb7c50164d363c5461ad0044ef8f3b8ad5ee7072b87384e101a2a4263d')),
     amount: CLValue.newCLUInt512('1000'),
     provider_fee_bps: CLValue.newCLUint64('100'),
     order_id: CLValue.newCLString('test-job-5'),
+    contract_purse: CLValue.newCLUref(URef.fromString(CONTRACT_PURSE)),
+    contract_hash: CLValue.newCLByteArray(hexToBytes(CONTRACT_HASH)),
   };
   
   const args = Args.fromMap(argsMap);

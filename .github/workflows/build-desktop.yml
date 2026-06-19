@@ -212,3 +212,39 @@ jobs:
           files: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  build-ios:
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Capacitor CLI
+        run: npm install -g @capacitor/cli
+      - name: Install frontend deps
+        run: |
+          cd qvac/frontend
+          npm install
+      - name: Build frontend
+        run: |
+          cd qvac/frontend
+          npm run build
+      - name: Sync Capacitor iOS
+        run: |
+          cd qvac/frontend
+          npx cap sync ios
+      - name: Build iOS archive
+        run: |
+          cd apps/mobile/ios/App
+          xcodebuild -scheme App -destination 'platform=iOS Simulator,name=iPhone 15' -archivePath ../../Chimera-iOS.xcarchive archive
+      - name: Compress iOS archive
+        run: |
+          cd apps/mobile/ios
+          tar -czf Chimera-iOS.tar.gz -C ../../ Chimera-iOS.xcarchive
+      - name: Upload iOS to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/mobile/ios/Chimera-iOS.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -79,6 +79,20 @@
   .miner-input{width:100%;background:#161410;border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:4px 8px;color:#b0a898;font-size:10px;outline:none;margin-top:6px;font-family:ui-monospace,monospace}
   .miner-btns{display:flex;gap:4;margin-top:6px}
   .miner-btn{flex:1;padding:5px 0;font-size:10px;border-radius:5px;border:none;cursor:default;background:#161410;color:#7a7468;border:1px solid rgba(255,255,255,.07)}
+
+  /* Openviking Memory */
+  .openviking-memory{margin-top:auto;padding:12px 14px;border-top:1px solid rgba(255,255,255,.06);background:#0b0a09}
+  .memory-header{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:#e8e2d8;margin-bottom:8px}
+  .memory-status{font-size:10px;color:#4ade80;text-shadow:0 0 6px rgba(74,222,128,.3)}
+  .memory-body{display:flex;flex-direction:column;gap:5px}
+  .memory-item{display:flex;align-items:center;justify-content:space-between;font-size:11px}
+  .memory-key{color:#4a4540;font-family:ui-monospace,SFMono-Regular,monospace}
+  .memory-val{color:#7a7468;font-family:ui-monospace,SFMono-Regular,monospace}
+  .memory-bar{height:4px;border-radius:2px;background:#161410;overflow:hidden;margin-top:4px}
+  .memory-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#00e5ff,#a855f7)}
+  .memory-label{font-size:10px;color:#4a4540;text-align:right;margin-top:2px;font-family:ui-monospace,SFMono-Regular,monospace}
+  .memory-btn{margin-top:10px;padding:7px 0;border-radius:5px;border:1px solid rgba(255,255,255,.07);background:#161410;color:#c9a96e;font-size:11px;font-weight:600;font-family:ui-monospace,SFMono-Regular,monospace;text-align:center;cursor:pointer;transition:.15s}
+  .memory-btn:hover{background:rgba(201,169,110,.1);border-color:rgba(201,169,110,.2)}
 </style>
 </head>
 <body>
@@ -101,18 +115,19 @@
     <div class="search-box">
       <input class="search-input" placeholder="Search wiki..." readonly>
     </div>
-    <div class="nav-header">Pages</div>
+    <div class="nav-header">OKF Bundle</div>
     <div class="nav">
-      <div class="nav-item active"><span class="nav-icon">📝</span><span class="nav-title">Welcome to Chimera</span></div>
-      <div class="nav-item"><span class="nav-icon">📝</span><span class="nav-title">Getting Started</span></div>
-      <div class="nav-item"><span class="nav-icon">📝</span><span class="nav-title">AI Writing Guide</span></div>
-      <div class="nav-item"><span class="nav-icon">📝</span><span class="nav-title">Markdown Syntax</span></div>
-      <div class="nav-item"><span class="nav-icon">📝</span><span class="nav-title">P2P Sync</span></div>
-      <div class="nav-item"><span class="nav-icon">📝</span><span class="nav-title">Mining Setup</span></div>
-      <div class="nav-header">Categories</div>
-      <div class="nav-item"><span class="nav-icon">#</span><span class="nav-title">concepts</span></div>
-      <div class="nav-item"><span class="nav-icon">#</span><span class="nav-title">guides</span></div>
-      <div class="nav-item"><span class="nav-icon">#</span><span class="nav-title">reference</span></div>
+      <div class="nav-item active"><span class="nav-icon">�</span><span class="nav-title">index.md</span></div>
+      <div class="nav-item"><span class="nav-icon">�</span><span class="nav-title">log.md</span></div>
+      <div class="nav-header">concepts/</div>
+      <div class="nav-item"><span class="nav-icon">�</span><span class="nav-title">index.md</span></div>
+      <div class="nav-item"><span class="nav-icon">📝</span><span class="nav-title">getting-started.md</span></div>
+      <div class="nav-item"><span class="nav-icon">📝</span><span class="nav-title">ai-writing-guide.md</span></div>
+      <div class="nav-item"><span class="nav-icon">📝</span><span class="nav-title">p2p-sync.md</span></div>
+      <div class="nav-item"><span class="nav-icon">📝</span><span class="nav-title">mining-setup.md</span></div>
+      <div class="nav-header">reference/</div>
+      <div class="nav-item"><span class="nav-icon">📑</span><span class="nav-title">index.md</span></div>
+      <div class="nav-item"><span class="nav-icon">📝</span><span class="nav-title">markdown-syntax.md</span></div>
     </div>
     <div class="miner-panel">
       <div class="miner-title">Miner Node</div>
@@ -157,7 +172,19 @@
 
     <!-- Editor + Preview -->
     <div class="editor-pane">
-      <div class="pane-left"># Welcome to Chimera
+      <div class="pane-left">---
+id: index
+title: Welcome to Chimera
+description: Root index for the Chimera knowledge bundle
+tags:
+  - wiki
+  - ai
+  - okf
+created: 2026-06-18
+modified: 2026-06-18
+---
+
+# Welcome to Chimera
 
 This is your personal wiki powered by local AI inference.
 
@@ -178,12 +205,38 @@ console.log("Hello, wiki!");
 
 ## Related
 
-- [[Getting Started]]
-- [[Contributing]]
+- [concepts/getting-started](concepts/getting-started.md)
+- [concepts/ai-writing-guide](concepts/ai-writing-guide.md)
+- [Google Cloud Knowledge Catalog](https://github.com/GoogleCloudPlatform/knowledge-catalog/)
 
-#wiki #ai</div>
+## Bundle Structure
+
+This wiki follows the [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf).
+
+```
+chimera-wiki/
+├── index.md                 # Root directory listing
+├── log.md                   # Update history
+├── concepts/
+│   ├── index.md             # Concepts directory listing
+│   ├── getting-started.md
+│   ├── ai-writing-guide.md
+│   ├── p2p-sync.md
+│   └── mining-setup.md
+└── reference/
+    ├── index.md             # Reference directory listing
+    └── markdown-syntax.md
+```
+
+#wiki #ai #okf</div>
       <div class="pane-right">
         <div class="preview">
+          <div style="padding:10px 12px;background:#0b0a09;border:1px solid rgba(255,255,255,.06);border-radius:6px;margin-bottom:14px;font-size:12px;font-family:ui-monospace,SFMono-Regular,monospace;color:#4a4540;line-height:1.6">
+            <div style="color:#7a7468;margin-bottom:4px;font-weight:600">Frontmatter (OKF)</div>
+            <div>id: <span style="color:#a855f7">index</span></div>
+            <div>title: <span style="color:#00e5ff">Welcome to Chimera</span></div>
+            <div>tags: <span style="color:#4ade80">wiki, ai, okf</span></div>
+          </div>
           <h1>Welcome to Chimera</h1>
           <p>This is your personal wiki powered by local AI inference.</p>
           <h2>Getting Started</h2>
@@ -198,16 +251,32 @@ console.log("Hello, wiki!");</code></pre>
           <blockquote>"Knowledge is power."</blockquote>
           <h2>Related</h2>
           <ul>
-            <li><a href="#">Getting Started</a></li>
-            <li><a href="#">Contributing</a></li>
+            <li><a href="#">concepts/getting-started</a></li>
+            <li><a href="#">concepts/ai-writing-guide</a></li>
+            <li><a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/" target="_blank" rel="noopener">Google Cloud Knowledge Catalog ↗</a></li>
           </ul>
+          <h2>Bundle Structure</h2>
+          <pre style="font-size:12px"><code>chimera-wiki/
+├── index.md
+├── log.md
+├── concepts/
+│   ├── index.md
+│   ├── getting-started.md
+│   ├── ai-writing-guide.md
+│   ├── p2p-sync.md
+│   └── mining-setup.md
+└── reference/
+    ├── index.md
+    └── markdown-syntax.md</code></pre>
         </div>
         <div class="toc">
           <div class="toc-title">Contents</div>
+          <div class="toc-item">Frontmatter</div>
           <div class="toc-item">Welcome to Chimera</div>
           <div class="toc-item">Getting Started</div>
           <div class="toc-item sub">Example</div>
           <div class="toc-item">Related</div>
+          <div class="toc-item sub">Bundle Structure</div>
         </div>
       </div>
     </div>
@@ -225,6 +294,7 @@ console.log("Hello, wiki!");</code></pre>
         <span class="ai-tab" onclick="switchTab(this,'edit')">Edit</span>
         <span class="ai-tab" onclick="switchTab(this,'draft')">Draft</span>
         <span class="ai-tab" onclick="switchTab(this,'analyze')">Analyze</span>
+        <span class="ai-tab" onclick="switchTab(this,'ingest')">Ingest</span>
         <span class="ai-tab" onclick="switchTab(this,'auto')">Auto</span>
       </div>
 
@@ -279,6 +349,22 @@ console.log("Hello, wiki!");</code></pre>
         </div>
       </div>
 
+      <div id="tab-ingest" style="display:none">
+        <div class="ai-field">
+          <div class="ai-label">Content to ingest</div>
+          <textarea class="ai-textarea" placeholder="Paste text, notes, or a document to add to Openviking memory..." readonly style="min-height:100px"></textarea>
+        </div>
+        <div class="ai-field">
+          <div class="ai-label">Source tag</div>
+          <input class="ai-input" placeholder="e.g. wiki, pdf, conversation" readonly>
+        </div>
+        <div style="display:flex;gap:6px">
+          <span class="ai-btn" style="flex:1;text-align:center">Ingest to Memory</span>
+          <span class="ai-btn" style="flex:1;text-align:center">Ingest File</span>
+        </div>
+        <div class="ai-hint" style="margin-top:8px">Content is chunked, embedded, and stored in local Hypercore. Queries retrieve from this memory.</div>
+      </div>
+
       <div id="tab-auto" style="display:none">
         <div class="ai-field">
           <div class="ai-label">Auto mode</div>
@@ -296,6 +382,32 @@ console.log("Hello, wiki!");</code></pre>
       </div>
 
       <div class="ai-hint">AI runs locally on your device via QVAK. No data leaves your machine.</div>
+
+      <div class="openviking-memory">
+        <div class="memory-header">
+          <span>🧠 Openviking Memory</span>
+          <span class="memory-status">● Live</span>
+        </div>
+        <div class="memory-body">
+          <div class="memory-item">
+            <span class="memory-key">Context:</span>
+            <span class="memory-val">Chimera Wiki</span>
+          </div>
+          <div class="memory-item">
+            <span class="memory-key">Engine:</span>
+            <span class="memory-val">Volcengine QVAK</span>
+          </div>
+          <div class="memory-item">
+            <span class="memory-key">Sync:</span>
+            <span class="memory-val">P2P Hypercore</span>
+          </div>
+          <div class="memory-bar">
+            <div class="memory-fill" style="width:72%"></div>
+          </div>
+          <div class="memory-label">72% cached</div>
+          <div class="memory-btn" onclick="alert('Ingest: select text in the editor or use the Ingest tab in the AI Writer panel')">⬆ Ingest into Memory</div>
+        </div>
+      </div>
     </div>
   </aside>
 </div>
@@ -304,7 +416,7 @@ console.log("Hello, wiki!");</code></pre>
 function switchTab(el, id) {
   document.querySelectorAll('.ai-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['gen','edit','draft','analyze','auto'].forEach(k => {
+  ['gen','edit','draft','analyze','ingest','auto'].forEach(k => {
     document.getElementById('tab-'+k).style.display = k === id ? 'block' : 'none';
   });
 }
