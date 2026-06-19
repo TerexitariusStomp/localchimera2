@@ -1,6 +1,6 @@
 [package]
 name = "chimera-desktop"
-version = "1.0.1"
+version = "1.0.16"
 description = "Chimera Desktop - Local AI that earns when idle"
 edition = "2021"
 rust-version = "1.77"

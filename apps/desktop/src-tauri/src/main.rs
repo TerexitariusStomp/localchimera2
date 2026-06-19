@@ -152,7 +152,7 @@ struct UpdateCheckResult {
 
 #[tauri::command]
 async fn check_for_updates() -> Result<UpdateCheckResult, String> {
-    const API: &str = "https://api.github.com/repos/TerexitariusStomp/qvac-chimera/releases/latest";
+    const API: &str = "https://api.github.com/repos/TerexitariusStomp/localchimera/releases/latest";
     const CURRENT: &str = env!("CARGO_PKG_VERSION");
 
     let client = reqwest::Client::builder()
@@ -177,7 +177,7 @@ async fn check_for_updates() -> Result<UpdateCheckResult, String> {
         has_update: has,
         current_version: current,
         latest_version: latest,
-        download_url: "https://github.com/TerexitariusStomp/qvac-chimera/releases/latest".to_string(),
+        download_url: "https://github.com/TerexitariusStomp/localchimera/releases/latest".to_string(),
     })
 }
 
