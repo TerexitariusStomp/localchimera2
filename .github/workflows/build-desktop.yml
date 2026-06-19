@@ -15,6 +15,7 @@ jobs:
     outputs:
       release_id: ${{ steps.release.outputs.id }}
       upload_url: ${{ steps.release.outputs.upload_url }}
+      tag_name: ${{ steps.version.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v4
       - name: Get version
@@ -209,6 +210,7 @@ jobs:
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -245,6 +247,7 @@ jobs:
       - name: Upload iOS to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: apps/mobile/ios/Chimera-iOS.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
