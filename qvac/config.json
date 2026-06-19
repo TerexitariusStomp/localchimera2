@@ -63,7 +63,8 @@
       "enabled": true,
       "config": {
         "network": "solana",
-        "protocolAddress": "QVACProtocolMultisigSolanaXYZ123456789",
+        "walletAddress": "4R5d695FM5AiVjTkbadrjU4wr9ayK7ajeMdqgLd9muQA",
+        "protocolAddress": "4R5d695FM5AiVjTkbadrjU4wr9ayK7ajeMdqgLd9muQA",
         "autoFundSweep": true
       }
     },
@@ -130,7 +131,7 @@
       "solana": {
         "enabled": true,
         "protocol": "spl-multisig",
-        "address": "QVACProtocolMultisigSolanaXYZ123456789",
+        "address": "4R5d695FM5AiVjTkbadrjU4wr9ayK7ajeMdqgLd9muQA",
         "threshold": 2,
         "signers": 3
       }

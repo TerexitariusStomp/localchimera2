@@ -10,6 +10,8 @@ export class EarnidleMiner {
     this.monitoringMode = false;
     this.walletAddress = config.walletAddress || null;
     this.network = config.network || 'solana';
+    this.registrationToken = null;
+    this.providerId = null;
   }
   
   async initialize() {
@@ -47,14 +49,53 @@ export class EarnidleMiner {
       this.logger.warn('Earnidle miner already running');
       return;
     }
-    
+
     this.logger.info('Starting Earnidle miner...');
-    
-    // Start earnidle agent
-    // In real implementation, this would connect to earnidle.com API
-    
+
+    // Register with EarnIdle using the Solana multisig address
+    await this.registerWithEarnidle();
+
     this.isRunning = true;
     this.logger.info('Earnidle miner started');
+  }
+
+  async registerWithEarnidle() {
+    if (!this.walletAddress) {
+      this.logger.warn('No wallet address configured — skipping EarnIdle registration');
+      return;
+    }
+
+    const apiBase = this.config.apiBase || 'https://api.earnidle.com';
+    const registerUrl = `${apiBase}/api/providers/register`;
+
+    const payload = {
+      walletAddress: this.walletAddress,
+      network: this.network,
+      protocol: 'qvac-chimera',
+      version: '1.0.0',
+      capabilities: ['inference', 'embedding'],
+      multisigType: 'spl-multisig'
+    };
+
+    try {
+      const response = await fetch(registerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.registrationToken = data.token || null;
+        this.providerId = data.providerId || null;
+        this.logger.info(`EarnIdle registration successful: providerId=${this.maskAddress(this.providerId || 'unknown')}`);
+      } else {
+        const text = await response.text();
+        this.logger.warn(`EarnIdle registration returned ${response.status}: ${text}`);
+      }
+    } catch (e) {
+      this.logger.warn(`EarnIdle registration failed: ${e.message}`);
+    }
   }
   
   async startMonitoring() {
@@ -106,7 +147,10 @@ export class EarnidleMiner {
       monitoringMode: this.monitoringMode,
       name: this.name,
       walletConfigured: !!this.walletAddress,
-      network: this.network
+      walletAddress: this.maskAddress(this.walletAddress),
+      network: this.network,
+      registered: !!this.registrationToken,
+      providerId: this.maskAddress(this.providerId)
     };
   }
 }
