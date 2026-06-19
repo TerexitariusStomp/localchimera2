@@ -4,8 +4,8 @@ import pkg from 'casper-js-sdk';
 const sdk = pkg;
 const { PrivateKey, PublicKey, KeyAlgorithm, CLValue, Args, ContractHash, StoredContractByHash, ExecutableDeployItem, DeployHeader, Deploy, RpcClient, HttpHandler } = sdk;
 
-const RPC_URL = 'http://localhost:7778/rpc';
 const CHAIN_NAME = 'casper-test';
+const DEFAULT_RPC_URL = 'https://rpc.testnet.casper.network/rpc';
 
 const CONTRACTS = {
   escrowVault: '161f9eb54e9bcdc7345084285243ba718abc4ac5601132e8d069c0df6157fb74',
@@ -32,8 +32,8 @@ async function stringToHash(str) {
   return createHash('sha256').update(str).digest('hex');
 }
 
-async function rpcCall(method, params) {
-  const res = await fetch(RPC_URL, {
+async function rpcCall(rpcUrl, method, params) {
+  const res = await fetch(rpcUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
@@ -41,8 +41,8 @@ async function rpcCall(method, params) {
   return res.json();
 }
 
-async function getDictionaryItem(contractHash, dictName, dictKey) {
-  const entityRes = await rpcCall('state_get_entity', {
+async function getDictionaryItem(rpcUrl, contractHash, dictName, dictKey) {
+  const entityRes = await rpcCall(rpcUrl, 'state_get_entity', {
     entity_identifier: { ContractHash: 'contract-' + contractHash },
   });
   // Handle both old (AddressableEntity) and new (Contract) response formats
@@ -55,12 +55,12 @@ async function getDictionaryItem(contractHash, dictName, dictKey) {
   const dictUref = namedKeys.find(k => k.name === dictName)?.key;
   if (!dictUref) return null;
 
-  const stateRoot = await rpcCall('chain_get_state_root_hash', {});
+  const stateRoot = await rpcCall(rpcUrl, 'chain_get_state_root_hash', {});
   const stateRootHash = stateRoot.result?.state_root_hash;
   if (!stateRootHash) return null;
 
   // Use URef dictionary_identifier format (Casper 2.x)
-  const dictRes = await rpcCall('state_get_dictionary_item', {
+  const dictRes = await rpcCall(rpcUrl, 'state_get_dictionary_item', {
     state_root_hash: stateRootHash,
     dictionary_identifier: {
       URef: {
@@ -84,25 +84,49 @@ export class CasperEscrowBridge {
     this.processedJobs = new Set();
   }
 
+  get rpcUrl() {
+    return this.config.rpcUrl || process.env.CASPER_RPC_URL || DEFAULT_RPC_URL;
+  }
+
   async initialize() {
     this.logger.info('Initializing Casper escrow bridge...');
+    this.logger.info(`Casper RPC: ${this.rpcUrl}`);
+
+    // Test RPC connection even without a key
+    try {
+      const chainInfo = await rpcCall(this.rpcUrl, 'info_get_status', {});
+      const chainName = chainInfo.result?.chainspec_name || 'unknown';
+      const lastBlock = chainInfo.result?.last_added_block_info?.height ?? '?';
+      this.logger.info(`Connected to Casper chain: ${chainName} (last block ${lastBlock})`);
+    } catch (e) {
+      this.logger.warn(`Could not reach Casper RPC: ${e.message}`);
+    }
 
     const pem = this.config.providerKeyPem || process.env.CASPER_PROVIDER_KEY_PEM;
     if (!pem) {
-      this.logger.error('No provider private key configured. Set CASPER_PROVIDER_KEY_PEM env var or config.providerKeyPem');
+      this.logger.warn('No provider private key configured. Set CASPER_PROVIDER_KEY_PEM env var or config.providerKeyPem to accept jobs.');
+      this.logger.info('Casper escrow bridge initialized (observer mode)');
       return;
     }
 
-    this.providerKey = PrivateKey.fromPem(pem, KeyAlgorithm.SECP256K1);
-    this.providerAccountHash = this.providerKey.publicKey.accountHash().toHex();
-    this.logger.info(`Provider account: ${this.providerAccountHash}`);
+    try {
+      this.providerKey = PrivateKey.fromPem(pem, KeyAlgorithm.SECP256K1);
+      this.providerAccountHash = this.providerKey.publicKey.accountHash().toHex();
+      this.logger.info(`Provider account: ${this.providerAccountHash}`);
+    } catch (e) {
+      this.logger.error(`Invalid provider key PEM: ${e.message}`);
+      return;
+    }
 
     // Check balance
-    const balance = await this.getAccountBalance(this.providerAccountHash);
-    this.logger.info(`Provider balance: ${balance}`);
-
-    if (balance === '0 CSPR' || balance.startsWith('Error')) {
-      this.logger.warn('Provider account has no balance. Fund it with testnet CSPR before accepting jobs.');
+    try {
+      const balance = await this.getAccountBalance(this.providerAccountHash);
+      this.logger.info(`Provider balance: ${balance}`);
+      if (balance === '0 CSPR' || balance.startsWith('Error')) {
+        this.logger.warn('Provider account has no balance. Fund it with testnet CSPR before accepting jobs.');
+      }
+    } catch (e) {
+      this.logger.warn(`Balance check failed: ${e.message}`);
     }
 
     this.logger.info('Casper escrow bridge initialized');
@@ -111,7 +135,7 @@ export class CasperEscrowBridge {
   async getAccountBalance(accountHashStr) {
     try {
       // Try query_balance first (Casper 2.x)
-      const balanceRes = await rpcCall('query_balance', {
+      const balanceRes = await rpcCall(this.rpcUrl, 'query_balance', {
         purse_identifier: { main_purse_under_account_hash: 'account-hash-' + accountHashStr },
       });
       const balanceValue = balanceRes.result?.balance;
@@ -120,13 +144,13 @@ export class CasperEscrowBridge {
       }
 
       // Fallback: read main purse from entity then query balance by URef
-      const entityRes = await rpcCall('state_get_entity', {
+      const entityRes = await rpcCall(this.rpcUrl, 'state_get_entity', {
         entity_identifier: { AccountHash: 'account-hash-' + accountHashStr },
       });
       const mainPurse = entityRes.result?.entity?.Account?.main_purse;
       if (!mainPurse) return '0 CSPR';
 
-      const balanceRes2 = await rpcCall('state_get_balance', {
+      const balanceRes2 = await rpcCall(this.rpcUrl, 'state_get_balance', {
         purse_uref: mainPurse,
       });
       const balanceValue2 = balanceRes2.result?.balance_value || '0';
@@ -138,12 +162,21 @@ export class CasperEscrowBridge {
 
   async start() {
     if (this.isRunning) return;
+    if (!this.providerKey) {
+      this.logger.warn('Cannot start Casper miner: no provider key configured');
+      return;
+    }
     this.isRunning = true;
     this.logger.info('Starting Casper escrow bridge polling...');
 
     // Poll immediately, then every 15 seconds
     await this.pollJobs();
     this.pollInterval = setInterval(() => this.pollJobs(), 15000);
+  }
+
+  async startMonitoring() {
+    if (this.isRunning) { this.logger.warn('Already monitoring'); return; }
+    await this.start();
   }
 
   async stop() {
@@ -160,7 +193,7 @@ export class CasperEscrowBridge {
 
     try {
       // Get pending jobs list (named key is 'pending_jobs')
-      const pending = await getDictionaryItem(CONTRACTS.escrowVault, 'pending_jobs', 'list');
+      const pending = await getDictionaryItem(this.rpcUrl, CONTRACTS.escrowVault, 'pending_jobs', 'list');
       if (!pending || !Array.isArray(pending) || pending.length === 0) return;
 
       this.logger.info(`Found ${pending.length} pending job(s)`);
@@ -177,10 +210,10 @@ export class CasperEscrowBridge {
   async handleJob(jobId) {
     try {
       // Read job state directly from dictionary (named keys: jobs_dict, pending_jobs, etc.)
-      const stateVal = await getDictionaryItem(CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:state`);
-      const providerVal = await getDictionaryItem(CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:provider`);
-      const consumerVal = await getDictionaryItem(CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:consumer`);
-      const amountVal = await getDictionaryItem(CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:amount`);
+      const stateVal = await getDictionaryItem(this.rpcUrl, CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:state`);
+      const providerVal = await getDictionaryItem(this.rpcUrl, CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:provider`);
+      const consumerVal = await getDictionaryItem(this.rpcUrl, CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:consumer`);
+      const amountVal = await getDictionaryItem(this.rpcUrl, CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:amount`);
 
       if (stateVal === null || providerVal === null) {
         this.logger.warn(`Could not fetch job details for ${jobId}`);
@@ -216,7 +249,7 @@ export class CasperEscrowBridge {
       await this.providerAck(jobId);
 
       // Get the request hash (order_id/prompt)
-      const requestHash = await getDictionaryItem(CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:request_hash`);
+      const requestHash = await getDictionaryItem(this.rpcUrl, CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:request_hash`);
       this.logger.info(`Job ${jobId} request: ${requestHash}`);
 
       // Run inference
@@ -344,7 +377,7 @@ export class CasperEscrowBridge {
 
     // Use raw RPC to submit deploy
     const deployJSON = Deploy.toJSON(deploy);
-    const res = await rpcCall('account_put_deploy', { deploy: deployJSON });
+    const res = await rpcCall(this.rpcUrl, 'account_put_deploy', { deploy: deployJSON });
 
     if (res.error) {
       throw new Error(`Deploy failed: ${res.error.message}`);
@@ -368,14 +401,17 @@ export class CasperEscrowBridge {
   }
 
   async getJobState(jobId) {
-    const stateVal = await getDictionaryItem(CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:state`);
+    const stateVal = await getDictionaryItem(this.rpcUrl, CONTRACTS.escrowVault, 'jobs_dict', `${jobId}:state`);
     return stateVal !== null ? Number(stateVal) : null;
   }
 
   getStatus() {
     return {
       running: this.isRunning,
-      providerAccount: this.providerAccountHash,
+      network: CHAIN_NAME,
+      rpcUrl: this.rpcUrl,
+      providerAccount: this.providerAccountHash || null,
+      hasKey: !!this.providerKey,
       processedJobs: this.processedJobs.size,
     };
   }

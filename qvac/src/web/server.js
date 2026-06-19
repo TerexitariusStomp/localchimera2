@@ -876,6 +876,13 @@ Copy the topic hex and invite others to join.
     ok(res, { message: 'Mining stopped', running: false });
   }
 
+  async handleCasperStatus(req, res) {
+    if (!this.nodeManager?.minerManager) { serviceUnavailable(res, 'Miner manager not available'); return; }
+    const casper = this.nodeManager.minerManager.miners.get('casper');
+    if (!casper) { ok(res, { available: false, reason: 'Casper miner not configured' }); return; }
+    ok(res, { available: true, ...casper.getStatus() });
+  }
+
   async handleMinerTest(req, res) {
     if (!this.nodeManager?.minerManager) { serviceUnavailable(res, 'Miner manager not available'); return; }
     const mm = this.nodeManager.minerManager;

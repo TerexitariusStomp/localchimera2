@@ -3,7 +3,7 @@ const sdk = pkg;
 const { PrivateKey, KeyAlgorithm, CLValue, Args, ExecutableDeployItem, DeployHeader, Deploy } = sdk;
 import { createHash } from 'crypto';
 
-const RPC_URL = 'http://localhost:7778/rpc';
+const RPC_URL = 'https://rpc.testnet.casper.network/rpc';
 const CHAIN_NAME = 'casper-test';
 
 // Provider/worker key

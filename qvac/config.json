@@ -105,7 +105,7 @@
       "enabled": true,
       "config": {
         "network": "casper-test",
-        "rpcUrl": "http://localhost:7778/rpc",
+        "rpcUrl": "https://rpc.testnet.casper.network/rpc",
         "providerKeyPem": ""
       }
     }

@@ -10,5 +10,58 @@
   </head>
   <body>
     <div id="root"></div>
+    <div id="chimera-node-status" style="position:fixed;bottom:12px;right:12px;z-index:9999;font-family:ui-monospace,monospace;font-size:12px;background:rgba(10,10,18,0.95);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 16px;color:#b0a898;max-width:260px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span id="node-dot" style="width:8px;height:8px;border-radius:50%;background:#450a0a;"></span>
+        <span style="font-weight:700;color:#e8e2d8;">Chimera Node</span>
+      </div>
+      <div id="node-body" style="line-height:1.6;">Checking local node...</div>
+    </div>
+    <script>
+      (async function poll() {
+        const dot = document.getElementById('node-dot');
+        const body = document.getElementById('node-body');
+        // Inference backend is on a VPS; allow override via window._chimeraApi
+        const API = (window._chimeraApi || 'http://147.79.71.192:3006').replace(/\/$/, '');
+        try {
+          const [statusRes, casperRes] = await Promise.all([
+            fetch(API + '/api/status', { credentials: 'omit' }).catch(() => ({ ok: false })),
+            fetch(API + '/api/casper/status', { credentials: 'omit' }).catch(() => ({ ok: false })),
+          ]);
+          const status = statusRes.ok ? await statusRes.json() : null;
+          const casper = casperRes.ok ? await casperRes.json() : { available: false };
+
+          const nodeRunning = status?.running;
+          const casperConnected = casper.available && casper.rpcUrl;
+          const hasKey = casper.hasKey;
+
+          if (nodeRunning && casperConnected) {
+            dot.style.background = '#4ade80';
+            dot.style.boxShadow = '0 0 6px #4ade80';
+            body.innerHTML =
+              'Node: <strong style="color:#86efac;">Running</strong><br>' +
+              'Casper: <strong style="color:#86efac;">' + (casper.network || 'testnet') + '</strong><br>' +
+              'RPC: <span style="color:#7a7468;font-size:11px;">' + casper.rpcUrl + '</span><br>' +
+              'Key: ' + (hasKey
+                ? '<strong style="color:#86efac;">Ready</strong>'
+                : '<span style="color:#fca5a5;">Not set</span>') + '<br>' +
+              '<span style="color:#7a7468;font-size:11px;">Install the Chimera app to connect your node.</span>';
+          } else if (nodeRunning) {
+            dot.style.background = '#fbbf24';
+            body.innerHTML = 'Node running but Casper not configured.';
+          } else if (status) {
+            dot.style.background = '#fbbf24';
+            body.innerHTML = 'Backend reachable. Waiting for node...';
+          } else {
+            dot.style.background = '#450a0a';
+            body.innerHTML = 'Backend offline.<br><span style="color:#7a7468;font-size:11px;">Download Chimera to connect your node.</span>';
+          }
+        } catch (e) {
+          dot.style.background = '#450a0a';
+          body.innerHTML = 'Backend offline.<br><span style="color:#7a7468;font-size:11px;">Download Chimera to connect your node.</span>';
+        }
+        setTimeout(poll, 5000);
+      })();
+    </script>
   </body>
 </html>
