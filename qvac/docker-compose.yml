@@ -1,58 +1,31 @@
 version: '3.8'
 
 services:
-  openviking:
-    image: openviking-chimera-local:latest
-    container_name: openviking-chimera
-    ports:
-      - "1933:1933"
-    volumes:
-      - openviking-data:/app/.openviking
-    environment:
-      - OPENVIKING_CONF=/app/.openviking/ov.conf
-    restart: always
-    networks:
-      - chimera-network
-    healthcheck:
-      test: ["CMD", "curl", "-fs", "http://localhost:1933/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
   qvac-chimera:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: qvac/Dockerfile
     container_name: qvac-chimera
     ports:
       - "3002:3002"
     volumes:
-      - chimera-wiki:/app/llmwiki-data
+      - chimera-data:/app/llmwiki-data
+      - openviking-data:/app/.openviking
     environment:
       - NODE_ENV=production
       - PORT=3002
-      - OPENVIKING_URL=http://openviking:1933
+      - OPENVIKING_URL=http://127.0.0.1:1933
       - OPENVIKING_API_KEY=chimera-local-dev-key
     restart: always
-    depends_on:
-      openviking:
-        condition: service_healthy
-    networks:
-      - chimera-network
     healthcheck:
       test: ["CMD", "curl", "-fs", "http://localhost:3002/api/status"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-
-networks:
-  chimera-network:
-    driver: bridge
+      start_period: 90s
 
 volumes:
-  chimera-wiki:
+  chimera-data:
     driver: local
   openviking-data:
     driver: local

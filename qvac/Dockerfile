@@ -1,14 +1,20 @@
-# Dockerfile for QVAC Chimera — Hardened Container with @qvac/sdk
-FROM node:20-bookworm AS builder
+# Dockerfile for QVAC Chimera — single container with Node.js + OpenViking
+
+# ─── Stage 1: OpenViking build ───
+FROM ghcr.io/volcengine/openviking:latest AS openviking-builder
+
+# Already has openviking + venv at /app/.venv
+# We just keep this stage as-is for copying later
+
+# ─── Stage 2: Node.js build ───
+FROM node:20-bookworm AS node-builder
 
 WORKDIR /app
 
-# Install build tools for native modules (hypercore, hyperswarm, llama.cpp, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git python3 make g++ cmake bash curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# ─── Backend deps (includes @qvac/sdk) ───
 COPY package*.json ./
 RUN npm install && \
     find node_modules -path "*/prebuilds/android-*" -delete && \
@@ -18,55 +24,87 @@ RUN npm install && \
     find node_modules -path "*/prebuilds/linux-arm64" -delete && \
     rm -rf node_modules/.cache 2>/dev/null || true
 
-# ─── Frontend deps & build ───
 COPY frontend/package*.json ./frontend/
 RUN cd frontend && npm install
 COPY frontend/ ./frontend/
 RUN cd frontend && npm run build
 
-# ─── Copy source & config ───
 COPY src/ ./src/
 COPY config.json ./
 
-# ─── Runtime stage (hardened) ───
+# ─── Stage 3: Runtime — everything in one container ───
 FROM node:20-bookworm-slim AS runtime
 
 WORKDIR /app
 
-# Install runtime deps only
+# Install Python + runtime deps for OpenViking
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl \
+    ca-certificates curl python3 python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for hardened container
+# Create non-root user
 RUN groupadd -r chimera && useradd -r -g chimera -s /bin/false chimera
 
-# Copy built app from builder
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/frontend/dist ./frontend/dist
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/config.json ./
-COPY --from=builder /app/package.json ./
+# Copy Node.js app from node-builder
+COPY --from=node-builder /app/node_modules ./node_modules
+COPY --from=node-builder /app/frontend/dist ./frontend/dist
+COPY --from=node-builder /app/src ./src
+COPY --from=node-builder /app/config.json ./
+COPY --from=node-builder /app/package.json ./
 
-# ─── Data volume mount point ───
-RUN mkdir -p /app/llmwiki-data/wiki /app/llmwiki-data/index /app/data \
+# Copy OpenViking Python environment from openviking-builder
+COPY --from=openviking-builder /app/.venv /app/.venv
+COPY --from=openviking-builder /app/.openviking /app/.openviking
+
+# Copy custom ov.conf (overwrites default)
+COPY upstream/openviking/ov.conf /app/.openviking/ov.conf
+
+# Ensure OpenViking data dir exists and is writable
+RUN mkdir -p /app/.openviking/data /app/llmwiki-data/wiki /app/llmwiki-data/index /app/data \
     && chown -R chimera:chimera /app
 
-# Hardened container: run as non-root, no shell access
+# Startup script that runs both OpenViking and Node.js
+COPY <<'STARTUP' /app/start.sh
+#!/usr/bin/env bash
+set -e
+
+# Start OpenViking server in background
+/app/.venv/bin/openviking-server \
+  --config /app/.openviking/ov.conf \
+  --host 127.0.0.1 \
+  --port 1933 &
+OV_PID=$!
+echo "[start] OpenViking PID: $OV_PID"
+
+# Wait for OpenViking to be ready
+for i in {1..60}; do
+  if curl -fsS http://127.0.0.1:1933/health >/dev/null 2>&1; then
+    echo "[start] OpenViking ready"
+    break
+  fi
+  if ! kill -0 $OV_PID 2>/dev/null; then
+    echo "[start] OpenViking exited unexpectedly"
+    exit 1
+  fi
+  sleep 1
+done
+
+# Start the main Chimera Node.js app
+exec node src/index.js
+STARTUP
+RUN chmod +x /app/start.sh && chown chimera:chimera /app/start.sh
+
 USER chimera
 
-# Environment
 ENV NODE_ENV=production
 ENV PORT=3002
 ENV OPENVIKING_URL=http://127.0.0.1:1933
 ENV OPENVIKING_API_KEY=chimera-local-dev-key
+ENV PATH="/app/.venv/bin:${PATH}"
 
-# Expose wiki web server port
 EXPOSE 3002
 
-# Health check on wiki API
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
   CMD curl -fs http://localhost:3002/api/status || exit 1
 
-# Start with @qvac/sdk running inside hardened container
-CMD ["node", "src/index.js"]
+CMD ["/app/start.sh"]

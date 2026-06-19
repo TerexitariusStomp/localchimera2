@@ -1,36 +1,29 @@
 # OpenViking Integration
 
-## Running the Real OpenViking Server
+## Architecture: Single Container
 
-The real `ghcr.io/volcengine/openviking:latest` server **requires an embedding provider**.
-This is an architectural requirement — the storage layer (`queuefs`) creates a
-`TextEmbeddingHandler` at startup.
+OpenViking runs **inside the same container** as the Chimera Node.js app.
+The `qvac/Dockerfile` bundles everything:
 
-We provide a custom image (`openviking-chimera-local`) with `llama-cpp-python`
-pre-installed and a local Chinese BGE embedding model (`bge-small-zh-v1.5-f16`).
+- Node.js runtime + `@qvac/sdk` (LLM inference + embedding)
+- OpenViking server (`openviking-server`) with `llama-cpp-python`
+- Local BGE embedding model (`bge-small-zh-v1.5-f16`)
+- A startup script (`/app/start.sh`) that launches both services
 
-### Quick Start
+No separate containers, sidecars, or manual OpenViking setup needed.
 
-```bash
-# Build the image (one time)
-cd upstream/openviking
-podman build -f Dockerfile.local -t openviking-chimera-local .
+### How It Works
 
-# Run the server
-podman run -d --name openviking-chimera \
-  -p 1933:1933 \
-  -v openviking_data:/app/.openviking \
-  openviking-chimera-local
+When the container starts:
+1. `start.sh` launches OpenViking on `127.0.0.1:1933` in the background
+2. Waits up to 60s for `/health` to return 200
+3. Then starts the Chimera Node.js app on port 3002
 
-# Get a user API key (run once)
-podman exec openviking-chimera curl -s \
-  -H "X-API-Key: chimera-local-dev-key" \
-  http://127.0.0.1:1933/api/v1/admin/accounts/default/users
-```
+Both processes share the same container filesystem and network namespace.
 
 ### Configuration
 
-The server uses `upstream/openviking/ov.conf`:
+`upstream/openviking/ov.conf` (copied into the image at build time):
 
 ```json
 {
@@ -54,23 +47,30 @@ The server uses `upstream/openviking/ov.conf`:
 }
 ```
 
-### API Key Setup
+The bridge (`openviking_bridge.py`) connects to `http://127.0.0.1:1933`
+with API key `chimera-local-dev-key` (user key auto-created on first start).
 
-The bridge needs a **user API key**, not the root key:
+### Deployment Targets
+
+All packages use the same single-container image:
+
+| Target | How OpenViking Runs |
+|---|---|
+| **Docker / Podman** | Built into `qvac-chimera` image, started by `start.sh` |
+| **Docker Compose** | Single service `qvac-chimera` with OpenViking inside |
+| **Kubernetes** | Single container pod; OpenViking as background process |
+| **Desktop (all OS)** | Supervisor starts one container; OpenViking inside |
+| **Mobile** | Connects to remote instance (configurable `OPENVIKING_URL`) |
+
+### Building the Image
 
 ```bash
-# List users to get the key
-USER_KEY=$(podman exec openviking-chimera curl -s \
-  -H "X-API-Key: chimera-local-dev-key" \
-  http://127.0.0.1:1933/api/v1/admin/accounts/default/users | \
-  python3 -c "import sys,json; print(json.load(sys.stdin)['result'][0]['api_key'])")
-
-# Export for the bridge
-export OPENVIKING_API_KEY="$USER_KEY"
+cd qvac
+podman build -f Dockerfile -t qvac-chimera:latest ..
 ```
 
 ## Current Status
 
-- **Real server**: Running on `http://127.0.0.1:1933` with local CPU embeddings ✅
+- **OpenViking**: Bundled inside `qvac-chimera` image, runs on `127.0.0.1:1933` ✅
 - **Bridge**: `openviking_bridge.py` connects via plain urllib ✅
 - **Integration**: `server.js` stores wiki pages as memory on every save ✅

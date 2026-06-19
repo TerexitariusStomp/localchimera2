@@ -17,27 +17,7 @@ spec:
         component: inference
     spec:
       containers:
-      - name: openviking
-        image: openviking-chimera-local:latest
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 1933
-          name: openviking
-          protocol: TCP
-        resources:
-          requests:
-            memory: "1Gi"
-            cpu: "500m"
-          limits:
-            memory: "2Gi"
-            cpu: "1000m"
-        volumeMounts:
-        - name: openviking-data
-          mountPath: /app/.openviking
-        env:
-        - name: OPENVIKING_CONF
-          value: "/app/.openviking/ov.conf"
-      - name: miner-node
+      - name: qvac-chimera
         image: qvac-chimera:latest
         imagePullPolicy: IfNotPresent
         ports:
@@ -46,19 +26,21 @@ spec:
           protocol: TCP
         resources:
           requests:
-            memory: "2Gi"
-            cpu: "1000m"
-          limits:
             memory: "4Gi"
-            cpu: "2000m"
+            cpu: "1500m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
         volumeMounts:
         - name: data
-          mountPath: /app/data
+          mountPath: /app/llmwiki-data
+        - name: openviking-data
+          mountPath: /app/.openviking
         env:
         - name: NODE_ENV
           value: "production"
         - name: OPENVIKING_URL
-          value: "http://localhost:1933"
+          value: "http://127.0.0.1:1933"
         - name: OPENVIKING_API_KEY
           value: "chimera-local-dev-key"
         livenessProbe:

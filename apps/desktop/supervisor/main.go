@@ -100,8 +100,11 @@ func startContainer() error {
 		"--name", ContainerName,
 		"-p", ContainerPort+":"+ContainerPort,
 		"-v", "chimera-data:/app/llmwiki-data",
+		"-v", "openviking-data:/app/.openviking",
 		"-e", "NODE_ENV=production",
 		"-e", "PORT="+ContainerPort,
+		"-e", "OPENVIKING_URL=http://127.0.0.1:1933",
+		"-e", "OPENVIKING_API_KEY=chimera-local-dev-key",
 		ImageName,
 	)
 	out, err := cmd.CombinedOutput()
