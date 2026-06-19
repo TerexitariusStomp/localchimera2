@@ -46,7 +46,7 @@
       "enabled": true,
       "config": {
         "network": "evm",
-        "platform": "https://app.fortytwo.network",
+        "platform": "https://fortytwo.network",
         "walletAddress": "",
         "protocolAddress": "0xChimeraProtocolFortytwoMultisig0001",
         "nodeName": "Chimera-Fortytwo-Node",
