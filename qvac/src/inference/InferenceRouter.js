@@ -9,7 +9,8 @@ export class InferenceRouter {
     this.logger = new Logger('InferenceRouter');
     this.activeRoutes = new Map();
     this.isRunning = false;
-    this.sdkWrapper = new QVACSDKWrapper(config.inference || {});
+    this.audit = config.audit || null;
+    this.sdkWrapper = new QVACSDKWrapper({ ...(config.inference || {}), audit: this.audit });
   }
 
   async initialize() {
@@ -34,11 +35,12 @@ export class InferenceRouter {
       try {
         const deviceId = this.selectDevice();
         this.logger.info(`Forwarding inference to mobile device: ${deviceId}`);
+        const mobileStart = Date.now();
         const result = await this.relay.forwardInference(deviceId, task.prompt || task.input || '', task.maxTokens || 128);
-        
+        const mobileDur = Date.now() - mobileStart;
         this.logger.info(`Mobile inference completed for ${minerName} via ${deviceId}: ${routeId}`);
         this.relay.recordEarning(deviceId, minerName, task.id || routeId);
-        
+        if (this.audit) this.audit.inference({ prompt: task.prompt || '', outputTokens: result.tokensGenerated || 0, durationMs: mobileDur, modelId: deviceId, source: 'mobile', routeId });
         return {
           success: true,
           routeId,

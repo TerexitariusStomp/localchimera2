@@ -24,6 +24,7 @@ export class EmbeddingService {
     this.modelId = null;
     this._loading = null;
     this.ready = false;
+    this.audit = this.config.audit || null;
   }
 
   async initialize() {
@@ -91,8 +92,13 @@ export class EmbeddingService {
     const input = Array.isArray(texts) ? texts : [texts];
     this.logger.debug(`Embedding ${input.length} text(s)`);
 
+    const start = Date.now();
     const result = await embed({ modelId, texts: input });
-    return result.vectors || result.embeddings || [];
+    const duration = Date.now() - start;
+    const vectors = result.vectors || result.embeddings || [];
+    const dimension = vectors[0]?.length || 0;
+    if (this.audit) this.audit.embedding({ textCount: input.length, dimension, durationMs: duration, modelId });
+    return vectors;
   }
 
   async ragIngest(workspace, documents) {
@@ -103,7 +109,10 @@ export class EmbeddingService {
     const modelId = await this._ensureModel();
 
     this.logger.info(`RAG ingest: ${documents.length} docs into workspace "${workspace}"`);
+    const start = Date.now();
     await ragIngest({ modelId, workspace, documents });
+    const duration = Date.now() - start;
+    if (this.audit) this.audit.ragIngest({ docCount: documents.length, workspace, durationMs: duration, modelId });
   }
 
   async ragSearch(workspace, query, topK = 5) {
@@ -114,8 +123,12 @@ export class EmbeddingService {
     const modelId = await this._ensureModel();
 
     this.logger.debug(`RAG search: "${query}" in "${workspace}"`);
+    const start = Date.now();
     const result = await ragSearch({ modelId, workspace, query, topK });
-    return result.matches || [];
+    const duration = Date.now() - start;
+    const matches = result.matches || [];
+    if (this.audit) this.audit.ragSearch({ query, topK, matchCount: matches.length, durationMs: duration, modelId });
+    return matches;
   }
 
   async ragListWorkspaces() {

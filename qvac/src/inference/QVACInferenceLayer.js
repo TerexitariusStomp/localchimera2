@@ -11,9 +11,10 @@ import { Logger } from '../core/Logger.js';
  * inference backend.
  */
 export class QVACInferenceLayer {
-  constructor(config, taskMonitor = null) {
+  constructor(config, taskMonitor = null, audit = null) {
     this.config = config;
     this.taskMonitor = taskMonitor;
+    this.audit = audit;
     this.logger = new Logger('QVACInference');
     this.activeRequests = new Map();
     this.lastActivity = Date.now();
@@ -128,6 +129,21 @@ export class QVACInferenceLayer {
 
     if (this.taskMonitor) this.taskMonitor.completeTask(requestId);
     this.activeRequests.delete(requestId);
+
+    // Audit log the inference call
+    if (this.audit) {
+      const prompt = request.prompt || request.input || '';
+      const tokens = result.output ? Math.ceil(result.output.length / 4) : 0;
+      this.audit.inference({
+        prompt,
+        outputTokens: tokens,
+        durationMs: result.latency || 0,
+        modelId: result.model || 'default',
+        source: request.source || 'unknown',
+        routeId: requestId
+      });
+    }
+
     return result;
   }
 

@@ -28,6 +28,7 @@ export class QVACSDKWrapper {
     this.modelId = null;
     this.modelLoaded = false;
     this.modelSrc = config.modelSrc || LLAMA_MODEL;
+    this.audit = config.audit || null;
   }
 
   async initialize() {
@@ -45,14 +46,17 @@ export class QVACSDKWrapper {
     }
 
     this.logger.info('Loading QVAC model...');
+    const loadStart = Date.now();
     this.modelId = await loadModelFn({
       modelSrc,
       onProgress: (progress) => {
         this.logger.debug(`Model load progress: ${Math.round(progress * 100)}%`);
       }
     });
+    const loadDuration = Date.now() - loadStart;
     this.modelLoaded = true;
-    this.logger.info(`Model loaded: ${this.modelId}`);
+    this.logger.info(`Model loaded: ${this.modelId} in ${loadDuration}ms`);
+    if (this.audit) this.audit.modelLoad({ modelId: this.modelId, durationMs: loadDuration, source: 'qvac-sdk' });
     return this.modelId;
   }
 
@@ -84,6 +88,7 @@ export class QVACSDKWrapper {
     const tokens = result.tokensGenerated || result.tokens || Math.ceil(output.length / 4);
 
     this.logger.info(`QVAC inference complete: ${tokens} tokens in ${duration}ms`);
+    if (this.audit) this.audit.inference({ prompt, outputTokens: tokens, durationMs: duration, modelId: this.modelId, source: 'qvac-sdk' });
 
     return {
       output,
@@ -95,10 +100,12 @@ export class QVACSDKWrapper {
 
   async unload() {
     if (!this.modelLoaded || !this.modelId) return;
-    await unloadModelFn({ modelId: this.modelId });
+    const mid = this.modelId;
+    await unloadModelFn({ modelId: mid });
     this.modelLoaded = false;
     this.modelId = null;
     this.logger.info('Model unloaded');
+    if (this.audit) this.audit.modelUnload({ modelId: mid, source: 'qvac-sdk' });
   }
 
   getStatus() {

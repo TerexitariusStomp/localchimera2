@@ -330,12 +330,17 @@ Copy the topic hex and invite others to join.
     if (!inference) { serviceUnavailable(res, 'QVAC inference not initialized'); return; }
 
     this.logger.info(`AI write request: ${title || prompt}`);
+    const aiStart = Date.now();
     const result = await inference.handleInferenceRequest({
       prompt: `Write a wiki article${title ? ` titled "${title}"` : ''} about: ${prompt}`,
       maxTokens: 1024,
       temperature: 0.7,
       source: 'llmwiki-ai-write'
     });
+
+    const aiDuration = Date.now() - aiStart;
+    const aiTokens = result.tokensGenerated || Math.ceil(result.output.length / 4);
+    if (this.nodeManager?.audit) this.nodeManager.audit.inference({ prompt, outputTokens: aiTokens, durationMs: aiDuration, modelId: result.model || 'llama', source: 'llmwiki-ai-write' });
 
     const docId = `ai-${Date.now()}`;
     const generatedTitle = title || result.output.split('\n')[0].replace(/^#\s*/, '').slice(0, 100);

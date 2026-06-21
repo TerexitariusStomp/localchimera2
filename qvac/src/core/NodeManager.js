@@ -1,4 +1,5 @@
 import { Logger } from './Logger.js';
+import { AuditLogger } from './AuditLogger.js';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { QVACInferenceLayer } from '../inference/QVACInferenceLayer.js';
@@ -36,6 +37,7 @@ export class NodeManager {
   async initialize() {
     this.logger.info('Initializing node components...');
 
+    this.audit = new AuditLogger(this.config.audit || {});
     this.authService = new AuthService(this.config.auth);
     await this.authService.initialize();
 
@@ -58,13 +60,13 @@ export class NodeManager {
     this.taskMonitor = new TaskMonitor();
     await this.taskMonitor.initialize();
 
-    this.inferenceLayer = new QVACInferenceLayer(this.config.inference, this.taskMonitor);
+    this.inferenceLayer = new QVACInferenceLayer(this.config.inference, this.taskMonitor, this.audit);
     await this.inferenceLayer.initialize();
 
     this.localLLM = new LocalLLM(this.config.inference?.localLLM || {});
     await this.localLLM.initialize();
 
-    this.embeddingService = new EmbeddingService(this.config.inference?.embedding || {});
+    this.embeddingService = new EmbeddingService({ ...(this.config.inference?.embedding || {}), audit: this.audit });
     await this.embeddingService.initialize();
 
     this.minerManager = new MinerManager(this.config.miners, this.dataStore, this.taskMonitor, this.inferenceLayer);
@@ -161,6 +163,7 @@ export class NodeManager {
     
     // Stop components in reverse order
     await this.webServer.stop();
+    await this.audit.stop();
     await this.minerManager.stop();
     await this.embeddingService.stop?.();
     await this.inferenceLayer.stop();
