@@ -2,7 +2,7 @@
   "expo": {
     "name": "Chimera",
     "slug": "chimera-mobile",
-    "version": "1.0.21",
+    "version": "1.0.22",
     "orientation": "portrait",
     "icon": "../mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
     "userInterfaceStyle": "dark",
@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "io.chimera.mobile",
-      "buildNumber": "1.0.21"
+      "buildNumber": "1.0.22"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +25,7 @@
         "backgroundColor": "#0a0a14"
       },
       "package": "io.chimera.mobile",
-      "versionCode": 10021
+      "versionCode": 10022
     },
     "plugins": [
       "@qvac/sdk",
