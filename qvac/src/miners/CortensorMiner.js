@@ -1,6 +1,6 @@
 import { Logger } from '../core/Logger.js';
 import { spawn, execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, promises as fsp } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 
@@ -166,7 +166,7 @@ export class CortensorMiner {
     }
 
     // 2. Check if private key is still the placeholder
-    const envContent = await import('fs').then(m => m.promises.readFile(this.envFile, 'utf-8').catch(() => ''));
+    const envContent = await fsp.readFile(this.envFile, 'utf-8').catch(() => '');
     if (envContent.includes('REPLACE_WITH_YOUR_PRIVATE_KEY')) {
       this.logger.error('============================================================');
       this.logger.error('NODE_PRIVATE_KEY is still the placeholder in ~/.cortensor/.env');

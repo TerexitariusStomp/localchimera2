@@ -70,7 +70,7 @@ export class FortytwoMiner {
       return;
     }
     this.logger.info(`Starting Fortytwo node: ${this.nodeName}`);
-    this._pollTimer = setInterval(() => this._poll(), this.pollInterval);
+    this._pollTimer = setInterval(() => this._poll(), this.pollInterval).unref();
     this._poll();
     this.isRunning = true;
     this.logger.info('Fortytwo node started');
