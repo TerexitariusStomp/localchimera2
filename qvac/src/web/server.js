@@ -262,7 +262,8 @@ Copy the topic hex and invite others to join.
   }
   
   handleHealth(req, res) {
-    ok(res, { status: 'ok', uptime: process.uptime() });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
   }
 
   async handleConsent(req, res) {
@@ -283,7 +284,8 @@ Copy the topic hex and invite others to join.
     if (!auth) { serviceUnavailable(res, 'Auth service not available'); return; }
     try {
       const result = await auth.signIn(body);
-      ok(res, result);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
     } catch (e) {
       badRequest(res, e.message);
     }
@@ -293,7 +295,8 @@ Copy the topic hex and invite others to join.
     const auth = this.nodeManager?.authService;
     if (!auth) { serviceUnavailable(res, 'Auth service not available'); return; }
     await auth.signOut();
-    ok(res, { signedOut: true });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ signedOut: true }));
   }
   
   async handleDownload(req, res) {
