@@ -81,11 +81,6 @@ export class EmbeddingService {
     return this.modelId;
   }
 
-  /**
-   * Generate embeddings for one or more texts.
-   * @param {string[]} texts
-   * @returns {Promise<number[][]>}
-   */
   async embed(texts) {
     if (!this.qvac) throw new Error('QVAC SDK not available');
     if (!this.ready) await this.start();
@@ -100,11 +95,6 @@ export class EmbeddingService {
     return result.vectors || result.embeddings || [];
   }
 
-  /**
-   * Ingest documents into a RAG workspace.
-   * @param {string} workspace
-   * @param {Array<{id:string, text:string, metadata?:object}>} documents
-   */
   async ragIngest(workspace, documents) {
     if (!this.qvac) throw new Error('QVAC SDK not available');
     if (!this.ready) await this.start();
@@ -116,13 +106,6 @@ export class EmbeddingService {
     await ragIngest({ modelId, workspace, documents });
   }
 
-  /**
-   * Search a RAG workspace.
-   * @param {string} workspace
-   * @param {string} query
-   * @param {number} topK
-   * @returns {Promise<Array<{id:string, text:string, score:number}>>}
-   */
   async ragSearch(workspace, query, topK = 5) {
     if (!this.qvac) throw new Error('QVAC SDK not available');
     if (!this.ready) await this.start();
@@ -135,10 +118,6 @@ export class EmbeddingService {
     return result.matches || [];
   }
 
-  /**
-   * List RAG workspaces.
-   * @returns {Promise<string[]>}
-   */
   async ragListWorkspaces() {
     if (!this.qvac) return [];
     const { ragListWorkspaces } = this.qvac;

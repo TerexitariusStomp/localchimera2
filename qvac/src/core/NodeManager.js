@@ -1,4 +1,6 @@
 import { Logger } from './Logger.js';
+import { promises as fsp } from 'fs';
+import path from 'path';
 import { QVACInferenceLayer } from '../inference/QVACInferenceLayer.js';
 import { LocalLLM } from '../inference/LocalLLM.js';
 import { EmbeddingService } from '../inference/EmbeddingService.js';
@@ -34,19 +36,15 @@ export class NodeManager {
   async initialize() {
     this.logger.info('Initializing node components...');
 
-    // Initialize authentication
     this.authService = new AuthService(this.config.auth);
     await this.authService.initialize();
 
-    // Initialize data store (Hypercore)
     this.dataStore = new HypercoreStore(this.config.p2p.hypercore);
     await this.dataStore.initialize();
 
-    // Initialize P2P network (Pear)
     this.p2pNetwork = new PearP2P(this.config.p2p.pear);
     await this.p2pNetwork.initialize();
 
-    // Initialize multisig manager (protocol-level multisigs)
     if (this.config.multisig?.enabled) {
       this.multisigManager = new MultisigManager(this.config.multisig);
       await this.multisigManager.initialize();
@@ -54,38 +52,30 @@ export class NodeManager {
       this.logger.info(`Protocol multisig system active: ${Object.keys(msStatus.protocolMultisigs).length} multisigs`);
     }
 
-    // Initialize wallet manager
     this.walletManager = new WalletManager(this.config.miners);
     await this.walletManager.initialize();
-    
-    // Initialize task monitor
+
     this.taskMonitor = new TaskMonitor();
     await this.taskMonitor.initialize();
-    
-    // Initialize inference layer (QVAC)
+
     this.inferenceLayer = new QVACInferenceLayer(this.config.inference, this.taskMonitor);
     await this.inferenceLayer.initialize();
-    
-    // Initialize local LLM for AI writing
+
     this.localLLM = new LocalLLM(this.config.inference?.localLLM || {});
     await this.localLLM.initialize();
 
-    // Initialize embedding service (QVAC SDK)
     this.embeddingService = new EmbeddingService(this.config.inference?.embedding || {});
     await this.embeddingService.initialize();
 
-    // Initialize miner manager with task monitor and inference layer (each node is standalone)
     this.minerManager = new MinerManager(this.config.miners, this.dataStore, this.taskMonitor, this.inferenceLayer);
     await this.minerManager.initialize();
-    
-    // Initialize web server for dashboard API
+
     this.webServer = new WebServer(this.config, this);
     await this.webServer.initialize();
 
-    // Initialize monthly payout distributor
     this.monthlyDistributor = new MonthlyDistributor(this.webServer.payoutRouter);
 
-    this.logger.info('All components initialized successfully');
+    this.logger.info('All components initialized');
   }
   
   async start() {
@@ -102,11 +92,9 @@ export class NodeManager {
     // Start P2P network
     await this.p2pNetwork.start();
 
-    // Register P2P message handler for incoming wiki pages
     this.p2pNetwork.onMessage('wiki-sync', async (msg, peerId) => {
       if (msg.type !== 'wiki-new-page') return;
 
-      // Scope filtering: page-scoped messages only apply if we joined that page's swarm
       const swarmScope = msg._swarmScope || 'wiki';
       const msgPageId = msg._pageId || `${msg.category}/${msg.fileName}`;
       if (swarmScope === 'page') {
@@ -120,17 +108,15 @@ export class NodeManager {
       this.logger.info(`[swarm] Received wiki page from peer ${peerId}: ${msg.title} (scope: ${swarmScope})`);
       const { title, category = 'concepts', content, tags = [] } = msg;
       try {
-        const fs = await import('fs').then(m => m.promises);
-        const path = await import('path');
         const slug = (title || 'untitled').toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
         const fileName = `${slug || 'untitled'}.md`;
         const conceptId = `${category}/${slug || 'untitled'}`;
         const today = new Date().toISOString().split('T')[0];
         const wikiDir = path.join(process.cwd(), 'llmwiki-data', 'wiki', category);
-        await fs.mkdir(wikiDir, { recursive: true });
+        await fsp.mkdir(wikiDir, { recursive: true });
         const filePath = path.join(wikiDir, fileName);
         const frontmatter = `---\nid: ${conceptId}\ntitle: ${title}\ndescription: AI-generated wiki page\ntags: ${JSON.stringify(tags)}\ncreated: ${today}\nmodified: ${today}\n---\n\n`;
-        await fs.writeFile(filePath, frontmatter + (content || ''), 'utf-8');
+        await fsp.writeFile(filePath, frontmatter + (content || ''), 'utf-8');
         this.logger.info(`[swarm] Saved ${filePath}`);
         if (this.webServer?.indexer) await this.webServer.indexer.index();
       } catch (e) {
@@ -163,9 +149,7 @@ export class NodeManager {
     this.monthlyDistributor.start();
 
     this.isRunning = true;
-    this.logger.info('Node started successfully');
-    this.logger.info(`Node ID: ${this.config.node.id}`);
-    this.logger.info(`Dashboard API available at http://localhost:${process.env.PORT || 3002}/api/status`);
+    this.logger.info(`Node started — ID: ${this.config.node.id} | API: http://localhost:${process.env.PORT || 3002}/api/status`);
   }
   
   async stop() {
