@@ -13,7 +13,7 @@
       "minimumSystemVersion": "10.13"
     },
     "resources": {
-      "qvac": "../../../qvac"
+      "qvac": "resources/qvac"
     }
   },
   "productName": "Chimera",

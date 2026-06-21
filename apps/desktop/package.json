@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "rm -rf dist && (cp -r ../../qvac/frontend/dist dist 2>/dev/null || cp -r ../../../qvac/frontend/dist dist)",
+    "build": "node scripts/build.js",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

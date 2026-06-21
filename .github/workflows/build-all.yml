@@ -23,6 +23,10 @@ jobs:
           mkdir -p ../src-tauri/bin && cp supervisor ../src-tauri/bin/supervisor-x86_64-unknown-linux-gnu
           cd ../../../qvac/frontend && npm install && npm run build
           cd ../../apps/desktop && npm install && npm run build
+      - name: Copy QVAC to Tauri resources
+        run: |
+          mkdir -p apps/desktop/src-tauri/resources
+          rsync -av --exclude='node_modules' --exclude='.git' --exclude='target' qvac/ apps/desktop/src-tauri/resources/qvac/
       - name: Tauri build
         uses: tauri-apps/tauri-action@v0
         with:
@@ -47,6 +51,11 @@ jobs:
           mkdir -p ../src-tauri/bin; copy supervisor.exe ../src-tauri/bin/supervisor-x86_64-pc-windows-msvc.exe
           cd ../../../qvac/frontend; npm install; npm run build
           cd ../../apps/desktop; npm install; npm run build
+      - name: Copy QVAC to Tauri resources
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path apps/desktop/src-tauri/resources/qvac
+          Get-ChildItem -Path qvac -Exclude @('node_modules','.git','target') | Copy-Item -Destination apps/desktop/src-tauri/resources/qvac/ -Recurse -Force
       - name: Tauri build
         uses: tauri-apps/tauri-action@v0
         with:

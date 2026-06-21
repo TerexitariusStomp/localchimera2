@@ -163,62 +163,6 @@ jobs:
           args: "--target aarch64-apple-darwin"
           releaseId: ${{ needs.create-release.outputs.release_id }}
 
-  build-android:
-    needs: create-release
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Setup JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'gradle'
-      - name: Verify JDK and set Gradle Java home
-        run: |
-          java -version
-          echo "JAVA_HOME=$JAVA_HOME"
-          echo "org.gradle.java.home=$JAVA_HOME" >> apps/mobile/android/gradle.properties
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          ndk: 29.0.14206865
-      - name: Install Capacitor CLI
-        run: npm install -g @capacitor/cli
-      - name: Install frontend deps
-        run: |
-          cd qvac/frontend
-          npm install
-      - name: Build frontend
-        run: |
-          cd qvac/frontend
-          npm run build
-      - name: Sync Capacitor Android
-        run: |
-          cd qvac/frontend
-          npx cap sync android
-      - name: Build debug APK
-        run: |
-          cd apps/mobile/android
-          chmod +x ./gradlew
-          ./gradlew --version
-          ./gradlew assembleDebug
-      - name: Verify APK exists
-        run: |
-          ls -la apps/mobile/android/app/build/outputs/apk/debug/
-      - name: Rename APK for release
-        run: |
-          mkdir -p mobile-build
-          cp apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk mobile-build/Chimera-Android.apk
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: chimera-android
-          path: mobile-build/Chimera-Android.apk
-          if-no-files-found: error
   build-ios:
     needs: create-release
     runs-on: macos-latest
@@ -265,7 +209,7 @@ jobs:
           path: apps/mobile/ios/Chimera-iOS.tar.gz
           if-no-files-found: error
 
-  build-expo-android:
+  build-android:
     needs: create-release
     runs-on: ubuntu-22.04
     steps:
@@ -324,7 +268,7 @@ jobs:
       - name: Upload Expo APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: chimera-expo-android
+          name: chimera-android
           path: mobile-build/Chimera-Expo-Android.apk
           if-no-files-found: error
 
@@ -346,7 +290,7 @@ jobs:
       - name: Download Expo Android artifact
         uses: actions/download-artifact@v4
         with:
-          name: chimera-expo-android
+          name: chimera-android
           path: mobile-assets/expo-android
       - name: List downloaded assets
         run: |
