@@ -8,6 +8,9 @@ permissions:
 jobs:
   build-linux:
     runs-on: ubuntu-22.04
+    env:
+      CARGO_NET_RETRY: 10
+      CARGO_NET_TIMEOUT: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,6 +41,9 @@ jobs:
           path: apps/desktop/src-tauri/target/release/bundle
   build-windows:
     runs-on: windows-latest
+    env:
+      CARGO_NET_RETRY: 10
+      CARGO_NET_TIMEOUT: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -88,6 +94,9 @@ jobs:
           path: apps/desktop/src-tauri/target/release/bundle
   build-macos:
     runs-on: macos-latest
+    env:
+      CARGO_NET_RETRY: 10
+      CARGO_NET_TIMEOUT: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

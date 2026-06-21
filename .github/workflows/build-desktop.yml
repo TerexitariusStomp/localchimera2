@@ -42,6 +42,9 @@ jobs:
   build-linux:
     needs: create-release
     runs-on: ubuntu-22.04
+    env:
+      CARGO_NET_RETRY: 10
+      CARGO_NET_TIMEOUT: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -85,6 +88,9 @@ jobs:
   build-windows:
     needs: create-release
     runs-on: windows-latest
+    env:
+      CARGO_NET_RETRY: 10
+      CARGO_NET_TIMEOUT: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -146,6 +152,9 @@ jobs:
   build-macos:
     needs: create-release
     runs-on: macos-latest
+    env:
+      CARGO_NET_RETRY: 10
+      CARGO_NET_TIMEOUT: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
