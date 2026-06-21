@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Chimera",
+    "slug": "chimera-mobile",
+    "version": "1.0.21",
+    "orientation": "portrait",
+    "icon": "../mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a14"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "io.chimera.mobile",
+      "buildNumber": "1.0.21"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "../mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png",
+        "backgroundColor": "#0a0a14"
+      },
+      "package": "io.chimera.mobile",
+      "versionCode": 10021
+    },
+    "plugins": [
+      "@qvac/sdk",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 29,
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "qvac": {
+        "modelsDir": "models",
+        "defaultModel": "LLAMA_3_2_1B_INST_Q4_0"
+      }
+    }
+  }
+}

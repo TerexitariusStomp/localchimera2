@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-const API_BASE = (typeof window !== 'undefined' && (window.Capacitor || window.__TAURI__))
+const isNative = typeof window !== 'undefined' && (window.Capacitor || window.__TAURI__ || window.__bridgeFetch);
+const API_BASE = isNative
   ? 'http://localhost:3002/api'
   : (window.location.protocol === 'http:' || window.location.protocol === 'https:')
     ? '/api'

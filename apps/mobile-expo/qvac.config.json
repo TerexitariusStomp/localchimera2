@@ -1,0 +1,10 @@
+{
+  "bareRuntimeVersion": "1.14.0",
+  "addons": [
+    "@qvac/sdk/addons/llm"
+  ],
+  "hosts": [
+    "android-arm64",
+    "ios-arm64"
+  ]
+}
