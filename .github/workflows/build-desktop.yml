@@ -161,7 +161,7 @@ jobs:
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '17'
           distribution: 'temurin'
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -242,8 +242,66 @@ jobs:
           name: chimera-ios
           path: apps/mobile/ios/Chimera-iOS.tar.gz
           if-no-files-found: error
+
+  build-expo-android:
+    needs: create-release
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Verify JDK
+        run: |
+          java -version
+          echo "JAVA_HOME=$JAVA_HOME"
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install frontend deps
+        run: |
+          cd qvac/frontend
+          npm install
+      - name: Build frontend
+        run: |
+          cd qvac/frontend
+          npm run build
+      - name: Copy frontend to Expo assets
+        run: node apps/mobile-expo/scripts/copy-frontend.js
+      - name: Install Expo deps
+        run: |
+          cd apps/mobile-expo
+          npm install
+      - name: Expo prebuild (Android)
+        run: |
+          cd apps/mobile-expo
+          npx expo prebuild --platform android --clean
+      - name: Build Expo APK
+        run: |
+          cd apps/mobile-expo/android
+          chmod +x ./gradlew
+          ./gradlew --version
+          ./gradlew assembleRelease -Dorg.gradle.java.home="$JAVA_HOME"
+      - name: Verify Expo APK exists
+        run: |
+          ls -la apps/mobile-expo/android/app/build/outputs/apk/release/
+      - name: Rename Expo APK for release
+        run: |
+          mkdir -p mobile-build
+          cp apps/mobile-expo/android/app/build/outputs/apk/release/app-release.apk mobile-build/Chimera-Expo-Android.apk
+      - name: Upload Expo APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chimera-expo-android
+          path: mobile-build/Chimera-Expo-Android.apk
+          if-no-files-found: error
+
   upload-mobile-assets:
-    needs: [create-release, build-android, build-ios]
+    needs: [create-release, build-android, build-ios, build-expo-android]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -257,14 +315,21 @@ jobs:
         with:
           name: chimera-ios
           path: mobile-assets/ios
+      - name: Download Expo Android artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chimera-expo-android
+          path: mobile-assets/expo-android
       - name: List downloaded assets
         run: |
           echo "Android:"
           ls -la mobile-assets/android/ || true
           echo "iOS:"
           ls -la mobile-assets/ios/ || true
+          echo "Expo Android:"
+          ls -la mobile-assets/expo-android/ || true
       - name: Upload mobile assets to release
         run: |
-          gh release upload "${{ needs.create-release.outputs.tag_name }}" mobile-assets/android/* mobile-assets/ios/* --clobber --repo ${{ github.repository }}
+          gh release upload "${{ needs.create-release.outputs.tag_name }}" mobile-assets/android/* mobile-assets/ios/* mobile-assets/expo-android/* --clobber --repo ${{ github.repository }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
