@@ -69,6 +69,10 @@ jobs:
         run: |
           cd apps/desktop
           npm run build
+      - name: Copy QVAC to Tauri resources
+        run: |
+          mkdir -p apps/desktop/src-tauri/resources
+          cp -r qvac apps/desktop/src-tauri/resources/qvac
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
         env:
@@ -104,6 +108,10 @@ jobs:
         run: |
           cd apps/desktop
           npm run build
+      - name: Copy QVAC to Tauri resources
+        run: |
+          mkdir -p apps/desktop/src-tauri/resources
+          cp -r qvac apps/desktop/src-tauri/resources/qvac
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
         env:
@@ -141,6 +149,10 @@ jobs:
         run: |
           cd apps/desktop
           npm run build
+      - name: Copy QVAC to Tauri resources
+        run: |
+          mkdir -p apps/desktop/src-tauri/resources
+          cp -r qvac apps/desktop/src-tauri/resources/qvac
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
         env:

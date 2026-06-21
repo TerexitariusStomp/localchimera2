@@ -2,83 +2,96 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
-import BareKit from 'react-native-bare-kit';
-
-const WORKER_BUNDLE = require('./worker.bundle');
+import { loadModel, completion, LLAMA_3_2_1B_INST_Q4_0 } from '@qvac/sdk';
 
 export default function App() {
-  const [workerReady, setWorkerReady] = useState(false);
   const [modelStatus, setModelStatus] = useState('initializing');
   const [frontendUri, setFrontendUri] = useState(null);
+  const [modelId, setModelId] = useState(null);
   const webViewRef = useRef(null);
-  const workerRef = useRef(null);
-  const pendingRequests = useRef(new Map());
+  const bridgeResolvers = useRef(new Map());
   const reqId = useRef(0);
 
   useEffect(() => {
     async function init() {
       try {
-        // Copy frontend assets to filesystem
+        // Load frontend assets
         const asset = await Asset.fromModule(require('./assets/frontend/index.html'));
-        const localUri = asset.localUri || asset.uri;
-        setFrontendUri(localUri);
+        setFrontendUri(asset.localUri || asset.uri);
 
-        // Start Bare worker
-        const worker = new BareKit.Worker(WORKER_BUNDLE);
-        workerRef.current = worker;
-
-        worker.on('message', (data) => {
-          const msg = JSON.parse(data);
-          if (msg.type === 'ready') {
-            setWorkerReady(true);
-            setModelStatus('ready');
-          } else if (msg.type === 'model-progress') {
-            setModelStatus(`downloading model: ${Math.round(msg.progress * 100)}%`);
-          } else if (msg.type === 'model-loaded') {
-            setModelStatus('ready');
-          } else if (msg.type === 'model-error') {
-            setModelStatus(`model error: ${msg.error}`);
-          } else if (msg.type === 'response') {
-            const cb = pendingRequests.current.get(msg.id);
-            if (cb) {
-              cb(msg);
-              pendingRequests.current.delete(msg.id);
-            }
-          }
+        // Load on-device LLM via QVAC SDK
+        setModelStatus('downloading model...');
+        const mid = await loadModel({
+          modelSrc: LLAMA_3_2_1B_INST_Q4_0,
+          modelType: 'llm',
+          onProgress: (p) => {
+            setModelStatus(`downloading model: ${Math.round(p * 100)}%`);
+          },
         });
-
-        worker.on('error', (err) => {
-          console.error('Worker error:', err);
-          setModelStatus('worker error: ' + err.message);
-        });
-
+        setModelId(mid);
+        setModelStatus('ready');
       } catch (e) {
         console.error('Init error:', e);
-        setModelStatus('init error: ' + e.message);
+        setModelStatus(`error: ${e.message}`);
       }
     }
     init();
-
-    return () => {
-      if (workerRef.current) {
-        workerRef.current.terminate();
-      }
-    };
   }, []);
 
-  const sendToWorker = (payload) => {
-    return new Promise((resolve) => {
-      const id = ++reqId.current;
-      pendingRequests.current.set(id, resolve);
-      workerRef.current.postMessage(JSON.stringify({ id, ...payload }));
-    });
-  };
+  async function handleAIWrite(body) {
+    if (!modelId) throw new Error('Model not loaded');
+    const history = [{ role: 'user', content: body.prompt }];
+    const result = completion({ modelId, history, stream: false });
+    let generated = '';
+    for await (const token of result.tokenStream) {
+      generated += token;
+    }
+    return {
+      success: true,
+      data: {
+        title: body.title || 'Generated',
+        body: generated,
+        source: 'qvac-on-device',
+        model: 'LLAMA_3_2_1B_INST_Q4_0',
+      },
+    };
+  }
+
+  async function handleAIStatus() {
+    return {
+      success: true,
+      data: {
+        available: true,
+        qvacAvailable: !!modelId,
+        model: modelId ? 'LLAMA_3_2_1B_INST_Q4_0' : null,
+        modelLoading: !modelId && modelStatus !== 'ready',
+      },
+    };
+  }
+
+  async function handleAIDocs() {
+    return { success: true, data: [] };
+  }
 
   const handleWebViewMessage = async (event) => {
     try {
-      const { id, method, path, body } = JSON.parse(event.nativeEvent.data);
-      const res = await sendToWorker({ method, path, body });
+      const msg = JSON.parse(event.nativeEvent.data);
+
+      if (msg.type === 'bridge-ready') return;
+
+      const { id, method, path, body } = msg;
+      let res;
+
+      if (method === 'POST' && path === '/api/ai-write') {
+        res = await handleAIWrite(body);
+      } else if (method === 'GET' && path === '/api/ai-status') {
+        res = await handleAIStatus();
+      } else if (method === 'GET' && path === '/api/ai-docs') {
+        res = await handleAIDocs();
+      } else {
+        res = { success: false, error: 'Not found' };
+      }
+
       webViewRef.current?.injectJavaScript(`
         window.__bridgeResolve(${id}, ${JSON.stringify(res)});
         true;
@@ -100,7 +113,6 @@ export default function App() {
         delete window.__bridgeResolvers[id];
       };
 
-      // Override fetch for API calls (both /api/* and localhost:3002/api/*)
       const originalFetch = window.fetch;
       const isApiCall = (url) => {
         if (typeof url !== 'string') return false;
@@ -130,13 +142,12 @@ export default function App() {
                 delete window.__bridgeResolvers[id];
                 reject(new Error('Bridge timeout'));
               }
-            }, 60000);
+            }, 120000);
           });
         }
         return originalFetch(url, options);
       };
 
-      // Notify native that bridge is ready
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'bridge-ready' }));
     })();
   `;
