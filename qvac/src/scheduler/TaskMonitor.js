@@ -63,7 +63,7 @@ export class TaskMonitor {
     this.updateTaskStatus(taskId, 'completed');
     setTimeout(() => {
       this.inferenceTasks.delete(taskId);
-    }, 60000); // Keep completed tasks for 1 minute
+    }, 60000).unref(); // Keep completed tasks for 1 minute
   }
   
   notifyMiners(taskId, task) {

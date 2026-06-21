@@ -6,6 +6,7 @@ export class TimeScheduler {
     this.logger = new Logger('TimeScheduler');
     this.currentMode = null;
     this.listeners = [];
+    this._timer = null;
   }
   
   async initialize() {
@@ -24,10 +25,9 @@ export class TimeScheduler {
   getCurrentMode() {
     const now = new Date();
     const hour = now.getHours();
-    
-    // Night mode: 8 PM to 6 AM (20:00 - 06:00)
-    // Day mode: 6 AM to 8 PM (06:00 - 20:00)
-    if (hour >= 20 || hour < 6) {
+    const nightStart = this.config?.nightStart ?? 20;
+    const nightEnd = this.config?.nightEnd ?? 6;
+    if (hour >= nightStart || hour < nightEnd) {
       return 'night';
     }
     return 'day';
@@ -35,7 +35,7 @@ export class TimeScheduler {
   
   startModeMonitoring() {
     // Check every minute for mode changes
-    setInterval(() => {
+    this._timer = setInterval(() => {
       const newMode = this.getCurrentMode();
       
       if (newMode !== this.currentMode) {
@@ -43,7 +43,11 @@ export class TimeScheduler {
         this.currentMode = newMode;
         this.notifyModeChange(newMode);
       }
-    }, 60000); // Check every minute
+    }, 60000).unref(); // Check every minute
+  }
+
+  stop() {
+    if (this._timer) { clearInterval(this._timer); this._timer = null; }
   }
   
   onModeChange(callback) {
