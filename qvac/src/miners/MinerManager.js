@@ -18,7 +18,7 @@ export class MinerManager {
     this.isRunning = false;
     this.switchInterval = null;
     this.parallelMode = config.parallelMode || false;
-    this.evmAddress = config.multisig?.evmAddress || config.evmAddress || null;
+    this.evmAddress = config.evmAddress || null;
   }
 
   async initialize() {
@@ -154,7 +154,7 @@ export class MinerManager {
     };
     
     // Switch miners at configured interval
-    this.switchInterval = setInterval(switchMiner, this.config.switchInterval);
+    this.switchInterval = setInterval(switchMiner, this.config.switchInterval).unref();
     
     // Start first miner immediately
     switchMiner();
