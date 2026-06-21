@@ -261,6 +261,10 @@ Copy the topic hex and invite others to join.
     }
   }
   
+  handleHealth(req, res) {
+    ok(res, { status: 'ok', uptime: process.uptime() });
+  }
+
   async handleConsent(req, res) {
     const body = await parseBody(req);
     const consentPath = path.join(process.cwd(), 'data', 'consent.json');

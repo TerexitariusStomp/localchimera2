@@ -104,7 +104,7 @@ ENV PATH="/app/.venv/bin:${PATH}"
 
 EXPOSE 3002
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-  CMD curl -fs http://localhost:3002/api/status || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD curl -fs http://localhost:3002/health || exit 1
 
 CMD ["/app/start.sh"]
