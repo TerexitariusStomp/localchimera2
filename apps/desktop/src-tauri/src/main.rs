@@ -58,34 +58,6 @@ fn docker_image_built(tag: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn node_available() -> bool {
-    Command::new("node")
-        .arg("--version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
-}
-
-fn spawn_qvac_node(qvac_dir: &PathBuf, data_dir: &PathBuf) -> Result<std::process::Child, String> {
-    let _ = std::fs::create_dir_all(data_dir.join("llmwiki-data"));
-    let _ = std::fs::create_dir_all(data_dir.join("data"));
-
-    let child = Command::new("node")
-        .arg(qvac_dir.join("src").join("index.js"))
-        .current_dir(qvac_dir)
-        .env("PORT", "3002")
-        .env("DATA_DIR", data_dir.to_string_lossy().to_string())
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("node spawn failed: {}", e))?;
-
-    Ok(child)
-}
-
 fn spawn_qvac_docker(qvac_dir: &PathBuf, data_dir: &PathBuf) -> Result<std::process::Child, String> {
     let tag = "chimera-desktop:latest";
 
@@ -127,18 +99,15 @@ fn spawn_qvac(state: State<SidecarHandle>, qvac_dir: &PathBuf, data_dir: &PathBu
         return Ok("qvac already running".to_string());
     }
 
-    let child = if node_available() {
-        spawn_qvac_node(qvac_dir, data_dir)
-            .map_err(|e| format!("Node.js failed: {}", e))?
-    } else if docker_available() {
-        spawn_qvac_docker(qvac_dir, data_dir)
-            .map_err(|e| format!("Docker failed: {}", e))?
-    } else {
-        return Err("Chimera requires Node.js (recommended) or Docker to run the local AI backend. Please install Node.js from https://nodejs.org and restart the app.".to_string());
-    };
+    if !docker_available() {
+        return Err("Chimera requires Docker to run the local AI backend in a hardened container. Please install Docker Desktop and try again.".to_string());
+    }
+
+    let child = spawn_qvac_docker(qvac_dir, data_dir)
+        .map_err(|e| format!("Docker failed: {}", e))?;
 
     *guard = Some(child);
-    Ok("qvac started".to_string())
+    Ok("qvac started (docker container)".to_string())
 }
 
 #[tauri::command]

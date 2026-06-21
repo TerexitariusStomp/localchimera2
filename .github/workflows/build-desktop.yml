@@ -173,8 +173,14 @@ jobs:
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
+          cache: 'gradle'
+      - name: Verify JDK and set Gradle Java home
+        run: |
+          java -version
+          echo "JAVA_HOME=$JAVA_HOME"
+          echo "org.gradle.java.home=$JAVA_HOME" >> apps/mobile/android/gradle.properties
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -197,6 +203,7 @@ jobs:
         run: |
           cd apps/mobile/android
           chmod +x ./gradlew
+          ./gradlew --version
           ./gradlew assembleDebug
       - name: Verify APK exists
         run: |
@@ -268,12 +275,14 @@ jobs:
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
-      - name: Verify JDK
+          cache: 'gradle'
+      - name: Verify JDK and set Gradle Java home
         run: |
           java -version
           echo "JAVA_HOME=$JAVA_HOME"
+          echo "org.gradle.java.home=$JAVA_HOME" >> apps/mobile-expo/android/gradle.properties
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -301,7 +310,8 @@ jobs:
           cd apps/mobile-expo/android
           chmod +x ./gradlew
           ./gradlew --version
-          ./gradlew assembleRelease -Dorg.gradle.java.home="$JAVA_HOME"
+          ./gradlew --version
+          ./gradlew assembleRelease
       - name: Verify Expo APK exists
         run: |
           ls -la apps/mobile-expo/android/app/build/outputs/apk/release/
