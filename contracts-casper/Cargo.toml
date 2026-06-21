@@ -1,0 +1,21 @@
+[workspace]
+members = [
+    "compute-registry",
+    "order-book",
+    "escrow-vault",
+    "reputation",
+]
+resolver = "2"
+
+[workspace.dependencies]
+casper-contract = "5.1"
+casper-types = "=6.0.1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+
+[patch.crates-io]
+casper-contract = { path = "patches/casper-contract" }
