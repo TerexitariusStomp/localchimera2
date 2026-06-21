@@ -266,6 +266,32 @@ Copy the topic hex and invite others to join.
     res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
   }
 
+  async handleAuditLogs(req, res) {
+    const auditDir = path.join(process.cwd(), 'data', 'audit');
+    try {
+      const files = (await fs.readdir(auditDir)).filter(f => f.endsWith('.jsonl')).sort();
+      const logs = [];
+      for (const file of files.slice(-7)) { // last 7 days
+        const raw = await fs.readFile(path.join(auditDir, file), 'utf-8');
+        const lines = raw.split('\n').filter(Boolean);
+        logs.push({ date: file.replace('.jsonl', ''), events: lines.map(l => JSON.parse(l)) });
+      }
+      ok(res, { files: files.length, logs });
+    } catch {
+      ok(res, { files: 0, logs: [] });
+    }
+  }
+
+  async handleAuditRun(req, res) {
+    if (!this._requireAuth(req, res)) return;
+    const audit = this.nodeManager?.audit;
+    if (!audit) { serviceUnavailable(res, 'Audit logger not initialized'); return; }
+    // Trigger a lightweight audit heartbeat event
+    audit.modelLoad({ modelId: 'api-ping', durationMs: 0, source: 'api-trigger' });
+    await audit.stop();
+    ok(res, { triggered: true, note: 'For a full audit run execute: node scripts/audit-demo.js from the repo root' });
+  }
+
   async handleConsent(req, res) {
     const body = await parseBody(req);
     const consentPath = path.join(process.cwd(), 'data', 'consent.json');

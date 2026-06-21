@@ -6,6 +6,8 @@
 export const ROUTES = [
   // Core
   ['GET',  '/health',                 'handleHealth'],
+  ['GET',  '/api/audit/logs',          'handleAuditLogs'],
+  ['POST', '/api/audit/run',           'handleAuditRun'],
   ['POST', '/api/consent',            'handleConsent'],
   ['POST', '/api/signin',             'handleSignIn'],
   ['POST', '/api/signout',            'handleSignOut'],
