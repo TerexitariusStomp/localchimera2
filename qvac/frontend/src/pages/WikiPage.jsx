@@ -565,8 +565,6 @@ export default function WikiPage({ onBack }) {
     }
   };
 
-  const [backendError, setBackendError] = useState('');
-
   const checkBackend = async () => {
     try {
       const res = await fetch(`${API_BASE}/ai-status`, { method: 'GET' });
