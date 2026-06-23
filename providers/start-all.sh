@@ -1,6 +1,6 @@
 #!/bin/bash
 # localchimera — Provider Startup Script
-# Active providers: Akash, Salad, Targon, BTFS, 0Chain Blobber
+# Active providers: Akash, Salad, Targon, BTFS, 0Chain, Income Generator, CashPilot, CESS
 
 set -e
 LOGDIR="/home/user/CascadeProjects/qvac-chimera/providers/logs"
@@ -8,11 +8,11 @@ mkdir -p "$LOGDIR"
 
 echo "======================================"
 echo " localchimera Provider Launcher"
-echo " Active: Akash, Salad, Targon, BTFS, 0Chain"
+echo " Active: Akash, Salad, Targon, BTFS, 0Chain, Income Generator, CashPilot, CESS"
 echo "======================================"
 
 # 1. AKASH PROVIDER (best CPU earner)
-echo "[1/3] Akash Provider..."
+echo "[1/8] Akash Provider..."
 if provider-services version >/dev/null 2>&1; then
   echo "  Wallet: mykey -> AKASH_ADDRESS_REDACTED"
   echo "  k3s:"
@@ -25,7 +25,7 @@ fi
 
 # 2. SALAD JOB QUEUE WORKER (local dev mode)
 echo ""
-echo "[2/3] Salad Worker (local mode)..."
+echo "[2/8] Salad Worker (local mode)..."
 cd /home/user/CascadeProjects/qvac-chimera/upstream/salad-job-queue-worker
 if [ -f ./salad-worker ]; then
   SALAD_LOCAL_MODE=true SALAD_LOCAL_TOKEN=dev-token \
@@ -38,7 +38,7 @@ fi
 
 # 3. TARGON CPU PROVIDER
 echo ""
-echo "[3/5] Targon CPU Provider..."
+echo "[3/8] Targon CPU Provider..."
 cd /home/user/CascadeProjects/qvac-chimera/upstream/targon
 if [ -f ./targon-cli ]; then
   echo "  Hotkey configured in config.json"
@@ -50,7 +50,7 @@ fi
 
 # 4. BTFS STORAGE NODE
 echo ""
-echo "[4/5] BTFS Storage Node..."
+echo "[4/8] BTFS Storage Node..."
 if [ -f /home/user/CascadeProjects/qvac-chimera/upstream/btfs/btfs ]; then
   if [ -d "${HOME}/.btfs" ]; then
     echo "  Repo initialized. Starting BTFS daemon..."
@@ -68,7 +68,7 @@ fi
 
 # 5. 0CHAIN BLOBBER
 echo ""
-echo "[5/5] 0Chain Blobber..."
+echo "[5/8] 0Chain Blobber..."
 if [ -f /home/user/CascadeProjects/qvac-chimera/upstream/zcn-blobber/blobber ]; then
   if [ -f "${HOME}/.zcn/config/0chain_blobber.yaml" ]; then
     echo "  Config exists. Starting blobber..."
@@ -83,6 +83,57 @@ else
   echo "  Blobber binary not found. Build: cd upstream/zcn-blobber/code/go/0chain.net/blobber && go build -o ../../../blobber ."
 fi
 
+# 6. INCOME GENERATOR (bandwidth sharing)
+echo ""
+echo "[6/8] Income Generator (bandwidth)..."
+if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/income-generator ]; then
+  if docker compose version >/dev/null 2>&1; then
+    echo "  Starting Income Generator Docker stack..."
+    cd /home/user/CascadeProjects/qvac-chimera/upstream/income-generator
+    docker compose -f compose/compose.yml up -d > "$LOGDIR/income-generator.log" 2>&1
+    echo "  Income Generator started (docker compose)"
+    echo "  (needs app credentials in compose/.env for earnings)"
+  else
+    echo "  Docker Compose not available"
+  fi
+else
+  echo "  Income Generator not found. Clone: git submodule add https://github.com/XternA/income-generator.git upstream/income-generator"
+fi
+
+# 7. CASHPILOT (DePIN manager)
+echo ""
+echo "[7/8] CashPilot (DePIN manager)..."
+if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/cashpilot ]; then
+  if docker compose version >/dev/null 2>&1; then
+    echo "  Starting CashPilot Docker stack..."
+    cd /home/user/CascadeProjects/qvac-chimera/upstream/cashpilot
+    docker compose up -d > "$LOGDIR/cashpilot.log" 2>&1
+    echo "  CashPilot started (docker compose)"
+    echo "  UI: http://localhost:8080"
+    echo "  (needs service credentials for earnings)"
+  else
+    echo "  Docker Compose not available"
+  fi
+else
+  echo "  CashPilot not found. Clone: git submodule add https://github.com/GeiserX/CashPilot.git upstream/cashpilot"
+fi
+
+# 8. CESS STORAGE NODE
+echo ""
+echo "[8/8] CESS Storage Node..."
+if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/cess-nodeadm ]; then
+  if command -v cess >/dev/null 2>&1; then
+    echo "  Starting CESS node..."
+    sudo cess start > "$LOGDIR/cess.log" 2>&1
+    echo "  CESS started"
+    echo "  (needs ZCN stake + storage for earnings)"
+  else
+    echo "  CESS CLI not installed. Run: cd upstream/cess-nodeadm && sudo ./install.sh"
+  fi
+else
+  echo "  CESS nodeadm not found. Clone: git submodule add https://github.com/CESSProject/cess-nodeadm.git upstream/cess-nodeadm"
+fi
+
 echo ""
 echo "======================================"
 echo " Removed providers (require GPU):"
@@ -95,4 +146,8 @@ echo "   - sia-hostd (needs 4 TB+ storage)"
 echo "   - filecoin-lotus (needs 256 GB RAM + GPU)"
 echo "   - arweave-node (archival weave)"
 echo "   - hippius-storage-miner (complex Ansible)"
+echo " Removed providers (browser-only, not self-hosted):"
+echo "   - b1m.ai (browser extension)"
+echo "   - Grass (browser extension / desktop app)"
+echo "   - FilBeam (no valid self-hosted repo)"
 echo "======================================"

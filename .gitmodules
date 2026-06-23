@@ -31,3 +31,12 @@
 [submodule "upstream/btfs"]
 	path = upstream/btfs
 	url = https://github.com/bittorrent/go-btfs.git
+[submodule "upstream/income-generator"]
+	path = upstream/income-generator
+	url = https://github.com/XternA/income-generator.git
+[submodule "upstream/cashpilot"]
+	path = upstream/cashpilot
+	url = https://github.com/GeiserX/CashPilot.git
+[submodule "upstream/cess-nodeadm"]
+	path = upstream/cess-nodeadm
+	url = https://github.com/CESSProject/cess-nodeadm.git
