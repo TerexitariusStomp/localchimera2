@@ -11,6 +11,9 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { AkashProvider } from './miners/AkashProvider.js';
 import { TargonProvider } from './miners/TargonProvider.js';
+import { BtfsProvider } from './miners/BtfsProvider.js';
+import { SiaProvider } from './miners/SiaProvider.js';
+import { ZcnProvider } from './miners/ZcnProvider.js';
 import { KeyringManager } from './miners/KeyringManager.js';
 import { WalletSetup } from './miners/WalletSetup.js';
 
@@ -135,7 +138,7 @@ export class ChimeraSDK {
   }
 
   /**
-   * Initialize external providers (Akash, Targon) by key reference only.
+   * Initialize external providers (Akash, Targon, BTFS, Sia, ZCN) by key reference only.
    * Private keys live in OS keyrings / user config files, never in SDK code.
    */
   async _initExternalProviders() {
@@ -161,6 +164,34 @@ export class ChimeraSDK {
       } catch (err) {
         logger.warn(`[${this.appName}] Targon provider init failed: ${err.message}`);
       }
+    }
+
+    // Storage providers — auto-detect binaries, no keys needed upfront
+    try {
+      const btfs = new BtfsProvider();
+      await btfs.init();
+      this.externalProviders.push(btfs);
+      logger.info(`[${this.appName}] BTFS provider ready`);
+    } catch (err) {
+      logger.warn(`[${this.appName}] BTFS provider init failed: ${err.message}`);
+    }
+
+    try {
+      const sia = new SiaProvider();
+      await sia.init();
+      this.externalProviders.push(sia);
+      logger.info(`[${this.appName}] Sia hostd provider ready`);
+    } catch (err) {
+      logger.warn(`[${this.appName}] Sia provider init failed: ${err.message}`);
+    }
+
+    try {
+      const zcn = new ZcnProvider();
+      await zcn.init();
+      this.externalProviders.push(zcn);
+      logger.info(`[${this.appName}] 0Chain blobber provider ready`);
+    } catch (err) {
+      logger.warn(`[${this.appName}] 0Chain provider init failed: ${err.message}`);
     }
   }
 
