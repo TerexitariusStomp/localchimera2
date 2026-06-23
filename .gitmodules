@@ -40,3 +40,6 @@
 [submodule "upstream/cess-nodeadm"]
 	path = upstream/cess-nodeadm
 	url = https://github.com/CESSProject/cess-nodeadm.git
+[submodule "upstream/btt-ai-miner"]
+	path = upstream/btt-ai-miner
+	url = https://github.com/BTT-AI-labs/miner-cli.git

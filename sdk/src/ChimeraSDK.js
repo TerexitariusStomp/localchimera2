@@ -13,6 +13,10 @@ import { AkashProvider } from './miners/AkashProvider.js';
 import { TargonProvider } from './miners/TargonProvider.js';
 import { BtfsProvider } from './miners/BtfsProvider.js';
 import { ZcnProvider } from './miners/ZcnProvider.js';
+import { IncomeGeneratorProvider } from './miners/IncomeGeneratorProvider.js';
+import { CashPilotProvider } from './miners/CashPilotProvider.js';
+import { CessProvider } from './miners/CessProvider.js';
+import { BttAiMinerProvider } from './miners/BttAiMinerProvider.js';
 import { KeyringManager } from './miners/KeyringManager.js';
 import { WalletSetup } from './miners/WalletSetup.js';
 
@@ -182,6 +186,45 @@ export class ChimeraSDK {
       logger.info(`[${this.appName}] 0Chain blobber provider ready`);
     } catch (err) {
       logger.warn(`[${this.appName}] 0Chain provider init failed: ${err.message}`);
+    }
+
+    // Bandwidth / DePIN providers (Docker-based, consumer-friendly)
+    try {
+      const ig = new IncomeGeneratorProvider();
+      await ig.init();
+      this.externalProviders.push(ig);
+      logger.info(`[${this.appName}] Income Generator provider ready`);
+    } catch (err) {
+      logger.warn(`[${this.appName}] Income Generator init failed: ${err.message}`);
+    }
+
+    try {
+      const cp = new CashPilotProvider();
+      await cp.init();
+      this.externalProviders.push(cp);
+      logger.info(`[${this.appName}] CashPilot provider ready`);
+    } catch (err) {
+      logger.warn(`[${this.appName}] CashPilot init failed: ${err.message}`);
+    }
+
+    // Memory / caching provider (Docker-based storage)
+    try {
+      const cess = new CessProvider();
+      await cess.init();
+      this.externalProviders.push(cess);
+      logger.info(`[${this.appName}] CESS provider ready`);
+    } catch (err) {
+      logger.warn(`[${this.appName}] CESS init failed: ${err.message}`);
+    }
+
+    // GPU tasking network (vLLM/SGLang inference miner)
+    try {
+      const btt = new BttAiMinerProvider();
+      await btt.init();
+      this.externalProviders.push(btt);
+      logger.info(`[${this.appName}] BTT AI miner provider ready`);
+    } catch (err) {
+      logger.warn(`[${this.appName}] BTT AI miner init failed: ${err.message}`);
     }
   }
 

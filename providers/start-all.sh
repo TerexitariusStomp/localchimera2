@@ -1,6 +1,6 @@
 #!/bin/bash
 # localchimera — Provider Startup Script
-# Active providers: Akash, Salad, Targon, BTFS, 0Chain, Income Generator, CashPilot, CESS
+# Active providers: Akash, Salad, Targon, BTFS, 0Chain, Income Generator, CashPilot, CESS, BTT AI Miner
 
 set -e
 LOGDIR="/home/user/CascadeProjects/qvac-chimera/providers/logs"
@@ -8,11 +8,11 @@ mkdir -p "$LOGDIR"
 
 echo "======================================"
 echo " localchimera Provider Launcher"
-echo " Active: Akash, Salad, Targon, BTFS, 0Chain, Income Generator, CashPilot, CESS"
+echo " Active: Akash, Salad, Targon, BTFS, 0Chain, Income Generator, CashPilot, CESS, BTT AI Miner"
 echo "======================================"
 
 # 1. AKASH PROVIDER (best CPU earner)
-echo "[1/8] Akash Provider..."
+echo "[1/9] Akash Provider..."
 if provider-services version >/dev/null 2>&1; then
   echo "  Wallet: mykey -> AKASH_ADDRESS_REDACTED"
   echo "  k3s:"
@@ -25,7 +25,7 @@ fi
 
 # 2. SALAD JOB QUEUE WORKER (local dev mode)
 echo ""
-echo "[2/8] Salad Worker (local mode)..."
+echo "[2/9] Salad Worker (local mode)..."
 cd /home/user/CascadeProjects/qvac-chimera/upstream/salad-job-queue-worker
 if [ -f ./salad-worker ]; then
   SALAD_LOCAL_MODE=true SALAD_LOCAL_TOKEN=dev-token \
@@ -38,7 +38,7 @@ fi
 
 # 3. TARGON CPU PROVIDER
 echo ""
-echo "[3/8] Targon CPU Provider..."
+echo "[3/9] Targon CPU Provider..."
 cd /home/user/CascadeProjects/qvac-chimera/upstream/targon
 if [ -f ./targon-cli ]; then
   echo "  Hotkey configured in config.json"
@@ -50,7 +50,7 @@ fi
 
 # 4. BTFS STORAGE NODE
 echo ""
-echo "[4/8] BTFS Storage Node..."
+echo "[4/9] BTFS Storage Node..."
 if [ -f /home/user/CascadeProjects/qvac-chimera/upstream/btfs/btfs ]; then
   if [ -d "${HOME}/.btfs" ]; then
     echo "  Repo initialized. Starting BTFS daemon..."
@@ -68,7 +68,7 @@ fi
 
 # 5. 0CHAIN BLOBBER
 echo ""
-echo "[5/8] 0Chain Blobber..."
+echo "[5/9] 0Chain Blobber..."
 if [ -f /home/user/CascadeProjects/qvac-chimera/upstream/zcn-blobber/blobber ]; then
   if [ -f "${HOME}/.zcn/config/0chain_blobber.yaml" ]; then
     echo "  Config exists. Starting blobber..."
@@ -85,7 +85,7 @@ fi
 
 # 6. INCOME GENERATOR (bandwidth sharing)
 echo ""
-echo "[6/8] Income Generator (bandwidth)..."
+echo "[6/9] Income Generator (bandwidth)..."
 if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/income-generator ]; then
   if docker compose version >/dev/null 2>&1; then
     echo "  Starting Income Generator Docker stack..."
@@ -102,7 +102,7 @@ fi
 
 # 7. CASHPILOT (DePIN manager)
 echo ""
-echo "[7/8] CashPilot (DePIN manager)..."
+echo "[7/9] CashPilot (DePIN manager)..."
 if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/cashpilot ]; then
   if docker compose version >/dev/null 2>&1; then
     echo "  Starting CashPilot Docker stack..."
@@ -120,7 +120,7 @@ fi
 
 # 8. CESS STORAGE NODE
 echo ""
-echo "[8/8] CESS Storage Node..."
+echo "[8/9] CESS Storage Node..."
 if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/cess-nodeadm ]; then
   if command -v cess >/dev/null 2>&1; then
     echo "  Starting CESS node..."
@@ -132,6 +132,21 @@ if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/cess-nodeadm ]; then
   fi
 else
   echo "  CESS nodeadm not found. Clone: git submodule add https://github.com/CESSProject/cess-nodeadm.git upstream/cess-nodeadm"
+fi
+
+# 9. BTT AI MINER (GPU tasking network — vLLM/SGLang)
+echo ""
+echo "[9/9] BTT AI Miner (GPU tasking)..."
+if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/btt-ai-miner ]; then
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    echo "  GPU detected. BTT AI miner can run."
+    echo "  TO START: cd upstream/btt-ai-miner && pip install -e . && miner-cli up -f miner.yaml"
+    echo "  (needs miner.yaml config + wallet funding for earnings)"
+  else
+    echo "  NVIDIA GPU not detected. BTT AI miner requires GPU."
+  fi
+else
+  echo "  BTT AI miner not found. Clone: git submodule add https://github.com/BTT-AI-labs/miner-cli.git upstream/btt-ai-miner"
 fi
 
 echo ""
