@@ -1,6 +1,6 @@
 #!/bin/bash
 # localchimera — Provider Startup Script
-# Active providers: Akash, Salad, Targon
+# Active providers: Akash, Salad, Targon, BTFS, 0Chain Blobber
 
 set -e
 LOGDIR="/home/user/CascadeProjects/qvac-chimera/providers/logs"
@@ -8,7 +8,7 @@ mkdir -p "$LOGDIR"
 
 echo "======================================"
 echo " localchimera Provider Launcher"
-echo " Active: Akash, Salad, Targon"
+echo " Active: Akash, Salad, Targon, BTFS, 0Chain"
 echo "======================================"
 
 # 1. AKASH PROVIDER (best CPU earner)
@@ -38,7 +38,7 @@ fi
 
 # 3. TARGON CPU PROVIDER
 echo ""
-echo "[3/3] Targon CPU Provider..."
+echo "[3/5] Targon CPU Provider..."
 cd /home/user/CascadeProjects/qvac-chimera/upstream/targon
 if [ -f ./targon-cli ]; then
   echo "  Hotkey configured in config.json"
@@ -48,6 +48,41 @@ else
   echo "  targon-cli not found. Build: cd targon && go build -o targon-cli ./cmd/targon-cli"
 fi
 
+# 4. BTFS STORAGE NODE
+echo ""
+echo "[4/5] BTFS Storage Node..."
+if [ -f /home/user/CascadeProjects/qvac-chimera/upstream/btfs/btfs ]; then
+  if [ -d "${HOME}/.btfs" ]; then
+    echo "  Repo initialized. Starting BTFS daemon..."
+    BTFS_PATH="${HOME}/.btfs" nohup /home/user/CascadeProjects/qvac-chimera/upstream/btfs/btfs daemon --enable-storage-host > "$LOGDIR/btfs.log" 2>&1 &
+    echo $! > "$LOGDIR/btfs.pid"
+    echo "  BTFS PID: $!"
+    echo "  UI: http://127.0.0.1:5001/hostui"
+    echo "  (needs BTT wallet funding for earnings)"
+  else
+    echo "  Repo not initialized. Run: ./providers/setup-btfs.sh"
+  fi
+else
+  echo "  BTFS binary not found. Build: cd upstream/btfs && go build -o btfs ./cmd/btfs"
+fi
+
+# 5. 0CHAIN BLOBBER
+echo ""
+echo "[5/5] 0Chain Blobber..."
+if [ -f /home/user/CascadeProjects/qvac-chimera/upstream/zcn-blobber/blobber ]; then
+  if [ -f "${HOME}/.zcn/config/0chain_blobber.yaml" ]; then
+    echo "  Config exists. Starting blobber..."
+    nohup /home/user/CascadeProjects/qvac-chimera/upstream/zcn-blobber/blobber --configDir "${HOME}/.zcn/config" --port 5050 > "$LOGDIR/zcn-blobber.log" 2>&1 &
+    echo $! > "$LOGDIR/zcn-blobber.pid"
+    echo "  Blobber PID: $!"
+    echo "  (needs ZCN wallet + stake for earnings)"
+  else
+    echo "  Config not found. Run: ./providers/setup-zcn-blobber.sh"
+  fi
+else
+  echo "  Blobber binary not found. Build: cd upstream/zcn-blobber/code/go/0chain.net/blobber && go build -o ../../../blobber ."
+fi
+
 echo ""
 echo "======================================"
 echo " Removed providers (require GPU):"
@@ -55,4 +90,9 @@ echo "   - nosana-cli"
 echo "   - lium-io"
 echo "   - heurist-miner-release"
 echo "   - byteleap-worker"
+echo " Removed providers (not consumer-friendly):"
+echo "   - sia-hostd (needs 4 TB+ storage)"
+echo "   - filecoin-lotus (needs 256 GB RAM + GPU)"
+echo "   - arweave-node (archival weave)"
+echo "   - hippius-storage-miner (complex Ansible)"
 echo "======================================"

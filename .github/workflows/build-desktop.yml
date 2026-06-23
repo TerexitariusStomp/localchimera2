@@ -347,49 +347,54 @@ jobs:
       - name: Generate ProGuard keep rules for QVAC SDK
         run: |
           PROGUARD=apps/mobile-expo/android/app/proguard-rules.pro
-          cat > "$PROGUARD" << 'RULES'
-# Keep React Native
--keep class com.facebook.react.** { *; }
--keep class com.facebook.react.bridge.** { *; }
--keep class com.facebook.react.uimanager.** { *; }
--keep class com.facebook.react.modules.** { *; }
--keep class com.facebook.react.views.** { *; }
+          python3 -c "
+import textwrap
+rules = textwrap.dedent('''
+  # Keep React Native
+  -keep class com.facebook.react.** { *; }
+  -keep class com.facebook.react.bridge.** { *; }
+  -keep class com.facebook.react.uimanager.** { *; }
+  -keep class com.facebook.react.modules.** { *; }
+  -keep class com.facebook.react.views.** { *; }
 
-# Keep Expo modules
--keep class expo.modules.** { *; }
--keepclassmembers class expo.modules.** { *; }
+  # Keep Expo modules
+  -keep class expo.modules.** { *; }
+  -keepclassmembers class expo.modules.** { *; }
 
-# Keep react-native-webview
--keep class com.reactnativecommunity.webview.** { *; }
+  # Keep react-native-webview
+  -keep class com.reactnativecommunity.webview.** { *; }
 
-# Keep react-native-bare-kit
--keep class to.hole.bare.** { *; }
--keep class to.hole.baresock.** { *; }
--keep class to.hole.barekit.** { *; }
--keepclassmembers class to.hole.bare.** { *; }
--keepclassmembers class to.hole.baresock.** { *; }
--keepclassmembers class to.hole.barekit.** { *; }
+  # Keep react-native-bare-kit
+  -keep class to.hole.bare.** { *; }
+  -keep class to.hole.baresock.** { *; }
+  -keep class to.hole.barekit.** { *; }
+  -keepclassmembers class to.hole.bare.** { *; }
+  -keepclassmembers class to.hole.baresock.** { *; }
+  -keepclassmembers class to.hole.barekit.** { *; }
 
-# Keep @qvac/sdk and llm addon
--keep class com.qvac.sdk.** { *; }
--keep class com.qvac.addons.llm.** { *; }
--keepclassmembers class com.qvac.sdk.** { *; }
--keepclassmembers class com.qvac.addons.llm.** { *; }
+  # Keep @qvac/sdk and llm addon
+  -keep class com.qvac.sdk.** { *; }
+  -keep class com.qvac.addons.llm.** { *; }
+  -keepclassmembers class com.qvac.sdk.** { *; }
+  -keepclassmembers class com.qvac.addons.llm.** { *; }
 
-# Keep native methods and JNI classes
--keepclasseswithmembernames class * {
-    native <methods>;
-}
--keep class * implements java.io.Serializable { *; }
--keepclassmembers class * implements java.io.Serializable {
-    static final long serialVersionUID;
-    private static final java.io.ObjectStreamField[] serialPersistentFields;
-    private void writeObject(java.io.ObjectOutputStream);
-    private void readObject(java.io.ObjectInputStream);
-    java.lang.Object writeReplace();
-    java.lang.Object readResolve();
-}
-RULES
+  # Keep native methods and JNI classes
+  -keepclasseswithmembernames class * {
+      native <methods>;
+  }
+  -keep class * implements java.io.Serializable { *; }
+  -keepclassmembers class * implements java.io.Serializable {
+      static final long serialVersionUID;
+      private static final java.io.ObjectStreamField[] serialPersistentFields;
+      private void writeObject(java.io.ObjectOutputStream);
+      private void readObject(java.io.ObjectInputStream);
+      java.lang.Object writeReplace();
+      java.lang.Object readResolve();
+  }
+''').strip()
+with open('$PROGUARD', 'w') as f:
+    f.write(rules)
+"
           echo "=== ProGuard rules ==="
           cat "$PROGUARD"
       - name: Build Expo AAB (Play Store) and APKs
