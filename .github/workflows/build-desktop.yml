@@ -290,7 +290,7 @@ jobs:
           echo "JAVA_HOME=$JAVA_HOME"
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-        with:      - name: Install frontend deps
+      - name: Install frontend deps
         run: |
           cd qvac/frontend
           npm install
