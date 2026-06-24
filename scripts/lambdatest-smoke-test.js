@@ -13,12 +13,12 @@ async function runTest() {
     protocol: 'https',
     port: 443,
     path: '/wd/hub',
+    connectionRetryTimeout: 120000,
     capabilities: {
       'lt:options': {
         deviceName: 'Pixel 6',
         platformName: 'Android',
         platformVersion: '13',
-        app: process.env.LT_APP_ID,
         isRealMobile: true,
         build: `Chimera-${process.env.GITHUB_RUN_ID || 'local'}`,
         name: 'Smoke test - Enable AI button',
@@ -26,6 +26,10 @@ async function runTest() {
         network: true,
         visual: true,
         w3c: true,
+      },
+      'appium:options': {
+        app: process.env.LT_APP_ID,
+        automationName: 'UiAutomator2',
       },
     },
   });

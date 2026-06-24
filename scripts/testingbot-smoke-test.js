@@ -13,16 +13,19 @@ async function runTest() {
     protocol: 'https',
     port: 443,
     path: '/wd/hub',
+    connectionRetryTimeout: 120000,
     capabilities: {
       'tb:options': {
         name: 'Chimera Smoke Test',
         build: `build-${process.env.GITHUB_RUN_ID || 'local'}`,
       },
       platformName: 'Android',
-      'appium:app': process.env.TESTINGBOT_APP_URL,
-      'appium:deviceName': 'Pixel 6',
-      'appium:platformVersion': '13',
-      'appium:automationName': 'UiAutomator2',
+      'appium:options': {
+        app: process.env.TESTINGBOT_APP_URL,
+        deviceName: 'Pixel 6',
+        platformVersion: '13',
+        automationName: 'UiAutomator2',
+      },
     },
   });
 

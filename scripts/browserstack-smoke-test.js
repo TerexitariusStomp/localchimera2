@@ -13,6 +13,7 @@ async function runTest() {
     protocol: 'https',
     port: 443,
     path: '/wd/hub',
+    connectionRetryTimeout: 120000,
     capabilities: {
       'bstack:options': {
         osVersion: '13.0',
@@ -23,8 +24,10 @@ async function runTest() {
         debug: true,
         networkLogs: true,
       },
-      app: process.env.BROWSERSTACK_APP_URL,
-      automationName: 'UiAutomator2',
+      'appium:options': {
+        app: process.env.BROWSERSTACK_APP_URL,
+        automationName: 'UiAutomator2',
+      },
     },
   });
 
