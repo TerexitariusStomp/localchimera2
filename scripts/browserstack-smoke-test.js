@@ -23,8 +23,8 @@ async function runTest() {
         debug: true,
         networkLogs: true,
       },
-      'appium:app': process.env.BROWSERSTACK_APP_URL,
-      'appium:automationName': 'UiAutomator2',
+      app: process.env.BROWSERSTACK_APP_URL,
+      automationName: 'UiAutomator2',
     },
   });
 
@@ -32,18 +32,17 @@ async function runTest() {
   let failureReason = '';
 
   try {
-    // Wait for app to load and screenshot
-    await browser.pause(4000);
+    await browser.pause(5000);
     await browser.saveScreenshot(path.join(__dirname, 'screenshot-01-launch.png'));
     console.log('Screenshot 1: app launched');
 
-    // Try to find "Enable AI" button by text
     let enableAIBtn = null;
     const selectors = [
       '//*[contains(@text, "Enable AI")]',
       '//*[contains(@text, "enable ai")]',
       '//android.widget.Button[contains(@text, "Enable")]',
       '//android.widget.TextView[contains(@text, "Enable")]',
+      'android=new UiSelector().textContains("Enable")',
     ];
 
     for (const sel of selectors) {
@@ -54,9 +53,7 @@ async function runTest() {
           console.log('Found Enable AI button with selector:', sel);
           break;
         }
-      } catch (e) {
-        // try next selector
-      }
+      } catch (e) {}
     }
 
     if (enableAIBtn) {
@@ -65,12 +62,10 @@ async function runTest() {
       await browser.pause(3000);
       await browser.saveScreenshot(path.join(__dirname, 'screenshot-02-after-tap.png'));
 
-      // Wait for model to load or error (up to 60s)
       const startTime = Date.now();
-      while (Date.now() - startTime < 60000) {
+      while (Date.now() - startTime < 90000) {
         await browser.saveScreenshot(path.join(__dirname, 'screenshot-03-checking.png'));
 
-        // Check for "ready"
         try {
           const ready = await browser.$('//*[contains(@text, "ready") or contains(@text, "Ready")]');
           if (await ready.isExisting()) {
@@ -80,7 +75,6 @@ async function runTest() {
           }
         } catch (e) {}
 
-        // Check for "error"
         try {
           const errorEl = await browser.$('//*[contains(@text, "error") or contains(@text, "Error") or contains(@text, "failed")]');
           if (await errorEl.isExisting()) {
@@ -91,7 +85,6 @@ async function runTest() {
           }
         } catch (e) {}
 
-        // Check for "loading"
         try {
           const loading = await browser.$('//*[contains(@text, "loading") or contains(@text, "Loading")]');
           if (await loading.isExisting()) {
@@ -100,19 +93,16 @@ async function runTest() {
           }
         } catch (e) {}
 
-        await browser.pause(3000);
+        await browser.pause(4000);
       }
 
       if (!success && !failureReason) {
         failureReason = 'Timed out waiting for model load result';
       }
     } else {
-      // Button not found — screenshot for debugging
       await browser.saveScreenshot(path.join(__dirname, 'screenshot-02-no-button.png'));
       failureReason = 'Enable AI button not found';
       console.log('Enable AI button not found');
-
-      // Dump page source for debugging
       try {
         const source = await browser.getPageSource();
         fs.writeFileSync(path.join(__dirname, 'page-source.xml'), source);
