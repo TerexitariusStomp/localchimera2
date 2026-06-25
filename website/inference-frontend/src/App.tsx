@@ -4,10 +4,10 @@ import { connectWallet, disconnectWallet, isWalletInstalled } from './casper-wal
 import { Wallet } from 'lucide-react';
 import { Button, Badge } from './components/ui';
 import OverviewTab from './components/OverviewTab';
-import ComputeRegistryTab from './components/ComputeRegistryTab';
-import OrderBookTab from './components/OrderBookTab';
-import EscrowVaultTab from './components/EscrowVaultTab';
-import ReputationTab from './components/ReputationTab';
+import InferenceMarketTab from './components/InferenceMarketTab';
+import StorageMarketTab from './components/StorageMarketTab';
+import ComputeMarketTab from './components/ComputeMarketTab';
+import BandwidthMarketTab from './components/BandwidthMarketTab';
 import type { TxRecord } from './types';
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -48,9 +48,7 @@ export default function App() {
       Object.entries(CONTRACTS).forEach(([name, hash]) => {
         queryContractNamedKeys(hash).then((keys) => {
           setContractKeys((prev) => ({ ...prev, [name]: keys }));
-        }).catch(() => {
-          // Silently ignore RPC errors to avoid NetworkError pop-ups
-        });
+        }).catch(() => {});
       });
     } else {
       setWalletError('Could not connect to Casper Wallet. Make sure the extension is installed and unlocked.');
@@ -91,11 +89,11 @@ export default function App() {
               Home
             </a>
             {[
-              { id: 'orderbook', label: 'Task Marketplace' },
-              { id: 'escrow', label: 'Task Escrow' },
+              { id: 'inference', label: 'Inference' },
+              { id: 'storage', label: 'Storage' },
+              { id: 'compute', label: 'Compute' },
+              { id: 'bandwidth', label: 'Bandwidth' },
               { id: 'overview', label: 'Network Status' },
-              { id: 'compute', label: 'Compute Providers' },
-              { id: 'reputation', label: 'Provider Reputation' },
             ].map((tab) => (
               <a key={tab.id} href={`#${tab.id}`}
                 className="rounded-md px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5 hover:text-[#00e5ff] text-[#7a7468]">
@@ -132,46 +130,43 @@ export default function App() {
               <strong>Casper Wallet extension not detected.</strong>
               <a href="https://chromewebstore.google.com/detail/casper-wallet/" target="_blank" rel="noopener noreferrer" className="underline ml-1 text-[#00e5ff]">Install it here</a>.
             </div>
-            <div className="text-sm text-amber-400 bg-amber-500/5 border border-amber-500/10 p-3 rounded-lg">
-              <strong>Wallet compatibility:</strong> Only Casper Wallet works on this page. MetaMask, Phantom, Trust Wallet, and other EVM/Solana wallets <strong>will not work</strong> because this app signs Casper-specific deploys. Install the Casper Wallet browser extension to connect.
-            </div>
           </div>
         )}
 
         {walletDetected && !isConnected && (
           <div className="text-sm text-green-400 bg-green-500/5 border border-green-500/10 p-3 rounded-lg">
-            <strong>Casper Wallet detected.</strong> Click <strong>Connect</strong> in the header to sign in. This app only supports Casper Wallet — MetaMask, Phantom, and other wallets will not work because they cannot sign Casper deploys.
+            <strong>Casper Wallet detected.</strong> Click <strong>Connect</strong> in the header to sign in.
           </div>
         )}
 
-        {/* Section: Order Book */}
-        <section id="orderbook" className="space-y-4">
-          <SectionTitle>Task Marketplace</SectionTitle>
-          <OrderBookTab provider={provider} publicKeyHex={publicKeyHex} contractHash={CONTRACTS.orderBook} escrowVaultHash={CONTRACTS.escrowVault} accountHash={accountHash} onTx={updateTx} />
+        {/* Inference Market */}
+        <section id="inference" className="space-y-4">
+          <SectionTitle>Inference Market</SectionTitle>
+          <InferenceMarketTab provider={provider} publicKeyHex={publicKeyHex} contractHash={CONTRACTS.inferenceMarket} accountHash={accountHash} onTx={updateTx} />
         </section>
 
-        {/* Section: Escrow Vault (Inference) */}
-        <section id="escrow" className="space-y-4">
-          <SectionTitle>Task Escrow</SectionTitle>
-          <EscrowVaultTab provider={provider} publicKeyHex={publicKeyHex} contractHash={CONTRACTS.escrowVault} accountHash={accountHash} contractKeys={contractKeys} onTx={updateTx} />
+        {/* Storage Market */}
+        <section id="storage" className="space-y-4">
+          <SectionTitle>Storage Market</SectionTitle>
+          <StorageMarketTab provider={provider} publicKeyHex={publicKeyHex} contractHash={CONTRACTS.storageMarket} accountHash={accountHash} onTx={updateTx} />
         </section>
 
-        {/* Section: Overview */}
+        {/* Compute Market */}
+        <section id="compute" className="space-y-4">
+          <SectionTitle>Compute Market</SectionTitle>
+          <ComputeMarketTab provider={provider} publicKeyHex={publicKeyHex} contractHash={CONTRACTS.computeMarket} accountHash={accountHash} onTx={updateTx} />
+        </section>
+
+        {/* Bandwidth Market */}
+        <section id="bandwidth" className="space-y-4">
+          <SectionTitle>Bandwidth Market</SectionTitle>
+          <BandwidthMarketTab provider={provider} publicKeyHex={publicKeyHex} contractHash={CONTRACTS.bandwidthMarket} accountHash={accountHash} onTx={updateTx} />
+        </section>
+
+        {/* Overview */}
         <section id="overview" className="space-y-4">
           <SectionTitle>Network Status</SectionTitle>
           <OverviewTab contractKeys={contractKeys} txHistory={txHistory} publicKeyStr={publicKeyHex} accountHash={accountHash} />
-        </section>
-
-        {/* Section: Compute Registry */}
-        <section id="compute" className="space-y-4">
-          <SectionTitle>Compute Providers</SectionTitle>
-          <ComputeRegistryTab provider={provider} publicKeyHex={publicKeyHex} contractHash={CONTRACTS.computeRegistry} onTx={updateTx} />
-        </section>
-
-        {/* Section: Reputation */}
-        <section id="reputation" className="space-y-4">
-          <SectionTitle>Provider Reputation</SectionTitle>
-          <ReputationTab provider={provider} publicKeyHex={publicKeyHex} contractHash={CONTRACTS.reputation} onTx={updateTx} />
         </section>
 
         {/* Recent Transactions */}
@@ -179,7 +174,7 @@ export default function App() {
           <SectionTitle>Recent Transactions</SectionTitle>
           {txHistory.length === 0 ? <p className="text-sm text-[#7a7468]">No transactions yet</p> : (
             <div className="space-y-2">
-              {txHistory.slice(0, 5).map((tx) => (
+              {txHistory.slice(0, 10).map((tx) => (
                 <div key={tx.id} className="flex items-center justify-between text-xs bg-white/[0.03] border border-white/5 p-3 rounded-lg hover:bg-white/[0.05] transition-colors">
                   <div className="flex items-center gap-2">
                     <div>

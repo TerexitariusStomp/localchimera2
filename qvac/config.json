@@ -115,8 +115,15 @@
       "enabled": true,
       "config": {
         "network": "casper",
-        "rpcUrl": "https://rpc.mainnet.casper.network/rpc",
-        "providerKeyPem": ""
+        "rpcUrl": "https://node.testnet.casper.network/rpc",
+        "providerKeyPem": "",
+        "chainName": "casper-test",
+        "contracts": {
+          "inferenceMarket": "116a2fa615c47c6cf027b3c8238cee265cb5271cdc8398fa98452ccaaf11d8d9",
+          "storageMarket": "8b8b61ff8b5792c920e4dcda6a4a1357a01ccbec1339d7106fd1db67eeced49c",
+          "computeMarket": "ee722f68272a3f50d913b645474ccff5c5ba1281f2f14d6dae925480c1931bad",
+          "bandwidthMarket": "a69dc20172f48f6193b3aa9e653c663e91386ca923073fccc965eb0a1d5538ea"
+        }
       }
     }
   },
@@ -204,5 +211,200 @@
   "auth": {
     "method": "signin",
     "required": true
+  },
+  "proofOfInference": {
+    "enabled": true
+  },
+  "promptGuard": {
+    "enabled": true,
+    "strictMode": false
+  },
+  "promptBudgeter": {
+    "ctxSize": 4096,
+    "answerReserveRatio": 0.20,
+    "docRatio": 0.60,
+    "historyRatio": 0.25
+  },
+  "tokenMeter": {
+    "enabled": true,
+    "ratePerToken": 0.0001,
+    "sessionCap": 10.0,
+    "minSettle": 1.0
+  },
+  "voicePipeline": {
+    "whisperModel": "WHISPER_TINY_EN_Q5_1",
+    "llmModel": "LLAMA_3_2_1B_INST_Q4_0",
+    "embeddingModel": "EMBEDDINGGEMMA_300M_Q4_0",
+    "chunkSize": 512,
+    "chunkOverlap": 50
+  },
+  "agentLoop": {
+    "maxRounds": 3,
+    "maxTokens": 512,
+    "temperature": 0.4
+  },
+  "documentChunker": {
+    "chunkSize": 512,
+    "chunkOverlap": 50,
+    "minChunkSize": 50,
+    "splitOnParagraph": true
+  },
+  "contentAddress": {
+    "algorithm": "sha256"
+  },
+  "capabilityManifest": {
+    "enabled": true
+  },
+  "circuitBreaker": {
+    "enabled": true,
+    "failureThreshold": 3,
+    "cooldownMs": 60000,
+    "halfOpenMaxCalls": 1
+  },
+  "peerReputation": {
+    "enabled": true
+  },
+  "memoryCompactor": {
+    "enabled": true,
+    "threshold": 4,
+    "maxSummaryTokens": 256
+  },
+  "knowledgeGraph": {
+    "enabled": true
+  },
+  "cryptoVault": {
+    "enabled": true
+  },
+  "receiptGossip": {
+    "enabled": true,
+    "verificationThreshold": 3
+  },
+  "dynamicPricing": {
+    "basePrice": 0.0001,
+    "maxDemandMultiplier": 0.5,
+    "maxSupplyDiscount": 0.3,
+    "minPrice": 0.00001,
+    "maxPrice": 0.001
+  },
+  "modelRegistry": {
+    "enabled": true
+  },
+  "toolResultCache": {
+    "enabled": true,
+    "defaultTtl": 300000
+  },
+  "semanticDedup": {
+    "enabled": true,
+    "threshold": 0.92,
+    "strategy": "semantic"
+  },
+  "slaEnforcer": {
+    "enabled": true,
+    "defaultTimeout": 30000,
+    "levels": {
+      "standard": 30000,
+      "priority": 10000,
+      "batch": 120000
+    }
+  },
+  "contentPinner": {
+    "enabled": true,
+    "replicationFactor": 3,
+    "ttl": 86400000
+  },
+  "taskDecomposer": {
+    "enabled": true,
+    "maxSubtasks": 4,
+    "minComplexity": 3
+  },
+  "conversationBrancher": {
+    "enabled": true
+  },
+  "autoTagger": {
+    "enabled": true,
+    "maxTags": 10
+  },
+  "conversationExporter": {
+    "enabled": true
+  },
+  "confidenceRouter": {
+    "enabled": true,
+    "k": 3,
+    "confidenceThreshold": 0.7,
+    "consistencyThreshold": 0.75
+  },
+  "spendPolicy": {
+    "enabled": true,
+    "perCallCap": 0.01,
+    "sessionBudget": 1.0,
+    "dailyBudget": 10.0,
+    "monthlyBudget": 100.0
+  },
+  "escrowChannel": {
+    "enabled": true
+  },
+  "memoryManager": {
+    "enabled": true,
+    "expiryMs": 604800000,
+    "consolidationThreshold": 5
+  },
+  "hybridRetriever": {
+    "enabled": true,
+    "bm25Weight": 0.4,
+    "embeddingWeight": 0.6,
+    "rerankTopK": 10,
+    "finalK": 5
+  },
+  "enrichmentQueue": {
+    "enabled": true,
+    "concurrency": 1,
+    "maxRetries": 2
+  },
+  "linkMetadataCache": {
+    "enabled": true,
+    "ttl": 86400000
+  },
+  "visionCaptioner": {
+    "enabled": true,
+    "modelName": "qwen3-vl-2b",
+    "idleUnloadMs": 300000
+  },
+  "evidenceExporter": {
+    "enabled": true
+  },
+  "mcpClient": {
+    "enabled": true
+  },
+  "autoLinker": {
+    "enabled": true,
+    "topK": 5,
+    "minSimilarity": 0.65
+  },
+  "capabilityProber": {
+    "enabled": true,
+    "tpsBar": 10,
+    "benchMaxTokens": 64
+  },
+  "marketplaceBroadcaster": {
+    "enabled": true,
+    "offerTtl": 60000,
+    "refreshInterval": 30000
+  },
+  "memoryExtractor": {
+    "enabled": true,
+    "maxContentChars": 4000
+  },
+  "deploymentLifecycle": {
+    "dataDir": "./data/deployments",
+    "etas": {
+      "prepared": 3000,
+      "submitted": 5000,
+      "matching": 15000,
+      "matched": 10000,
+      "ack": 5000,
+      "env-set": 3000,
+      "started": 8000,
+      "model_loading": 30000
+    }
   }
 }

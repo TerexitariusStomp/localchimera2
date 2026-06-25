@@ -119,6 +119,55 @@ npx cap open android  # Android Studio → Generate Signed Bundle
 - **Mining** — Cortensor, Chutes, Fortytwo, Earnidle, Routstr miners.
 - **Fleet** — Commander/worker orchestration for distributed tasks.
 
+### New: Enhanced Inference & Security Modules
+
+- **Proof-of-Inference Receipts** — Every inference answer is hashed into a Merkle chain and signed (secp256k1), producing portable, independently verifiable receipts. (`qvac/src/inference/ProofOfInference.js`)
+- **Inference Serialization Queue** — Requests queue through a promise chain to prevent concurrent model collisions on single-GPU/CPU devices. (`qvac/src/inference/InferenceQueue.js`)
+- **Prompt Injection Defense** — Untrusted content (documents, RAG context) is fenced in `<document>` tags with a guard preamble. Injection heuristics detect re-instruction attempts. (`qvac/src/inference/PromptGuard.js`)
+- **Prompt Budgeting** — Character-budgeted prompt construction against `ctx_size` with answer reserve, document ratio, and history ratio. (`qvac/src/inference/PromptBudgeter.js`)
+- **Pay-Per-Token USDT Settlement** — Per-session token metering with USDT spend caps and on-chain settlement tracking. (`qvac/src/inference/TokenMeter.js`)
+- **Voice Transcription Pipeline** — On-device Whisper STT → Llama summary + action items → GTE embeddings → RAG ingest. Models loaded one at a time (load → infer → unload). (`qvac/src/inference/VoicePipeline.js`)
+- **Agent Tool-Calling Loop** — On-device agent that calls tools (search_memory, list_todos, calculator, local_time, search_wiki) with streaming citations. Hardened via PromptGuard + PromptBudgeter. (`qvac/src/inference/AgentLoop.js`)
+- **Document Chunking + Citations** — Semantic paragraph/sentence chunking with stable IDs (DOC-XX-NN) and a citation registry for grounded answers. (`qvac/src/inference/DocumentChunker.js`)
+- **Content-Addressed Verification** — SHA-256 content hashes for wiki pages, inference receipts, and RAG documents. Merkle proof construction and verification. (`qvac/src/core/ContentAddress.js`)
+- **Signed Capability Manifests** — Peers advertise model inventory, dataset opt-ins, and provider availability via signed manifests over P2P. Enables intelligent inference delegation. (`qvac/src/p2p/CapabilityManifest.js`)
+- **Deployment Lifecycle + SSE** — Phase-based deployment tracking (uploaded → prepared → submitted → matching → matched → ack → env-set → started → model_loading → model_ready) with live progress streamed over Server-Sent Events. (`qvac/src/core/DeploymentLifecycle.js`)
+- **Peer Reputation / Trust Scoring** — Peers scored by success rate, latency, and uptime. Scores feed into weighted device selection in InferenceRouter. Decays toward neutral over time (forgiveness). (`qvac/src/p2p/PeerReputation.js`)
+- **Circuit Breaker** — If a device/peer fails N times consecutively, the circuit trips and blocks routing for a cooldown. Half-open probe tests recovery before full reset. (`qvac/src/inference/CircuitBreaker.js`)
+- **TTFT Measurement** — Time-To-First-Token is measured during streaming inference and logged in audit records alongside tokensPerSec. (`qvac/src/inference/QVACInferenceLayer.js`)
+- **Model Hot-Swapping** — Switch between models (e.g., Llama for text, Whisper for voice) without restarting the inference layer. LRU cache with configurable max cached models. (`qvac/src/inference/QVACInferenceLayer.js`)
+- **On-chain PoI Verification** — Solidity contract that verifies secp256k1-signed inference receipts on-chain via ecrecover, enabling trustless USDT settlement. (`contracts/ProofOfInferenceVerifier.sol`)
+- **Memory Compaction** — When PromptBudgeter would drop old history, MemoryCompactor summarizes it into a compact context message instead of truncating. LLM-based with extractive fallback. (`qvac/src/inference/MemoryCompactor.js`)
+- **Knowledge Graph** — Entity-relationship store for transcripts and documents. Supports fuzzy search, subgraph traversal (BFS), and source-filtered queries. Integrates with VoicePipeline entity extraction. (`qvac/src/inference/KnowledgeGraph.js`)
+- **Encrypted Document Storage** — Per-workspace AES-256-GCM encryption for sensitive RAG documents. HKDF-derived workspace keys from a master key. Transparent encrypt/decrypt for HypercoreStore. (`qvac/src/storage/CryptoVault.js`)
+- **Peer Receipt Cross-Verification** — P2P gossip protocol where peers independently verify inference receipts and broadcast results. Community verification threshold enables trustless verification without gas. (`qvac/src/inference/ReceiptGossip.js`)
+- **Dynamic Pricing** — Demand-based token pricing that adjusts per-token cost based on queue depth (demand) and available peers (supply). Bounded by min/max price limits. (`qvac/src/inference/ReceiptGossip.js`)
+- **Model Registry** — Catalog of available models with metadata (context length, quantization, type, load status). Integrates with hot-swapping and capability manifests. (`qvac/src/inference/ModelRegistry.js`)
+- **Tool Result Cache** — Caches agent tool call results with TTL and content-aware invalidation. Avoids redundant computation for repeated tool calls. (`qvac/src/inference/ToolResultCache.js`)
+- **Semantic Deduplication** — Detects near-duplicate documents via cosine similarity before RAG ingestion. Prevents duplicate content from polluting search results. (`qvac/src/inference/SemanticDedup.js`)
+- **SLA Enforcement** — Per-request timeout with SLA levels (standard/priority/batch). Aborts hung requests and triggers refunds. Tracks timeout rates and avg duration. (`qvac/src/inference/SLAEnforcer.js`)
+- **Content Pinning** — Replicates important content (receipts, wiki pages) to N peers via P2P for durability. Encrypted pinning with CryptoVault integration. (`qvac/src/p2p/ContentPinner.js`)
+- **Deployment Rollback** — Automatic rollback to last known-good phase on deployment failure. Manual rollback via API. Tracks rollback history. (`qvac/src/core/DeploymentLifecycle.js`)
+- **Task Decomposition** — Breaks complex inference requests into sub-tasks for parallel execution across peers. LLM-based and heuristic decomposition with result synthesis. (`qvac/src/inference/TaskDecomposer.js`)
+- **Conversation Branching** — Tree-based conversation model with branching from any message. Explore alternative responses without losing the original thread. (`qvac/src/inference/ConversationBrancher.js`)
+- **Model Benchmarking CLI** — Standalone CLI tool for benchmarking models: TTFT, tokens/sec, latency across multiple prompts with comparison tables. (`qvac/src/cli/benchmark.js`)
+- **Auto-Tagging** — Automatically tags documents and transcripts using taxonomy matching, keyword extraction, entity lookup, and optional LLM-based tagging. (`qvac/src/inference/AutoTagger.js`)
+- **Conversation Export** — Export branched conversations as JSON, Markdown, plain text, OpenAI-compatible format, or CSV. Full tree or active-path-only export. (`qvac/src/inference/ConversationExporter.js`)
+- **Confidence Router** — Self-consistency check: samples the local model k times, measures answer stability via embedding cosine similarity, and decides whether to answer locally for free or escalate to a paid peer. (`qvac/src/inference/ConfidenceRouter.js`)
+- **Spend Policy** — Per-call cap, session budget, daily and monthly budget enforcement. If declined, the buyer keeps the free local draft. (`qvac/src/inference/SpendPolicy.js`)
+- **Escrow Channel** — On-chain deposit + off-chain EIP-712 voucher settlement. One deposit opens a channel, then each inference settles off-chain with signed vouchers. (`qvac/src/inference/EscrowChannel.js`)
+- **Memory Manager** — Cognitive memory system with importance ranking, consolidation (merge related memories), expiration (TTL decay), and memory type taxonomy (semantic/episodic/procedural). (`qvac/src/inference/MemoryManager.js`)
+- **Hybrid Retriever** — Multi-method RAG retrieval: BM25 lexical + embedding vector search with reciprocal rank fusion, optional LLM re-ranking, fuzzy search, and regex search. (`qvac/src/inference/HybridRetriever.js`)
+- **Enrichment Queue** — Two-phase save pipeline: instant heuristic classification + background FIFO queue for LLM enrichment (classify, embed, tag, caption). Graceful degradation to heuristics on failure. (`qvac/src/inference/EnrichmentQueue.js`)
+- **Link Metadata Cache** — Fetches and caches oEmbed/OpenGraph metadata (title, description, thumbnail) for URLs. Local thumbnail caching with TTL-based invalidation. (`qvac/src/inference/LinkMetadataCache.js`)
+- **Vision Captioner** — Generates text captions for images using vision models (Qwen3-VL). Model loads on demand and unloads when idle. Makes screenshots searchable in RAG. (`qvac/src/inference/VisionCaptioner.js`)
+- **Evidence Exporter** — Structured audit evidence for compliance: privacy scan, network boundary, RAG quality, API audit, benchmark scope, runtime contract, guardrails, vault snapshot, reviewer questions. (`qvac/src/inference/EvidenceExporter.js`)
+- **MCP Client** — Model Context Protocol JSON-RPC client for tool calling. Connects to MCP servers via stdio or HTTP, discovers tools, and invokes them. (`qvac/src/inference/MCPClient.js`)
+- **Auto Linker** — Auto-connects related notes/documents via vector similarity. Builds bidirectional link graph, finds clusters, and integrates with KnowledgeGraph. (`qvac/src/inference/AutoLinker.js`)
+- **Capability Prober** — Auto-detects hardware (GPU/Metal/CPU, RAM, VRAM), benchmarks each model tier (0.6B → 7B), measures TTFT + TPS, and determines the sellable offer tier. Writes `bench-profile.json`. (`qvac/src/inference/CapabilityProber.js`)
+- **Marketplace Broadcaster** — P2P offer advertising and discovery on Hyperswarm DHT. Sellers broadcast offers (model + price + TPS), buyers discover sellers, request quotes, and accept quotes. (`qvac/src/inference/MarketplaceBroadcaster.js`)
+- **Memory Extractor** — LLM-based extraction of structured entities, relationships, and facts from raw text. Deduplicates against KnowledgeGraph, stores as graph triplets and semantic memories. (`qvac/src/inference/MemoryExtractor.js`)
+
 ## Project Structure
 
 ```
@@ -134,10 +183,10 @@ qvac-chimera/
 │       └── dist/             # Copied from qvac/frontend/dist
 ├── qvac/                     # Backend node + LLM Wiki frontend
 │   ├── src/                  # Node.js backend
-│   │   ├── core/             # NodeManager, WalletManager
-│   │   ├── inference/        # QVACInferenceLayer
+│   │   ├── core/             # NodeManager, WalletManager, AuditLogger, ContentAddress, DeploymentLifecycle
+│   │   ├── inference/        # QVACInferenceLayer, ProofOfInference, InferenceQueue, PromptGuard, PromptBudgeter, TokenMeter, VoicePipeline, AgentLoop, DocumentChunker
 │   │   ├── miners/           # Cortensor, Chutes, etc.
-│   │   ├── p2p/              # Pear P2P networking
+│   │   ├── p2p/              # Pear P2P networking + CapabilityManifest
 │   │   ├── web/              # HTTP server + API routes
 │   │   └── scheduler/        # TaskMonitor
 │   ├── frontend/             # React app (LLM Wiki)
@@ -160,4 +209,295 @@ Quick check:
 ```bash
 ./scripts/update-upstream.sh check
 ```
+
+## New API Endpoints
+
+### Proof of Inference
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/proof/status` | PoI chain status (receipt count, public key) |
+| `POST` | `/api/proof/verify` | Verify a receipt independently |
+
+### Prompt Guard
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/prompt-guard/status` | PromptGuard stats (injection count, enabled) |
+| `POST` | `/api/prompt-guard/check` | Check text for injection patterns |
+
+### Token Meter
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/meter/status` | Metering status (total metered, settled) |
+| `GET` | `/api/meter/sessions` | List all metering sessions + settlements |
+| `POST` | `/api/meter/settle` | Record a USDT settlement (txHash, amount) |
+
+### Voice Pipeline
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/voice/transcribe` | Process audio file (transcribe → summarize → embed) |
+| `GET` | `/api/voice/status` | VoicePipeline status |
+
+### Agent Loop
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/agent/query` | Run agent query with tool-calling |
+| `GET` | `/api/agent/tools` | List available agent tools |
+
+### Document Chunker
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/chunk` | Chunk documents into semantic pieces with IDs |
+
+### Content Address
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/content/status` | ContentAddress stats |
+| `POST` | `/api/content/register` | Register data, get content hash |
+| `POST` | `/api/content/verify` | Verify data against expected hash |
+
+### Capability Manifest
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/capability/status` | Manifest status (peer count, providers) |
+| `POST` | `/api/capability/create` | Create and sign our capability manifest |
+| `GET` | `/api/capability/peers` | List peer manifests |
+
+### Deployment Lifecycle
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/deployment/create` | Create a new deployment |
+| `GET` | `/api/deployment/list` | List all deployments |
+| `GET` | `/api/deployment/:id` | Get deployment by ID (with ETA) |
+| `GET` | `/api/deployment/:id/events` | SSE stream of deployment phase changes |
+
+### Circuit Breaker
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/circuit/status` | Circuit breaker stats (open/closed/half-open counts) |
+| `GET` | `/api/circuit/list` | List all circuits with state |
+| `POST` | `/api/circuit/reset` | Reset a circuit (by targetId or all) |
+
+### Peer Reputation
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/reputation/status` | Reputation system stats |
+| `GET` | `/api/reputation/peers` | List all peer reputation scores |
+
+### Model Hot-Swap
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/model/switch` | Hot-swap to a different model |
+| `GET` | `/api/model/current` | Get currently loaded model |
+
+### Memory Compactor
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/memory/status` | Compaction stats (total compactions, cache size) |
+
+### Knowledge Graph
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/kg/status` | Graph stats (entities, relationships, sources) |
+| `GET` | `/api/kg/search?q=...` | Fuzzy search entities by name |
+| `GET` | `/api/kg/entity?name=...` | Get entity with relationships |
+| `GET` | `/api/kg/subgraph?name=...&depth=2` | BFS subgraph from entity |
+| `POST` | `/api/kg/ingest` | Ingest entities + edges from a source |
+
+### Crypto Vault
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/vault/status` | Vault stats (encrypted/decrypted counts) |
+| `POST` | `/api/vault/encrypt` | Encrypt plaintext for a workspace |
+| `POST` | `/api/vault/decrypt` | Decrypt ciphertext from a workspace |
+
+### Receipt Gossip
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/gossip/status` | Gossip stats (gossiped, verified, community-verified) |
+| `GET` | `/api/gossip/receipts` | List community-verified receipts |
+| `POST` | `/api/gossip/broadcast` | Broadcast a receipt for peer verification |
+
+### Dynamic Pricing
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/pricing/status` | Current price + config |
+| `GET` | `/api/pricing/history` | Price adjustment history |
+
+### Model Registry
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/registry/status` | Registry stats (total, loaded, by type) |
+| `GET` | `/api/registry/list?type=...` | List models (optionally by type) |
+| `POST` | `/api/registry/register` | Register a new model |
+
+### Tool Result Cache
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/tool-cache/status` | Cache stats (hits, misses, hit rate) |
+| `POST` | `/api/tool-cache/invalidate` | Invalidate cache (by tool or all) |
+
+### Semantic Dedup
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/dedup/status` | Dedup stats (checked, duplicates, skipped) |
+
+### SLA Enforcer
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/sla/status` | SLA stats (timeouts, avg duration, breach rate) |
+
+### Content Pinner
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/pinning/status` | Pinning stats (local, remote, fully pinned) |
+| `POST` | `/api/pinning/pin` | Pin content to peers |
+| `POST` | `/api/pinning/unpin` | Unpin content from peers |
+| `GET` | `/api/pinning/status/:hash` | Check pin status for a content hash |
+
+### Deployment Rollback
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/deployment/rollback` | Rollback a deployment to previous phase |
+
+### Task Decomposer
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/decompose/status` | Decomposer stats |
+| `POST` | `/api/decompose/run` | Decompose and execute a complex request |
+
+### Conversation Branching
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/conversation/list` | List all conversations |
+| `POST` | `/api/conversation/create` | Create a new conversation |
+| `POST` | `/api/conversation/message` | Add a message to active path |
+| `POST` | `/api/conversation/branch` | Branch from a specific message |
+| `POST` | `/api/conversation/switch` | Switch to a different branch |
+| `GET` | `/api/conversation/:id/tree` | Get full conversation tree |
+| `GET` | `/api/conversation/:id/history` | Get active path history |
+| `DELETE` | `/api/conversation/:id` | Delete a conversation |
+
+### Auto-Tagging
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/tagger/status` | Tagger stats |
+| `POST` | `/api/tagger/tag` | Auto-tag a single document |
+| `POST` | `/api/tagger/batch` | Auto-tag multiple documents |
+
+### Conversation Export
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/export/formats` | List supported export formats |
+| `POST` | `/api/export/conversation` | Export a conversation (json/md/txt/openai/csv) |
+
+### Confidence Router
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/confidence/status` | Router stats (local rate, avg confidence) |
+| `POST` | `/api/confidence/route` | Route a prompt: local answer or escalate |
+
+### Spend Policy
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/spend/status` | Budget status (daily, monthly, sessions) |
+| `POST` | `/api/spend/session/start` | Start a new spending session |
+| `POST` | `/api/spend/session/end` | End a session |
+| `GET` | `/api/spend/session?sessionId=` | Get session status |
+
+### Escrow Channel
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/escrow/status` | Escrow stats |
+| `POST` | `/api/escrow/open` | Open a channel with deposit |
+| `POST` | `/api/escrow/voucher` | Create a signed voucher |
+| `POST` | `/api/escrow/settle` | Settle a channel on-chain |
+| `POST` | `/api/escrow/close` | Close a channel |
+| `GET` | `/api/escrow/list?status=` | List channels |
+
+### Memory Manager
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/memory/status` | Memory stats (by type, consolidation) |
+| `POST` | `/api/memory/add` | Add a memory |
+| `GET` | `/api/memory/search` | Search memories |
+| `POST` | `/api/memory/update` | Update a memory |
+| `DELETE` | `/api/memory/delete` | Delete a memory |
+| `GET` | `/api/memory/types` | Get memory type taxonomy |
+
+### Hybrid Retriever
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/hybrid/status` | Retriever stats |
+| `POST` | `/api/hybrid/search` | Hybrid search (BM25 + embedding + rerank) |
+
+### Enrichment Queue
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/enrichment/status` | Queue stats |
+| `POST` | `/api/enrichment/save` | Save item with heuristic + queue enrichment |
+
+### Link Metadata
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/link-meta/status` | Cache stats |
+| `POST` | `/api/link-meta/fetch` | Fetch metadata for a URL |
+
+### Vision Captioner
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/vision/status` | Captioner stats |
+| `POST` | `/api/vision/caption` | Caption an image |
+
+### Evidence Exporter
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/evidence/types` | List evidence types |
+| `POST` | `/api/evidence/export` | Export a specific evidence type |
+| `POST` | `/api/evidence/export-all` | Export all evidence types |
+
+### MCP Client
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/mcp/status` | MCP client stats |
+| `GET` | `/api/mcp/servers` | List connected servers |
+| `GET` | `/api/mcp/tools` | List all discovered tools |
+| `POST` | `/api/mcp/connect` | Connect to an MCP server |
+| `POST` | `/api/mcp/call` | Call a tool on a server |
+| `POST` | `/api/mcp/disconnect` | Disconnect from a server |
+
+### Auto Linker
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/auto-link/status` | Linker stats |
+| `POST` | `/api/auto-link/build` | Build links for a workspace |
+| `GET` | `/api/auto-link/related?workspace=&docId=` | Get related documents |
+| `GET` | `/api/auto-link/graph?workspace=` | Get full link graph |
+| `GET` | `/api/auto-link/clusters?workspace=` | Find document clusters |
+
+### Capability Prober
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/probe/status` | Prober stats (backend, sellable, offer) |
+| `POST` | `/api/probe/run` | Run a full capability probe |
+| `GET` | `/api/probe/profile` | Get the current capability profile |
+| `GET` | `/api/probe/offer` | Get the sellable offer (tier, model, TPS) |
+
+### Marketplace Broadcaster
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/market/status` | Marketplace stats (offers, quotes) |
+| `POST` | `/api/market/start` | Start broadcasting offers |
+| `POST` | `/api/market/stop` | Stop broadcasting |
+| `GET` | `/api/market/sellers` | Discover active seller offers |
+| `POST` | `/api/market/quote` | Request a quote from a seller |
+| `POST` | `/api/market/quote/accept` | Accept a quote |
+| `GET` | `/api/market/quote?quoteId=` | Get quote status |
+| `GET` | `/api/market/offer` | Get our current offer |
+
+### Memory Extractor
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/extract/status` | Extractor stats |
+| `POST` | `/api/extract/run` | Extract entities/relations/facts from text |
+| `POST` | `/api/extract/batch` | Extract from multiple texts (merged) |
 

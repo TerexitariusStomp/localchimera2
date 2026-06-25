@@ -1,21 +1,21 @@
 // @ts-nocheck
 import * as sdk from 'casper-js-sdk';
 
-const RPC_URL = 'https://rpc.testnet.casper.network/rpc';
+const RPC_URL = 'https://node.testnet.casper.network/rpc';
 const CHAIN_NAME = 'casper-test';
 
 export interface ContractConfig {
-  computeRegistry: string;
-  orderBook: string;
-  escrowVault: string;
-  reputation: string;
+  inferenceMarket: string;
+  storageMarket: string;
+  computeMarket: string;
+  bandwidthMarket: string;
 }
 
 export const CONTRACTS: ContractConfig = {
-  computeRegistry: 'f8c969bfa7553a23deab0f77fb43210d4810156a977e0cc2695b23182e5b41d0',
-  orderBook: 'cecfc698508213f63e7e7fe6f0729b090af23c87c7e444db7fc90be73736e399',
-  escrowVault: 'f9aa6606c892e4437a1664cfa9841864ab62000b2c53cb16c25d0f711d7ff38b',
-  reputation: 'fd0bf02161433c13c3070b7d0ea383c976bcbc799413638b4fedc703d4efa1db',
+  inferenceMarket: '116a2fa615c47c6cf027b3c8238cee265cb5271cdc8398fa98452ccaaf11d8d9',
+  storageMarket: '8b8b61ff8b5792c920e4dcda6a4a1357a01ccbec1339d7106fd1db67eeced49c',
+  computeMarket: 'ee722f68272a3f50d913b645474ccff5c5ba1281f2f14d6dae925480c1931bad',
+  bandwidthMarket: 'a69dc20172f48f6193b3aa9e653c663e91386ca923073fccc965eb0a1d5538ea',
 };
 
 let rpcClient: any = null;

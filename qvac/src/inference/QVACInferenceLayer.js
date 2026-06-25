@@ -23,7 +23,25 @@ export class QVACInferenceLayer {
     this.modelId = null;
     this._loading = null;
     this._activityTimer = null;
+    // New: injected modules
+    this._queue = null;
+    this._promptGuard = null;
+    this._promptBudgeter = null;
+    this._proofOfInference = null;
+    this._tokenMeter = null;
+    this._circuitBreaker = null;
+    // Model hot-swapping: track loaded model name and support switching
+    this._loadedModelName = null;
+    this._modelCache = new Map(); // modelName -> modelId
+    this._maxCachedModels = 2;
   }
+
+  setQueue(queue) { this._queue = queue; }
+  setPromptGuard(guard) { this._promptGuard = guard; }
+  setPromptBudgeter(budgeter) { this._promptBudgeter = budgeter; }
+  setProofOfInference(poi) { this._proofOfInference = poi; }
+  setTokenMeter(meter) { this._tokenMeter = meter; }
+  setCircuitBreaker(cb) { this._circuitBreaker = cb; }
 
   async initialize() {
     this.logger.info('Initializing QVAC inference layer...');
@@ -65,17 +83,44 @@ export class QVACInferenceLayer {
     }, 10000).unref();
   }
 
-  async _ensureModel() {
-    if (this.modelId) return this.modelId;
+  async _ensureModel(requestedModel = null) {
+    const targetModel = requestedModel || this.config?.qvac?.models?.[0] || 'llama-3.2-1b-instruct';
+
+    // If we have the right model loaded, return it
+    if (this.modelId && this._loadedModelName === targetModel) return this.modelId;
+
+    // Check cache
+    if (this._modelCache.has(targetModel)) {
+      this.modelId = this._modelCache.get(targetModel);
+      this._loadedModelName = targetModel;
+      this.logger.info(`Switched to cached model: ${targetModel}`);
+      return this.modelId;
+    }
+
+    // Need to load a new model (hot-swap)
+    return this._loadModel(targetModel);
+  }
+
+  async _loadModel(targetModel) {
     if (this._loading) return this._loading;
     if (!this.qvac) throw new Error('QVAC SDK not available');
 
     this._loading = (async () => {
       const { loadModel, LLAMA_3_2_1B_INST_Q4_0 } = this.qvac;
       const modelSrc = this.config.qvac.modelConst || LLAMA_3_2_1B_INST_Q4_0;
-      const modelName = this.config.qvac.models[0] || 'llama-3.2-1b-instruct';
-      this.logger.info(`Loading QVAC model for inference layer: ${modelName}`);
-      this.modelId = await loadModel({
+      this.logger.info(`Loading QVAC model for inference layer: ${targetModel}`);
+
+      // Hot-swap: unload previous model if we're at cache capacity
+      if (this._modelCache.size >= this._maxCachedModels && this.modelId) {
+        const { unloadModel } = this.qvac;
+        const oldModel = this._loadedModelName;
+        this.logger.info(`Hot-swap: unloading ${oldModel} to make room for ${targetModel}`);
+        try { await unloadModel({ modelId: this.modelId }); } catch {}
+        this._modelCache.delete(oldModel);
+        if (this.audit) this.audit.modelUnload({ modelId: this.modelId, source: 'hot-swap' });
+      }
+
+      const newModelId = await loadModel({
         modelSrc,
         modelType: 'llm',
         modelConfig: { device: 'cpu' },
@@ -83,12 +128,33 @@ export class QVACInferenceLayer {
           if (p.percent % 10 === 0) this.logger.info(`Model load: ${p.percent}%`);
         },
       });
-      this.logger.info(`QVAC model ready: ${this.modelId}`);
-      return this.modelId;
+
+      this.modelId = newModelId;
+      this._loadedModelName = targetModel;
+      this._modelCache.set(targetModel, newModelId);
+      this.logger.info(`QVAC model ready: ${newModelId} (${targetModel})`);
+      if (this.audit) this.audit.modelLoad({ modelId: newModelId, durationMs: 0, source: 'inference-layer' });
+      return newModelId;
     })();
 
     try { await this._loading; } finally { this._loading = null; }
     return this.modelId;
+  }
+
+  /**
+   * Explicitly switch to a different model (hot-swap).
+   */
+  async switchModel(modelName) {
+    if (!this.qvac) throw new Error('QVAC SDK not available');
+    this.logger.info(`Hot-swap requested: ${this._loadedModelName} → ${modelName}`);
+    return this._ensureModel(modelName);
+  }
+
+  /**
+   * Get the currently loaded model name.
+   */
+  getLoadedModelName() {
+    return this._loadedModelName;
   }
 
   async handleInferenceRequest(request) {
@@ -115,17 +181,32 @@ export class QVACInferenceLayer {
       });
     }
 
-    let result;
-    try {
-      if (this.qvac) {
-        result = await this._runQVAC(request, requestId);
-      } else {
-        result = this._fallback(request, requestId);
+    // Token meter: check spend cap before running inference
+    if (this._tokenMeter) {
+      const promptTokens = Math.ceil((request.prompt || request.input || '').length / 4);
+      const meterResult = this._tokenMeter.meter(request.source || requestId, { promptTokens: 0 });
+      if (!meterResult.allowed) {
+        this.logger.warn(`Inference blocked by token meter: ${meterResult.reason}`);
+        this.activeRequests.delete(requestId);
+        if (this.taskMonitor) this.taskMonitor.completeTask(requestId);
+        return {
+          requestId,
+          model: this.config?.qvac?.models?.[0] || 'default',
+          output: '',
+          latency: 0,
+          source: request.source,
+          success: false,
+          error: meterResult.reason,
+          blocked: true,
+        };
       }
-    } catch (error) {
-      this.logger.error(`Inference failed for ${requestId}: ${error.message}`);
-      result = this._fallback(request, requestId);
     }
+
+    // Use inference queue for serialized execution if available
+    const runInference = () => this._executeInference(request, requestId);
+    const result = this._queue
+      ? await this._queue.enqueueWithTimeout(runInference, this.config?.timeout || 300000)
+      : await runInference();
 
     if (this.taskMonitor) this.taskMonitor.completeTask(requestId);
     this.activeRequests.delete(requestId);
@@ -138,26 +219,86 @@ export class QVACInferenceLayer {
         prompt,
         outputTokens: tokens,
         durationMs: result.latency || 0,
+        ttftMs: result.ttftMs || 0,
+        tokensPerSec: result.tokensPerSec || 0,
         modelId: result.model || 'default',
         source: request.source || 'unknown',
         routeId: requestId
       });
     }
 
+    // Generate proof-of-inference receipt
+    if (this._proofOfInference && result.success) {
+      result.receipt = this._proofOfInference.generateReceipt({
+        prompt: request.prompt || request.input || '',
+        output: result.output || '',
+        modelId: result.model || 'default',
+        routeId: requestId,
+        durationMs: result.latency || 0,
+        tokensGenerated: result.output ? Math.ceil(result.output.length / 4) : 0,
+      });
+    }
+
+    // Meter completion tokens
+    if (this._tokenMeter && result.success) {
+      const completionTokens = result.output ? Math.ceil(result.output.length / 4) : 0;
+      this._tokenMeter.meter(request.source || requestId, { completionTokens });
+    }
+
+    return result;
+  }
+
+  async _executeInference(request, requestId) {
+    let result;
+    try {
+      if (this.qvac) {
+        result = await this._runQVAC(request, requestId);
+      } else {
+        result = this._fallback(request, requestId);
+      }
+    } catch (error) {
+      this.logger.error(`Inference failed for ${requestId}: ${error.message}`);
+      result = this._fallback(request, requestId);
+    }
     return result;
   }
 
   async _runQVAC(request, requestId) {
     const { completion } = this.qvac;
-    const modelId = await this._ensureModel();
 
     const systemPrompt = request.systemPrompt || 'You are a helpful AI assistant.';
     const userPrompt = request.prompt || request.input || JSON.stringify(request);
 
-    const history = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ];
+    // Use PromptGuard to fence untrusted content and detect injection
+    let history;
+    let injectionSuspected = false;
+    if (this._promptGuard && request.documents) {
+      const guarded = this._promptGuard.buildSafePrompt({
+        systemPrompt,
+        documents: request.documents,
+        userQuery: userPrompt,
+        history: request.history || [],
+      });
+      history = guarded.history;
+      injectionSuspected = guarded.injectionSuspected;
+    } else if (this._promptBudgeter && (request.documents || request.history)) {
+      const budgeted = this._promptBudgeter.build({
+        systemPrompt,
+        documents: request.documents || [],
+        history: request.history || [],
+        userQuery: userPrompt,
+      });
+      history = budgeted.history;
+    } else {
+      history = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ];
+    }
+
+    // Support per-request model selection (hot-swap)
+    const requestedModel = request.model || null;
+    const modelId = await this._ensureModel(requestedModel);
 
     const gen = completion({
       modelId,
@@ -170,18 +311,33 @@ export class QVACInferenceLayer {
     });
 
     let output = '';
+    let ttftMs = 0;
+    const inferenceStart = Date.now();
+    let firstTokenTime = null;
     for await (const token of gen.tokenStream) {
+      if (firstTokenTime === null) {
+        firstTokenTime = Date.now();
+        ttftMs = firstTokenTime - inferenceStart;
+        this.logger.debug(`TTFT: ${ttftMs}ms for ${requestId}`);
+      }
       output += token;
     }
 
     const latency = Date.now() - (this.activeRequests.get(requestId)?.start || Date.now());
+    const tokensGenerated = output ? Math.ceil(output.length / 4) : 0;
+    const tokensPerSec = tokensGenerated > 0 && latency > 0 ? (tokensGenerated / (latency / 1000)).toFixed(1) : 0;
+
     return {
       requestId,
-      model: this.config?.qvac?.models?.[0] || 'default',
+      model: this._loadedModelName || this.config?.qvac?.models?.[0] || 'default',
       output: output.trim(),
       latency,
+      ttftMs,
+      tokensGenerated,
+      tokensPerSec: parseFloat(tokensPerSec),
       source: request.source,
-      success: true
+      success: true,
+      injectionSuspected,
     };
   }
 
@@ -212,7 +368,12 @@ export class QVACInferenceLayer {
       idle: this.isIdle(),
       lastActivity: this.lastActivity,
       qvacAvailable: !!this.qvac,
-      modelLoaded: !!this.modelId
+      modelLoaded: !!this.modelId,
+      queue: this._queue?.getStats() || null,
+      promptGuard: this._promptGuard?.getStats() || null,
+      promptBudgeter: this._promptBudgeter?.getStatus() || null,
+      proofOfInference: this._proofOfInference?.getStatus() || null,
+      tokenMeter: this._tokenMeter?.getStatus() || null,
     };
   }
 }

@@ -1,12 +1,52 @@
 import { Logger } from './Logger.js';
 import { AuditLogger } from './AuditLogger.js';
+import { ContentAddress } from './ContentAddress.js';
+import { DeploymentLifecycle } from './DeploymentLifecycle.js';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { QVACInferenceLayer } from '../inference/QVACInferenceLayer.js';
 import { LocalLLM } from '../inference/LocalLLM.js';
 import { EmbeddingService } from '../inference/EmbeddingService.js';
+import { ProofOfInference } from '../inference/ProofOfInference.js';
+import { InferenceQueue } from '../inference/InferenceQueue.js';
+import { PromptGuard } from '../inference/PromptGuard.js';
+import { PromptBudgeter } from '../inference/PromptBudgeter.js';
+import { TokenMeter } from '../inference/TokenMeter.js';
+import { VoicePipeline } from '../inference/VoicePipeline.js';
+import { AgentLoop } from '../inference/AgentLoop.js';
+import { DocumentChunker, CitationRegistry } from '../inference/DocumentChunker.js';
+import { CircuitBreaker } from '../inference/CircuitBreaker.js';
+import { MemoryCompactor } from '../inference/MemoryCompactor.js';
+import { KnowledgeGraph } from '../inference/KnowledgeGraph.js';
+import { ReceiptGossip, DynamicPricing } from '../inference/ReceiptGossip.js';
+import { ModelRegistry } from '../inference/ModelRegistry.js';
+import { ToolResultCache } from '../inference/ToolResultCache.js';
+import { SemanticDedup } from '../inference/SemanticDedup.js';
+import { SLAEnforcer } from '../inference/SLAEnforcer.js';
+import { TaskDecomposer } from '../inference/TaskDecomposer.js';
+import { ConversationBrancher } from '../inference/ConversationBrancher.js';
+import { AutoTagger } from '../inference/AutoTagger.js';
+import { ConversationExporter } from '../inference/ConversationExporter.js';
+import { ConfidenceRouter } from '../inference/ConfidenceRouter.js';
+import { SpendPolicy } from '../inference/SpendPolicy.js';
+import { EscrowChannel } from '../inference/EscrowChannel.js';
+import { MemoryManager } from '../inference/MemoryManager.js';
+import { HybridRetriever } from '../inference/HybridRetriever.js';
+import { EnrichmentQueue } from '../inference/EnrichmentQueue.js';
+import { LinkMetadataCache } from '../inference/LinkMetadataCache.js';
+import { VisionCaptioner } from '../inference/VisionCaptioner.js';
+import { EvidenceExporter } from '../inference/EvidenceExporter.js';
+import { MCPClient } from '../inference/MCPClient.js';
+import { AutoLinker } from '../inference/AutoLinker.js';
+import { CapabilityProber } from '../inference/CapabilityProber.js';
+import { MarketplaceBroadcaster } from '../inference/MarketplaceBroadcaster.js';
+import { MemoryExtractor } from '../inference/MemoryExtractor.js';
 import { HypercoreStore } from '../storage/HypercoreStore.js';
+import { CryptoVault } from '../storage/CryptoVault.js';
+import { ContentPinner } from '../p2p/ContentPinner.js';
 import { PearP2P } from '../p2p/PearP2P.js';
+import { CapabilityManifest } from '../p2p/CapabilityManifest.js';
+import { PeerReputation } from '../p2p/PeerReputation.js';
 import { MinerManager } from '../miners/MinerManager.js';
 import { AuthService } from '../auth/AuthService.js';
 import { TaskMonitor } from '../scheduler/TaskMonitor.js';
@@ -14,6 +54,7 @@ import { WebServer } from '../web/server.js';
 import { WalletManager } from './WalletManager.js';
 import { MultisigManager } from './MultisigManager.js';
 import { MonthlyDistributor } from '../payout/MonthlyDistributor.js';
+import { CasperAutoRegistrar } from '../casper/CasperAutoRegistrar.js';
 
 export class NodeManager {
   constructor(config) {
@@ -31,6 +72,50 @@ export class NodeManager {
     this.walletManager = null;
     this.multisigManager = null;
     this.monthlyDistributor = null;
+    // New modules
+    this.proofOfInference = null;
+    this.inferenceQueue = null;
+    this.promptGuard = null;
+    this.promptBudgeter = null;
+    this.tokenMeter = null;
+    this.voicePipeline = null;
+    this.agentLoop = null;
+    this.documentChunker = null;
+    this.citationRegistry = null;
+    this.contentAddress = null;
+    this.capabilityManifest = null;
+    this.deploymentLifecycle = null;
+    this.circuitBreaker = null;
+    this.peerReputation = null;
+    this.memoryCompactor = null;
+    this.knowledgeGraph = null;
+    this.cryptoVault = null;
+    this.receiptGossip = null;
+    this.dynamicPricing = null;
+    this.modelRegistry = null;
+    this.toolResultCache = null;
+    this.semanticDedup = null;
+    this.slaEnforcer = null;
+    this.contentPinner = null;
+    this.taskDecomposer = null;
+    this.conversationBrancher = null;
+    this.autoTagger = null;
+    this.conversationExporter = null;
+    this.confidenceRouter = null;
+    this.spendPolicy = null;
+    this.escrowChannel = null;
+    this.memoryManager = null;
+    this.hybridRetriever = null;
+    this.enrichmentQueue = null;
+    this.linkMetadataCache = null;
+    this.visionCaptioner = null;
+    this.evidenceExporter = null;
+    this.mcpClient = null;
+    this.autoLinker = null;
+    this.capabilityProber = null;
+    this.marketplaceBroadcaster = null;
+    this.memoryExtractor = null;
+    this.casperRegistrar = null;
     this.isRunning = false;
   }
 
@@ -72,12 +157,118 @@ export class NodeManager {
     this.minerManager = new MinerManager(this.config.miners, this.dataStore, this.taskMonitor, this.inferenceLayer);
     await this.minerManager.initialize();
 
+    // Initialize new modules
+    this.proofOfInference = new ProofOfInference(this.config.proofOfInference || {});
+    this.inferenceQueue = new InferenceQueue(this.config.inference?.queue || {});
+    this.promptGuard = new PromptGuard(this.config.promptGuard || {});
+    this.promptBudgeter = new PromptBudgeter(this.config.promptBudgeter || {});
+    this.tokenMeter = new TokenMeter(this.config.tokenMeter || {});
+    this.voicePipeline = new VoicePipeline({ ...(this.config.voicePipeline || {}), audit: this.audit });
+    await this.voicePipeline.initialize();
+    this.agentLoop = new AgentLoop(this.config.agentLoop || {});
+    this.documentChunker = new DocumentChunker(this.config.documentChunker || {});
+    this.citationRegistry = new CitationRegistry();
+    this.contentAddress = new ContentAddress(this.config.contentAddress || {});
+    this.capabilityManifest = new CapabilityManifest(this.config.capabilityManifest || {});
+    this.deploymentLifecycle = new DeploymentLifecycle(this.config.deploymentLifecycle || {});
+    this.circuitBreaker = new CircuitBreaker(this.config.circuitBreaker || {});
+    this.peerReputation = new PeerReputation(this.config.peerReputation || {});
+    this.peerReputation.start();
+    this.memoryCompactor = new MemoryCompactor(this.config.memoryCompactor || {});
+    this.knowledgeGraph = new KnowledgeGraph({ ...(this.config.knowledgeGraph || {}), persistStore: this.dataStore });
+    this.cryptoVault = new CryptoVault(this.config.cryptoVault || {});
+    this.receiptGossip = new ReceiptGossip(this.config.receiptGossip || {});
+    this.dynamicPricing = new DynamicPricing(this.config.dynamicPricing || {});
+    this.modelRegistry = new ModelRegistry(this.config.modelRegistry || {});
+    this.toolResultCache = new ToolResultCache(this.config.toolResultCache || {});
+    this.toolResultCache.start();
+    this.semanticDedup = new SemanticDedup(this.config.semanticDedup || {});
+    this.slaEnforcer = new SLAEnforcer(this.config.slaEnforcer || {});
+    this.contentPinner = new ContentPinner(this.config.contentPinner || {});
+    this.contentPinner.setP2P(this.p2pNetwork);
+    this.contentPinner.setCryptoVault(this.cryptoVault);
+    this.contentPinner.start();
+    this.taskDecomposer = new TaskDecomposer(this.config.taskDecomposer || {});
+    this.conversationBrancher = new ConversationBrancher(this.config.conversationBrancher || {});
+    this.autoTagger = new AutoTagger(this.config.autoTagger || {});
+    this.conversationExporter = new ConversationExporter(this.config.conversationExporter || {});
+    this.confidenceRouter = new ConfidenceRouter(this.config.confidenceRouter || {});
+    this.spendPolicy = new SpendPolicy(this.config.spendPolicy || {});
+    this.escrowChannel = new EscrowChannel(this.config.escrowChannel || {});
+    this.escrowChannel.setWalletManager(this.walletManager);
+    this.memoryManager = new MemoryManager(this.config.memoryManager || {});
+    this.memoryManager.start();
+    this.hybridRetriever = new HybridRetriever(this.config.hybridRetriever || {});
+    this.enrichmentQueue = new EnrichmentQueue(this.config.enrichmentQueue || {});
+    this.linkMetadataCache = new LinkMetadataCache(this.config.linkMetadataCache || {});
+    this.visionCaptioner = new VisionCaptioner(this.config.visionCaptioner || {});
+    this.evidenceExporter = new EvidenceExporter(this.config.evidenceExporter || {});
+    this.mcpClient = new MCPClient(this.config.mcpClient || {});
+    this.autoLinker = new AutoLinker(this.config.autoLinker || {});
+    this.autoLinker.setKnowledgeGraph(this.knowledgeGraph);
+    this.capabilityProber = new CapabilityProber(this.config.capabilityProber || {});
+    this.capabilityProber.setInferenceLayer(this.inferenceLayer);
+    this.capabilityProber.setModelRegistry(this.modelRegistry);
+    this.marketplaceBroadcaster = new MarketplaceBroadcaster(this.config.marketplaceBroadcaster || {});
+    this.marketplaceBroadcaster.setP2P(this.p2pNetwork);
+    this.marketplaceBroadcaster.setCapabilityProber(this.capabilityProber);
+    this.marketplaceBroadcaster.setDynamicPricing(this.dynamicPricing);
+    this.memoryExtractor = new MemoryExtractor(this.config.memoryExtractor || {});
+    this.memoryExtractor.setInferenceLayer(this.inferenceLayer);
+    this.memoryExtractor.setKnowledgeGraph(this.knowledgeGraph);
+    this.memoryExtractor.setMemoryManager(this.memoryManager);
+
+    // Register known models in registry
+    const qvacCfg = this.config.inference?.qvac || {};
+    if (qvacCfg.models) {
+      for (const modelName of qvacCfg.models) {
+        this.modelRegistry.register({
+          name: modelName,
+          type: 'llm',
+          contextLength: 4096,
+          quantization: 'q4_0',
+          modelConst: qvacCfg.modelConst,
+        });
+      }
+    }
+    if (this.config.inference?.embedding?.model) {
+      this.modelRegistry.register({
+        name: this.config.inference.embedding.model,
+        type: 'embedding',
+        contextLength: 2048,
+        quantization: 'q4_0',
+        modelConst: this.config.inference.embedding.qvacModelConst,
+      });
+    }
+    if (this.config.voicePipeline?.whisperModel) {
+      this.modelRegistry.register({
+        name: this.config.voicePipeline.whisperModel,
+        type: 'stt',
+        contextLength: 0,
+        quantization: 'q5_1',
+      });
+    }
+
+    // Wire receipt gossip to P2P
+    this.receiptGossip.setP2P(this.p2pNetwork);
+
+    // Inject inference queue into inference layer for serialized execution
+    this.inferenceLayer.setQueue(this.inferenceQueue);
+    this.inferenceLayer.setPromptGuard(this.promptGuard);
+    this.inferenceLayer.setPromptBudgeter(this.promptBudgeter);
+    this.inferenceLayer.setProofOfInference(this.proofOfInference);
+    this.inferenceLayer.setTokenMeter(this.tokenMeter);
+    this.inferenceLayer.setCircuitBreaker(this.circuitBreaker);
+
     this.webServer = new WebServer(this.config, this);
     await this.webServer.initialize();
 
     this.monthlyDistributor = new MonthlyDistributor(this.webServer.payoutRouter);
 
-    this.logger.info('All components initialized');
+    this.casperRegistrar = new CasperAutoRegistrar(this.config);
+    await this.casperRegistrar.initialize();
+
+    this.logger.info('All components initialized (including PoI, PromptGuard, TokenMeter, VoicePipeline, AgentLoop, CapabilityManifest, ContentAddress, DeploymentLifecycle, CircuitBreaker, PeerReputation, MemoryCompactor, KnowledgeGraph, CryptoVault, ReceiptGossip, DynamicPricing, ModelRegistry, ToolResultCache, SemanticDedup, SLAEnforcer, ContentPinner, TaskDecomposer, ConversationBrancher, AutoTagger, ConversationExporter, ConfidenceRouter, SpendPolicy, EscrowChannel, MemoryManager, HybridRetriever, EnrichmentQueue, LinkMetadataCache, VisionCaptioner, EvidenceExporter, MCPClient, AutoLinker, CapabilityProber, MarketplaceBroadcaster, MemoryExtractor)');
   }
   
   async start() {
@@ -175,6 +366,19 @@ export class NodeManager {
     // Stop monthly distributor
     if (this.monthlyDistributor) this.monthlyDistributor.stop();
 
+    // Stop inference queue
+    if (this.inferenceQueue) this.inferenceQueue.reset();
+
+    // Stop peer reputation decay timer
+    if (this.peerReputation) this.peerReputation.stop();
+
+    // Persist knowledge graph
+    if (this.knowledgeGraph) this.knowledgeGraph.persist();
+
+    // Stop timers
+    if (this.toolResultCache) this.toolResultCache.stop();
+    if (this.contentPinner) this.contentPinner.stop();
+
     this.isRunning = false;
     this.logger.info('Node stopped successfully');
   }
@@ -183,7 +387,6 @@ export class NodeManager {
     return {
       running: this.isRunning,
       nodeId: this.config.node.id,
-      // mode removed
       inference: this.inferenceLayer?.getStatus(),
       localLLM: this.localLLM?.getStatus(),
       embedding: this.embeddingService?.getStatus(),
@@ -191,7 +394,49 @@ export class NodeManager {
       tasks: this.taskMonitor?.getStatus(),
       p2p: this.p2pNetwork?.getStatus(),
       wallets: this.walletManager?.getStatus(),
-      multisig: this.multisigManager?.getStatus()
+      multisig: this.multisigManager?.getStatus(),
+      // New modules
+      proofOfInference: this.proofOfInference?.getStatus(),
+      inferenceQueue: this.inferenceQueue?.getStats(),
+      promptGuard: this.promptGuard?.getStats(),
+      promptBudgeter: this.promptBudgeter?.getStatus(),
+      tokenMeter: this.tokenMeter?.getStatus(),
+      voicePipeline: this.voicePipeline?.getStatus(),
+      agentLoop: this.agentLoop?.getStatus(),
+      contentAddress: this.contentAddress?.getStats(),
+      capabilityManifest: this.capabilityManifest?.getStatus(),
+      deploymentLifecycle: this.deploymentLifecycle?.getStatus(),
+      citations: this.citationRegistry?.getStats(),
+      circuitBreaker: this.circuitBreaker?.getStatus(),
+      peerReputation: this.peerReputation?.getStatus(),
+      memoryCompactor: this.memoryCompactor?.getStats(),
+      knowledgeGraph: this.knowledgeGraph?.getStats(),
+      cryptoVault: this.cryptoVault?.getStats(),
+      receiptGossip: this.receiptGossip?.getStats(),
+      dynamicPricing: this.dynamicPricing?.getStats(),
+      modelRegistry: this.modelRegistry?.getStats(),
+      toolResultCache: this.toolResultCache?.getStats(),
+      semanticDedup: this.semanticDedup?.getStats(),
+      slaEnforcer: this.slaEnforcer?.getStats(),
+      contentPinner: this.contentPinner?.getStats(),
+      taskDecomposer: this.taskDecomposer?.getStats(),
+      conversationBrancher: this.conversationBrancher?.getStats(),
+      autoTagger: this.autoTagger?.getStats(),
+      conversationExporter: this.conversationExporter?.getStats(),
+      confidenceRouter: this.confidenceRouter?.getStats(),
+      spendPolicy: this.spendPolicy?.getStats(),
+      escrowChannel: this.escrowChannel?.getStats(),
+      memoryManager: this.memoryManager?.getStats(),
+      hybridRetriever: this.hybridRetriever?.getStats(),
+      enrichmentQueue: this.enrichmentQueue?.getStats(),
+      linkMetadataCache: this.linkMetadataCache?.getStats(),
+      visionCaptioner: this.visionCaptioner?.getStats(),
+      evidenceExporter: this.evidenceExporter?.getStats(),
+      mcpClient: this.mcpClient?.getStats(),
+      autoLinker: this.autoLinker?.getStats(),
+      capabilityProber: this.capabilityProber?.getStats(),
+      marketplaceBroadcaster: this.marketplaceBroadcaster?.getStats(),
+      memoryExtractor: this.memoryExtractor?.getStats(),
     };
   }
 }

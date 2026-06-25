@@ -1,6 +1,7 @@
 import { Logger } from '../core/Logger.js';
 import Hyperswarm from 'hyperswarm';
 import crypto from 'crypto';
+import { CapabilityManifest } from './CapabilityManifest.js';
 
 export class PearP2P {
   constructor(config) {
@@ -11,6 +12,7 @@ export class PearP2P {
     this.swarm = null;
     this.topics = new Map(); // topic -> { joinedAt }
     this.messageHandlers = new Map();
+    this.capabilityManifest = new CapabilityManifest(config.capabilityManifest || {});
   }
 
   async initialize() {
@@ -25,6 +27,11 @@ export class PearP2P {
       conn.on('data', (data) => {
         try {
           const msg = JSON.parse(data.toString());
+          if (msg.type === 'capability-manifest') {
+            const stored = this.capabilityManifest.storePeerManifest(peerId, msg.manifest);
+            if (stored) this.logger.info(`Received capability manifest from ${peerId}: ${msg.manifest.models?.length || 0} models`);
+            return;
+          }
           this.logger.debug(`Message from ${peerId}: ${msg.type}`);
           for (const handler of this.messageHandlers.values()) {
             try { handler(msg, peerId); } catch (e) { this.logger.error('Handler error:', e); }
@@ -122,6 +129,17 @@ export class PearP2P {
     }
   }
 
+  async broadcastCapabilityManifest(manifest) {
+    if (!this.isRunning || this.peers.size === 0) return;
+    const payload = JSON.stringify({ type: 'capability-manifest', manifest }) + '\n';
+    for (const [peerId, peer] of this.peers) {
+      if (peer.connected && peer.conn && !peer.conn.destroyed) {
+        try { peer.conn.write(payload); } catch (e) {}
+      }
+    }
+    this.logger.debug(`Broadcasted capability manifest to ${this.peers.size} peers`);
+  }
+
   getTopicsByScope(scope, pageId = null) {
     const results = [];
     for (const [hex, meta] of this.topics) {
@@ -147,7 +165,8 @@ export class PearP2P {
       running: this.isRunning,
       peerCount: this.peers.size,
       topics: Array.from(this.topics.keys()).map(t => t.slice(0, 16) + '...'),
-      discovery: this.config.discovery
+      discovery: this.config.discovery,
+      capabilityManifest: this.capabilityManifest?.getStatus() || null,
     };
   }
 

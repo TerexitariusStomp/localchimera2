@@ -239,6 +239,17 @@ export function Dashboard() {
 
         {!miningRunning && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+            <div style={{
+              padding: "10px 14px",
+              borderRadius: 8,
+              background: "rgba(0,229,255,0.05)",
+              border: "1px solid rgba(0,229,255,0.15)",
+              color: "#7dd3fc",
+              fontSize: 12,
+              fontWeight: 500,
+            }}>
+              Enter your EVM wallet address and click Start. Your node will automatically register as a provider on all Casper markets (inference, storage, compute, bandwidth).
+            </div>
             <input
               type="text"
               placeholder="Your EVM wallet address (0x...)"

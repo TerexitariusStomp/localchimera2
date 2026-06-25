@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import { MarkdownIndexer } from '../llmwiki/MarkdownIndexer.js';
 import { NodeOrchestrator } from '../orchestrator/NodeOrchestrator.js';
-import { matchRoute } from './router.js';
+import { matchRoute, extractRouteParams } from './router.js';
 import { ok, accepted, badRequest, serverError, serviceUnavailable, parseBody } from './reply.js';
 import { extractBoundary, readBody, parseMultipart } from './multipart.js';
 import { repoToMarkdown } from './repoDigest.js';
@@ -966,7 +966,32 @@ Copy the topic hex and invite others to join.
     });
     this.logger.info(`[router] Auto-registered node ${nodeUrl} (EVM: ${evmAddr}, Provider: ${providerHash})`);
 
-    ok(res, { message: 'Mining started', running: true, registered: { url: nodeUrl, evmAddress: evmAddr, casperProvider: providerHash } });
+    // ─── Auto-register provider on all Casper contracts ───
+    let casperResult = null;
+    if (this.nodeManager.casperRegistrar) {
+      try {
+        const deviceProfile = {
+          hasGpu: false,
+          vramMb: 0,
+          cpuCores: require('os').cpus().length,
+          ramMb: Math.round(require('os').totalmem() / 1024 / 1024),
+          storageMb: 10240,
+          bandwidthMbps: 100,
+          models: this.config?.inference?.qvac?.models || ['llama-3.2-1b-instruct'],
+        };
+        casperResult = await this.nodeManager.casperRegistrar.registerAll({
+          peerId: this.config?.node?.id || 'chimera-node',
+          nodeName: this.config?.node?.name || 'Chimera Node',
+          deviceProfile,
+        });
+        this.logger.info(`[casper] Auto-registration result: ${casperResult.registered.length} contracts, ${casperResult.errors.length} errors`);
+      } catch (e) {
+        this.logger.warn(`[casper] Auto-registration failed: ${e.message}`);
+        casperResult = { registered: [], errors: [e.message] };
+      }
+    }
+
+    ok(res, { message: 'Mining started', running: true, registered: { url: nodeUrl, evmAddress: evmAddr, casperProvider: providerHash }, casper: casperResult });
   }
 
   async handleStop(req, res) {
@@ -1225,7 +1250,1229 @@ Copy the topic hex and invite others to join.
     }
   }
 
+  /* ─── Proof of Inference ─── */
+
+  handleProofStatus(req, res) {
+    const poi = this.nodeManager?.proofOfInference;
+    if (!poi) { serviceUnavailable(res, 'Proof of Inference not initialized'); return; }
+    ok(res, poi.getStatus());
+  }
+
+  async handleProofVerify(req, res) {
+    const body = await parseBody(req);
+    const { receipt } = body;
+    if (!receipt) { badRequest(res, 'Provide "receipt" object'); return; }
+    const { ProofOfInference } = await import('../inference/ProofOfInference.js');
+    const result = ProofOfInference.verifyReceipt(receipt);
+    ok(res, result);
+  }
+
+  /* ─── Prompt Guard ─── */
+
+  handlePromptGuardStatus(req, res) {
+    const guard = this.nodeManager?.promptGuard;
+    if (!guard) { serviceUnavailable(res, 'PromptGuard not initialized'); return; }
+    ok(res, guard.getStats());
+  }
+
+  async handlePromptGuardCheck(req, res) {
+    const guard = this.nodeManager?.promptGuard;
+    if (!guard) { serviceUnavailable(res, 'PromptGuard not initialized'); return; }
+    const body = await parseBody(req);
+    const { text } = body;
+    if (!text) { badRequest(res, 'Provide "text"'); return; }
+    ok(res, { injectionSuspected: guard.detectInjection(text) });
+  }
+
+  /* ─── Token Meter ─── */
+
+  handleMeterStatus(req, res) {
+    const meter = this.nodeManager?.tokenMeter;
+    if (!meter) { serviceUnavailable(res, 'TokenMeter not initialized'); return; }
+    ok(res, meter.getStatus());
+  }
+
+  handleMeterSessions(req, res) {
+    const meter = this.nodeManager?.tokenMeter;
+    if (!meter) { serviceUnavailable(res, 'TokenMeter not initialized'); return; }
+    ok(res, { sessions: meter.getSessions(), settlements: meter.getSettlements() });
+  }
+
+  async handleMeterSettle(req, res) {
+    const meter = this.nodeManager?.tokenMeter;
+    if (!meter) { serviceUnavailable(res, 'TokenMeter not initialized'); return; }
+    const body = await parseBody(req);
+    const { routeId, txHash, amount, chain } = body;
+    if (!routeId || !txHash || amount === undefined) { badRequest(res, 'Provide routeId, txHash, amount'); return; }
+    const record = meter.recordSettlement(routeId, { txHash, amount, chain: chain || 'sepolia' });
+    ok(res, record);
+  }
+
+  /* ─── Voice Pipeline ─── */
+
+  async handleVoiceTranscribe(req, res) {
+    const vp = this.nodeManager?.voicePipeline;
+    if (!vp) { serviceUnavailable(res, 'VoicePipeline not initialized'); return; }
+    const body = await parseBody(req);
+    const { audioPath, workspace, generateSummary, generateEmbeddings } = body;
+    if (!audioPath) { badRequest(res, 'Provide "audioPath"'); return; }
+    try {
+      const result = await vp.process(audioPath, { workspace, generateSummary, generateEmbeddings });
+      ok(res, result);
+    } catch (e) {
+      this.logger.error(`[voice] ${e.message}`);
+      serverError(res, e);
+    }
+  }
+
+  handleVoiceStatus(req, res) {
+    const vp = this.nodeManager?.voicePipeline;
+    if (!vp) { serviceUnavailable(res, 'VoicePipeline not initialized'); return; }
+    ok(res, vp.getStatus());
+  }
+
+  /* ─── Agent Loop ─── */
+
+  async handleAgentQuery(req, res) {
+    const agent = this.nodeManager?.agentLoop;
+    if (!agent) { serviceUnavailable(res, 'AgentLoop not initialized'); return; }
+    const body = await parseBody(req);
+    const { query, history } = body;
+    if (!query) { badRequest(res, 'Provide "query"'); return; }
+    try {
+      const result = await agent.run(query, {
+        inferenceLayer: this.nodeManager?.inferenceLayer,
+        embeddingService: this.nodeManager?.embeddingService,
+        wikiIndexer: this.indexer,
+        history: history || [],
+      });
+      ok(res, result);
+    } catch (e) {
+      this.logger.error(`[agent] ${e.message}`);
+      serverError(res, e);
+    }
+  }
+
+  handleAgentTools(req, res) {
+    const agent = this.nodeManager?.agentLoop;
+    if (!agent) { serviceUnavailable(res, 'AgentLoop not initialized'); return; }
+    ok(res, { tools: agent.getToolDefinitions(), status: agent.getStatus() });
+  }
+
+  /* ─── Document Chunker ─── */
+
+  async handleChunkDocuments(req, res) {
+    const chunker = this.nodeManager?.documentChunker;
+    if (!chunker) { serviceUnavailable(res, 'DocumentChunker not initialized'); return; }
+    const body = await parseBody(req);
+    const { documents } = body;
+    if (!documents || !Array.isArray(documents)) { badRequest(res, 'Provide "documents" array'); return; }
+    const chunks = chunker.chunkDocuments(documents);
+    ok(res, { chunks, count: chunks.length });
+  }
+
+  /* ─── Content Address ─── */
+
+  handleContentStatus(req, res) {
+    const ca = this.nodeManager?.contentAddress;
+    if (!ca) { serviceUnavailable(res, 'ContentAddress not initialized'); return; }
+    ok(res, ca.getStats());
+  }
+
+  async handleContentRegister(req, res) {
+    const ca = this.nodeManager?.contentAddress;
+    if (!ca) { serviceUnavailable(res, 'ContentAddress not initialized'); return; }
+    const body = await parseBody(req);
+    const { data } = body;
+    if (data === undefined) { badRequest(res, 'Provide "data"'); return; }
+    const hash = ca.register(data);
+    ok(res, { hash, exists: ca.exists(hash) });
+  }
+
+  async handleContentVerify(req, res) {
+    const ca = this.nodeManager?.contentAddress;
+    if (!ca) { serviceUnavailable(res, 'ContentAddress not initialized'); return; }
+    const body = await parseBody(req);
+    const { data, expectedHash } = body;
+    if (data === undefined || !expectedHash) { badRequest(res, 'Provide "data" and "expectedHash"'); return; }
+    const valid = ca.verify(data, expectedHash);
+    ok(res, { valid });
+  }
+
+  /* ─── Capability Manifest ─── */
+
+  handleCapabilityStatus(req, res) {
+    const cm = this.nodeManager?.capabilityManifest;
+    if (!cm) { serviceUnavailable(res, 'CapabilityManifest not initialized'); return; }
+    ok(res, cm.getStatus());
+  }
+
+  async handleCapabilityCreate(req, res) {
+    const cm = this.nodeManager?.capabilityManifest;
+    if (!cm) { serviceUnavailable(res, 'CapabilityManifest not initialized'); return; }
+    const body = await parseBody(req);
+    const { peerId, models, datasets, provider, capacity } = body;
+    const manifest = cm.createManifest({ peerId, models: models || [], datasets: datasets || [], provider: provider || false, capacity: capacity || {} });
+    ok(res, manifest);
+  }
+
+  handleCapabilityPeers(req, res) {
+    const cm = this.nodeManager?.capabilityManifest;
+    if (!cm) { serviceUnavailable(res, 'CapabilityManifest not initialized'); return; }
+    ok(res, { peers: cm.getPeerManifests() });
+  }
+
+  /* ─── Deployment Lifecycle ─── */
+
+  async handleDeploymentCreate(req, res) {
+    const dl = this.nodeManager?.deploymentLifecycle;
+    if (!dl) { serviceUnavailable(res, 'DeploymentLifecycle not initialized'); return; }
+    const body = await parseBody(req);
+    const { template, params, public: isPublic } = body;
+    if (!template) { badRequest(res, 'Provide "template"'); return; }
+    const deployment = dl.create({ template, params: params || {}, public: isPublic || false });
+    accepted(res, deployment);
+  }
+
+  handleDeploymentList(req, res) {
+    const dl = this.nodeManager?.deploymentLifecycle;
+    if (!dl) { serviceUnavailable(res, 'DeploymentLifecycle not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const publicOnly = url.searchParams.get('public') === 'true';
+    ok(res, { deployments: dl.list({ publicOnly }) });
+  }
+
+  handleDeploymentGet(req, res) {
+    const dl = this.nodeManager?.deploymentLifecycle;
+    if (!dl) { serviceUnavailable(res, 'DeploymentLifecycle not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const params = extractRouteParams(url.pathname);
+    const dep = dl.get(params.id);
+    if (!dep) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Deployment not found' })); return; }
+    ok(res, { ...dep, eta: dl.getETA(params.id) });
+  }
+
+  handleDeploymentEvents(req, res) {
+    const dl = this.nodeManager?.deploymentLifecycle;
+    if (!dl) { serviceUnavailable(res, 'DeploymentLifecycle not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const params = extractRouteParams(url.pathname);
+    const dep = dl.get(params.id);
+    if (!dep) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Deployment not found' })); return; }
+    const cleanup = dl.subscribe(params.id, res);
+    req.on('close', cleanup);
+  }
+
+  /* ─── Circuit Breaker ─── */
+
+  handleCircuitStatus(req, res) {
+    const cb = this.nodeManager?.circuitBreaker;
+    if (!cb) { serviceUnavailable(res, 'CircuitBreaker not initialized'); return; }
+    ok(res, cb.getStatus());
+  }
+
+  handleCircuitList(req, res) {
+    const cb = this.nodeManager?.circuitBreaker;
+    if (!cb) { serviceUnavailable(res, 'CircuitBreaker not initialized'); return; }
+    ok(res, { circuits: cb.getAllCircuits() });
+  }
+
+  async handleCircuitReset(req, res) {
+    const cb = this.nodeManager?.circuitBreaker;
+    if (!cb) { serviceUnavailable(res, 'CircuitBreaker not initialized'); return; }
+    const body = await parseBody(req);
+    const { targetId, all } = body;
+    if (all) {
+      cb.resetAll();
+      ok(res, { reset: 'all' });
+    } else if (targetId) {
+      cb.reset(targetId);
+      ok(res, { reset: targetId });
+    } else {
+      badRequest(res, 'Provide "targetId" or "all": true');
+    }
+  }
+
+  /* ─── Peer Reputation ─── */
+
+  handleReputationStatus(req, res) {
+    const pr = this.nodeManager?.peerReputation;
+    if (!pr) { serviceUnavailable(res, 'PeerReputation not initialized'); return; }
+    ok(res, pr.getStatus());
+  }
+
+  handleReputationPeers(req, res) {
+    const pr = this.nodeManager?.peerReputation;
+    if (!pr) { serviceUnavailable(res, 'PeerReputation not initialized'); return; }
+    ok(res, { peers: pr.getAllStats() });
+  }
+
+  /* ─── Model Hot-Swap ─── */
+
+  async handleModelSwitch(req, res) {
+    const layer = this.nodeManager?.inferenceLayer;
+    if (!layer) { serviceUnavailable(res, 'Inference layer not initialized'); return; }
+    const body = await parseBody(req);
+    const { model } = body;
+    if (!model) { badRequest(res, 'Provide "model" name'); return; }
+    try {
+      const modelId = await layer.switchModel(model);
+      ok(res, { model, modelId, success: true });
+    } catch (e) {
+      serverError(res, e);
+    }
+  }
+
+  handleModelCurrent(req, res) {
+    const layer = this.nodeManager?.inferenceLayer;
+    if (!layer) { serviceUnavailable(res, 'Inference layer not initialized'); return; }
+    ok(res, { model: layer.getLoadedModelName(), modelId: layer.modelId });
+  }
+
+  /* ─── Memory Compactor ─── */
+
+  handleMemoryStatus(req, res) {
+    const mc = this.nodeManager?.memoryCompactor;
+    if (!mc) { serviceUnavailable(res, 'MemoryCompactor not initialized'); return; }
+    ok(res, mc.getStats());
+  }
+
+  /* ─── Knowledge Graph ─── */
+
+  handleKGStatus(req, res) {
+    const kg = this.nodeManager?.knowledgeGraph;
+    if (!kg) { serviceUnavailable(res, 'KnowledgeGraph not initialized'); return; }
+    ok(res, kg.getStats());
+  }
+
+  handleKGSearch(req, res) {
+    const kg = this.nodeManager?.knowledgeGraph;
+    if (!kg) { serviceUnavailable(res, 'KnowledgeGraph not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const query = url.searchParams.get('q') || '';
+    const limit = parseInt(url.searchParams.get('limit') || '10', 10);
+    ok(res, { results: kg.searchEntities(query, limit) });
+  }
+
+  handleKGEntity(req, res) {
+    const kg = this.nodeManager?.knowledgeGraph;
+    if (!kg) { serviceUnavailable(res, 'KnowledgeGraph not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const name = url.searchParams.get('name') || '';
+    const entity = kg.getEntity(name);
+    if (!entity) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Entity not found' })); return; }
+    ok(res, entity);
+  }
+
+  handleKGSubgraph(req, res) {
+    const kg = this.nodeManager?.knowledgeGraph;
+    if (!kg) { serviceUnavailable(res, 'KnowledgeGraph not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const name = url.searchParams.get('name') || '';
+    const depth = parseInt(url.searchParams.get('depth') || '2', 10);
+    ok(res, kg.getSubgraph(name, depth));
+  }
+
+  async handleKGIngest(req, res) {
+    const kg = this.nodeManager?.knowledgeGraph;
+    if (!kg) { serviceUnavailable(res, 'KnowledgeGraph not initialized'); return; }
+    const body = await parseBody(req);
+    const { nodes, edges, source } = body;
+    const result = kg.ingest({ nodes: nodes || [], edges: edges || [], source: source || 'api' });
+    ok(res, result);
+  }
+
+  /* ─── Crypto Vault ─── */
+
+  handleVaultStatus(req, res) {
+    const vault = this.nodeManager?.cryptoVault;
+    if (!vault) { serviceUnavailable(res, 'CryptoVault not initialized'); return; }
+    ok(res, vault.getStats());
+  }
+
+  async handleVaultEncrypt(req, res) {
+    const vault = this.nodeManager?.cryptoVault;
+    if (!vault) { serviceUnavailable(res, 'CryptoVault not initialized'); return; }
+    const body = await parseBody(req);
+    const { workspace, plaintext } = body;
+    if (!workspace || !plaintext) { badRequest(res, 'Provide "workspace" and "plaintext"'); return; }
+    ok(res, vault.encrypt(workspace, plaintext));
+  }
+
+  async handleVaultDecrypt(req, res) {
+    const vault = this.nodeManager?.cryptoVault;
+    if (!vault) { serviceUnavailable(res, 'CryptoVault not initialized'); return; }
+    const body = await parseBody(req);
+    const { workspace, data, nonce, tag } = body;
+    if (!workspace || !data) { badRequest(res, 'Provide "workspace" and "data"'); return; }
+    try {
+      const plaintext = vault.decrypt(workspace, { data, nonce, tag });
+      ok(res, { plaintext });
+    } catch (e) {
+      serverError(res, e);
+    }
+  }
+
+  /* ─── Receipt Gossip ─── */
+
+  handleGossipStatus(req, res) {
+    const gossip = this.nodeManager?.receiptGossip;
+    if (!gossip) { serviceUnavailable(res, 'ReceiptGossip not initialized'); return; }
+    ok(res, gossip.getStats());
+  }
+
+  handleGossipReceipts(req, res) {
+    const gossip = this.nodeManager?.receiptGossip;
+    if (!gossip) { serviceUnavailable(res, 'ReceiptGossip not initialized'); return; }
+    ok(res, { receipts: gossip.getCommunityVerifiedReceipts() });
+  }
+
+  async handleGossipBroadcast(req, res) {
+    const gossip = this.nodeManager?.receiptGossip;
+    if (!gossip) { serviceUnavailable(res, 'ReceiptGossip not initialized'); return; }
+    const body = await parseBody(req);
+    const { receipt } = body;
+    if (!receipt) { badRequest(res, 'Provide "receipt"'); return; }
+    await gossip.gossipReceipt(receipt);
+    accepted(res, { broadcast: true });
+  }
+
+  /* ─── Dynamic Pricing ─── */
+
+  handlePricingStatus(req, res) {
+    const dp = this.nodeManager?.dynamicPricing;
+    if (!dp) { serviceUnavailable(res, 'DynamicPricing not initialized'); return; }
+    ok(res, dp.getStats());
+  }
+
+  handlePricingHistory(req, res) {
+    const dp = this.nodeManager?.dynamicPricing;
+    if (!dp) { serviceUnavailable(res, 'DynamicPricing not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const limit = parseInt(url.searchParams.get('limit') || '20', 10);
+    ok(res, { history: dp.getPriceHistory(limit), currentPrice: dp.getCurrentPrice() });
+  }
+
+  /* ─── Model Registry ─── */
+
+  handleRegistryStatus(req, res) {
+    const reg = this.nodeManager?.modelRegistry;
+    if (!reg) { serviceUnavailable(res, 'ModelRegistry not initialized'); return; }
+    ok(res, reg.getStats());
+  }
+
+  handleRegistryList(req, res) {
+    const reg = this.nodeManager?.modelRegistry;
+    if (!reg) { serviceUnavailable(res, 'ModelRegistry not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const type = url.searchParams.get('type');
+    ok(res, { models: type ? reg.listByType(type) : reg.list() });
+  }
+
+  async handleRegistryRegister(req, res) {
+    const reg = this.nodeManager?.modelRegistry;
+    if (!reg) { serviceUnavailable(res, 'ModelRegistry not initialized'); return; }
+    const body = await parseBody(req);
+    const { name, type, contextLength, quantization, modelConst, metadata } = body;
+    if (!name) { badRequest(res, 'Provide "name"'); return; }
+    const entry = reg.register({ name, type, contextLength, quantization, modelConst, metadata });
+    ok(res, entry);
+  }
+
+  /* ─── Tool Result Cache ─── */
+
+  handleToolCacheStatus(req, res) {
+    const tc = this.nodeManager?.toolResultCache;
+    if (!tc) { serviceUnavailable(res, 'ToolResultCache not initialized'); return; }
+    ok(res, tc.getStats());
+  }
+
+  async handleToolCacheInvalidate(req, res) {
+    const tc = this.nodeManager?.toolResultCache;
+    if (!tc) { serviceUnavailable(res, 'ToolResultCache not initialized'); return; }
+    const body = await parseBody(req);
+    const { toolName, all } = body;
+    if (all) {
+      tc.clear();
+      ok(res, { cleared: 'all' });
+    } else if (toolName) {
+      const count = tc.invalidateTool(toolName);
+      ok(res, { invalidated: count });
+    } else {
+      badRequest(res, 'Provide "toolName" or "all": true');
+    }
+  }
+
+  /* ─── Semantic Dedup ─── */
+
+  handleDedupStatus(req, res) {
+    const sd = this.nodeManager?.semanticDedup;
+    if (!sd) { serviceUnavailable(res, 'SemanticDedup not initialized'); return; }
+    ok(res, sd.getStats());
+  }
+
+  /* ─── SLA Enforcer ─── */
+
+  handleSLAStatus(req, res) {
+    const sla = this.nodeManager?.slaEnforcer;
+    if (!sla) { serviceUnavailable(res, 'SLAEnforcer not initialized'); return; }
+    ok(res, sla.getStats());
+  }
+
+  /* ─── Content Pinner ─── */
+
+  handlePinningStatus(req, res) {
+    const cp = this.nodeManager?.contentPinner;
+    if (!cp) { serviceUnavailable(res, 'ContentPinner not initialized'); return; }
+    ok(res, cp.getStats());
+  }
+
+  async handlePinningPin(req, res) {
+    const cp = this.nodeManager?.contentPinner;
+    if (!cp) { serviceUnavailable(res, 'ContentPinner not initialized'); return; }
+    const body = await parseBody(req);
+    const { hash, data, ttl, encrypt, workspace } = body;
+    if (!data) { badRequest(res, 'Provide "data"'); return; }
+    const result = await cp.pin(hash, data, { ttl, encrypt, workspace });
+    ok(res, result);
+  }
+
+  async handlePinningUnpin(req, res) {
+    const cp = this.nodeManager?.contentPinner;
+    if (!cp) { serviceUnavailable(res, 'ContentPinner not initialized'); return; }
+    const body = await parseBody(req);
+    const { hash } = body;
+    if (!hash) { badRequest(res, 'Provide "hash"'); return; }
+    await cp.unpin(hash);
+    ok(res, { unpinned: true });
+  }
+
+  handlePinningCheck(req, res) {
+    const cp = this.nodeManager?.contentPinner;
+    if (!cp) { serviceUnavailable(res, 'ContentPinner not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const params = extractRouteParams(url.pathname);
+    const status = cp.getPinStatus(params.hash);
+    ok(res, status);
+  }
+
+  /* ─── Deployment Rollback ─── */
+
+  async handleDeploymentRollback(req, res) {
+    const dl = this.nodeManager?.deploymentLifecycle;
+    if (!dl) { serviceUnavailable(res, 'DeploymentLifecycle not initialized'); return; }
+    const body = await parseBody(req);
+    const { id, reason } = body;
+    if (!id) { badRequest(res, 'Provide deployment "id"'); return; }
+    const result = dl.rollback(id, reason || 'manual rollback');
+    if (!result) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Deployment not found' })); return; }
+    ok(res, { rolled_back: true, id, restored_to: result.previousPhase });
+  }
+
+  /* ─── Task Decomposer ─── */
+
+  handleDecomposeStatus(req, res) {
+    const td = this.nodeManager?.taskDecomposer;
+    if (!td) { serviceUnavailable(res, 'TaskDecomposer not initialized'); return; }
+    ok(res, td.getStats());
+  }
+
+  async handleDecomposeRun(req, res) {
+    const td = this.nodeManager?.taskDecomposer;
+    if (!td) { serviceUnavailable(res, 'TaskDecomposer not initialized'); return; }
+    const body = await parseBody(req);
+    const { prompt, maxTokens, temperature } = body;
+    if (!prompt) { badRequest(res, 'Provide "prompt"'); return; }
+    const { subTasks, complexity, decomposed } = await td.decompose(prompt, {
+      inferenceLayer: this.nodeManager.inferenceLayer,
+    });
+    if (!decomposed) {
+      ok(res, { decomposed: false, subTasks, complexity, message: 'Request not complex enough for decomposition' });
+      return;
+    }
+    const result = await td.executeAndSynthesize(subTasks, {
+      inferenceLayer: this.nodeManager.inferenceLayer,
+      router: this.nodeManager.inferenceRouter || null,
+    }, { maxTokens: maxTokens || 256, temperature: temperature || 0.7 });
+    ok(res, { decomposed: true, complexity, subTaskCount: subTasks.length, subResults: result.subResults, output: result.output, synthesized: result.synthesized });
+  }
+
+  /* ─── Conversation Brancher ─── */
+
+  handleConversationList(req, res) {
+    const cb = this.nodeManager?.conversationBrancher;
+    if (!cb) { serviceUnavailable(res, 'ConversationBrancher not initialized'); return; }
+    ok(res, { conversations: cb.list() });
+  }
+
+  async handleConversationCreate(req, res) {
+    const cb = this.nodeManager?.conversationBrancher;
+    if (!cb) { serviceUnavailable(res, 'ConversationBrancher not initialized'); return; }
+    const body = await parseBody(req);
+    const { systemPrompt } = body;
+    const result = cb.create(systemPrompt);
+    ok(res, result);
+  }
+
+  async handleConversationMessage(req, res) {
+    const cb = this.nodeManager?.conversationBrancher;
+    if (!cb) { serviceUnavailable(res, 'ConversationBrancher not initialized'); return; }
+    const body = await parseBody(req);
+    const { conversationId, role, content } = body;
+    if (!conversationId || !role || !content) { badRequest(res, 'Provide "conversationId", "role", "content"'); return; }
+    try {
+      const msg = cb.addMessage(conversationId, { role, content });
+      ok(res, msg);
+    } catch (e) { serverError(res, e); }
+  }
+
+  async handleConversationBranch(req, res) {
+    const cb = this.nodeManager?.conversationBrancher;
+    if (!cb) { serviceUnavailable(res, 'ConversationBrancher not initialized'); return; }
+    const body = await parseBody(req);
+    const { conversationId, fromMsgId, role, content } = body;
+    if (!conversationId || !fromMsgId || !role || !content) { badRequest(res, 'Provide "conversationId", "fromMsgId", "role", "content"'); return; }
+    try {
+      const result = cb.branch(conversationId, fromMsgId, { role, content });
+      ok(res, result);
+    } catch (e) { serverError(res, e); }
+  }
+
+  async handleConversationSwitch(req, res) {
+    const cb = this.nodeManager?.conversationBrancher;
+    if (!cb) { serviceUnavailable(res, 'ConversationBrancher not initialized'); return; }
+    const body = await parseBody(req);
+    const { conversationId, leafMsgId } = body;
+    if (!conversationId || !leafMsgId) { badRequest(res, 'Provide "conversationId", "leafMsgId"'); return; }
+    try {
+      const path = cb.switchBranch(conversationId, leafMsgId);
+      ok(res, { activePath: path });
+    } catch (e) { serverError(res, e); }
+  }
+
+  handleConversationTree(req, res) {
+    const cb = this.nodeManager?.conversationBrancher;
+    if (!cb) { serviceUnavailable(res, 'ConversationBrancher not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const params = extractRouteParams(url.pathname);
+    const tree = cb.getTree(params.id);
+    if (!tree) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Conversation not found' })); return; }
+    ok(res, tree);
+  }
+
+  handleConversationHistory(req, res) {
+    const cb = this.nodeManager?.conversationBrancher;
+    if (!cb) { serviceUnavailable(res, 'ConversationBrancher not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const params = extractRouteParams(url.pathname);
+    const history = cb.getActiveHistory(params.id);
+    ok(res, { history });
+  }
+
+  handleConversationDelete(req, res) {
+    const cb = this.nodeManager?.conversationBrancher;
+    if (!cb) { serviceUnavailable(res, 'ConversationBrancher not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const params = extractRouteParams(url.pathname);
+    const deleted = cb.delete(params.id);
+    if (!deleted) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Conversation not found' })); return; }
+    ok(res, { deleted: true });
+  }
+
+  /* ─── Auto Tagger ─── */
+
+  handleTaggerStatus(req, res) {
+    const at = this.nodeManager?.autoTagger;
+    if (!at) { serviceUnavailable(res, 'AutoTagger not initialized'); return; }
+    ok(res, at.getStats());
+  }
+
+  async handleTaggerTag(req, res) {
+    const at = this.nodeManager?.autoTagger;
+    if (!at) { serviceUnavailable(res, 'AutoTagger not initialized'); return; }
+    const body = await parseBody(req);
+    const { content, useLLM, existingTags } = body;
+    if (!content) { badRequest(res, 'Provide "content"'); return; }
+    const result = await at.tag(content, {
+      knowledgeGraph: this.nodeManager.knowledgeGraph,
+      inferenceLayer: useLLM ? this.nodeManager.inferenceLayer : null,
+      useLLM,
+      existingTags,
+    });
+    ok(res, result);
+  }
+
+  async handleTaggerBatch(req, res) {
+    const at = this.nodeManager?.autoTagger;
+    if (!at) { serviceUnavailable(res, 'AutoTagger not initialized'); return; }
+    const body = await parseBody(req);
+    const { documents, useLLM } = body;
+    if (!documents || !Array.isArray(documents)) { badRequest(res, 'Provide "documents" array'); return; }
+    const results = await at.tagBatch(documents, {
+      knowledgeGraph: this.nodeManager.knowledgeGraph,
+      inferenceLayer: useLLM ? this.nodeManager.inferenceLayer : null,
+      useLLM,
+    });
+    ok(res, { results });
+  }
+
+  /* ─── Conversation Export ─── */
+
+  handleExportFormats(req, res) {
+    const ce = this.nodeManager?.conversationExporter;
+    if (!ce) { serviceUnavailable(res, 'ConversationExporter not initialized'); return; }
+    ok(res, { formats: ce.getFormats() });
+  }
+
+  async handleExportConversation(req, res) {
+    const ce = this.nodeManager?.conversationExporter;
+    const cb = this.nodeManager?.conversationBrancher;
+    if (!ce || !cb) { serviceUnavailable(res, 'Exporter not initialized'); return; }
+    const body = await parseBody(req);
+    const { conversationId, format, includeBranches, activePathOnly } = body;
+    if (!conversationId || !format) { badRequest(res, 'Provide "conversationId" and "format"'); return; }
+    const tree = cb.getTree(conversationId);
+    if (!tree) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Conversation not found' })); return; }
+    try {
+      const result = ce.export(tree, format, { includeBranches: includeBranches !== false, activePathOnly: !!activePathOnly });
+      res.writeHead(200, {
+        'Content-Type': result.mimeType,
+        'Content-Disposition': `attachment; filename="${result.filename}"`,
+      });
+      res.end(result.content);
+    } catch (e) { serverError(res, e); }
+  }
+
   /* ─── Private helpers ─── */
+
+  /* ─── Confidence Router ─── */
+
+  handleConfidenceStatus(req, res) {
+    const cr = this.nodeManager?.confidenceRouter;
+    if (!cr) { serviceUnavailable(res, 'ConfidenceRouter not initialized'); return; }
+    ok(res, cr.getStats());
+  }
+
+  async handleConfidenceRoute(req, res) {
+    const cr = this.nodeManager?.confidenceRouter;
+    if (!cr) { serviceUnavailable(res, 'ConfidenceRouter not initialized'); return; }
+    const body = await parseBody(req);
+    const { prompt, maxTokens, temperature, k } = body;
+    if (!prompt) { badRequest(res, 'Provide "prompt"'); return; }
+    const result = await cr.route(prompt, {
+      inferenceLayer: this.nodeManager.inferenceLayer,
+      embeddingService: this.nodeManager.embeddingService,
+      router: this.nodeManager.inferenceRouter || null,
+    }, { maxTokens, temperature, k });
+    ok(res, result);
+  }
+
+  /* ─── Spend Policy ─── */
+
+  handleSpendStatus(req, res) {
+    const sp = this.nodeManager?.spendPolicy;
+    if (!sp) { serviceUnavailable(res, 'SpendPolicy not initialized'); return; }
+    ok(res, sp.getStats());
+  }
+
+  async handleSpendSessionStart(req, res) {
+    const sp = this.nodeManager?.spendPolicy;
+    if (!sp) { serviceUnavailable(res, 'SpendPolicy not initialized'); return; }
+    const body = await parseBody(req);
+    const sessionId = sp.startSession(body.sessionId);
+    ok(res, { sessionId });
+  }
+
+  async handleSpendSessionEnd(req, res) {
+    const sp = this.nodeManager?.spendPolicy;
+    if (!sp) { serviceUnavailable(res, 'SpendPolicy not initialized'); return; }
+    const body = await parseBody(req);
+    sp.endSession(body.sessionId);
+    ok(res, { ended: true });
+  }
+
+  handleSpendSessionStatus(req, res) {
+    const sp = this.nodeManager?.spendPolicy;
+    if (!sp) { serviceUnavailable(res, 'SpendPolicy not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const sessionId = url.searchParams.get('sessionId');
+    const status = sp.getSessionStatus(sessionId);
+    if (!status) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Session not found' })); return; }
+    ok(res, status);
+  }
+
+  /* ─── Escrow Channel ─── */
+
+  handleEscrowStatus(req, res) {
+    const ec = this.nodeManager?.escrowChannel;
+    if (!ec) { serviceUnavailable(res, 'EscrowChannel not initialized'); return; }
+    ok(res, ec.getStats());
+  }
+
+  async handleEscrowOpen(req, res) {
+    const ec = this.nodeManager?.escrowChannel;
+    if (!ec) { serviceUnavailable(res, 'EscrowChannel not initialized'); return; }
+    const body = await parseBody(req);
+    const { buyer, seller, depositAmount, sessionId } = body;
+    if (!buyer || !seller || !depositAmount) { badRequest(res, 'Provide "buyer", "seller", "depositAmount"'); return; }
+    const result = await ec.open({ buyer, seller, depositAmount, sessionId });
+    ok(res, result);
+  }
+
+  async handleEscrowVoucher(req, res) {
+    const ec = this.nodeManager?.escrowChannel;
+    if (!ec) { serviceUnavailable(res, 'EscrowChannel not initialized'); return; }
+    const body = await parseBody(req);
+    const { channelId, amount, deadline } = body;
+    if (!channelId || amount === undefined) { badRequest(res, 'Provide "channelId" and "amount"'); return; }
+    const result = await ec.createVoucher(channelId, amount, { deadline });
+    ok(res, result);
+  }
+
+  async handleEscrowSettle(req, res) {
+    const ec = this.nodeManager?.escrowChannel;
+    if (!ec) { serviceUnavailable(res, 'EscrowChannel not initialized'); return; }
+    const body = await parseBody(req);
+    const { channelId } = body;
+    if (!channelId) { badRequest(res, 'Provide "channelId"'); return; }
+    const result = await ec.settle(channelId);
+    ok(res, result);
+  }
+
+  async handleEscrowClose(req, res) {
+    const ec = this.nodeManager?.escrowChannel;
+    if (!ec) { serviceUnavailable(res, 'EscrowChannel not initialized'); return; }
+    const body = await parseBody(req);
+    const { channelId } = body;
+    if (!channelId) { badRequest(res, 'Provide "channelId"'); return; }
+    const result = await ec.close(channelId);
+    ok(res, result);
+  }
+
+  handleEscrowList(req, res) {
+    const ec = this.nodeManager?.escrowChannel;
+    if (!ec) { serviceUnavailable(res, 'EscrowChannel not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const status = url.searchParams.get('status');
+    ok(res, { channels: ec.listChannels(status) });
+  }
+
+  /* ─── Memory Manager ─── */
+
+  handleMemoryStatus(req, res) {
+    const mm = this.nodeManager?.memoryManager;
+    if (!mm) { serviceUnavailable(res, 'MemoryManager not initialized'); return; }
+    ok(res, mm.getStats());
+  }
+
+  async handleMemoryAdd(req, res) {
+    const mm = this.nodeManager?.memoryManager;
+    if (!mm) { serviceUnavailable(res, 'MemoryManager not initialized'); return; }
+    const body = await parseBody(req);
+    const { content, type, namespace, importance, source, metadata, ttl } = body;
+    if (!content) { badRequest(res, 'Provide "content"'); return; }
+    const memory = mm.add({ content, type, namespace, importance, source, metadata, ttl });
+    ok(res, memory);
+  }
+
+  handleMemorySearch(req, res) {
+    const mm = this.nodeManager?.memoryManager;
+    if (!mm) { serviceUnavailable(res, 'MemoryManager not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const namespace = url.searchParams.get('namespace');
+    const type = url.searchParams.get('type');
+    const query = url.searchParams.get('query');
+    const limit = parseInt(url.searchParams.get('limit') || '20', 10);
+    const minImportance = parseFloat(url.searchParams.get('minImportance') || '0');
+    const results = mm.search({ namespace, type, query, limit, minImportance });
+    ok(res, { results });
+  }
+
+  async handleMemoryUpdate(req, res) {
+    const mm = this.nodeManager?.memoryManager;
+    if (!mm) { serviceUnavailable(res, 'MemoryManager not initialized'); return; }
+    const body = await parseBody(req);
+    const { id, content, importance, metadata, ttl } = body;
+    if (!id) { badRequest(res, 'Provide "id"'); return; }
+    const result = mm.update(id, { content, importance, metadata, ttl });
+    if (!result) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Memory not found' })); return; }
+    ok(res, result);
+  }
+
+  async handleMemoryDelete(req, res) {
+    const mm = this.nodeManager?.memoryManager;
+    if (!mm) { serviceUnavailable(res, 'MemoryManager not initialized'); return; }
+    const body = await parseBody(req);
+    const { id } = body;
+    if (!id) { badRequest(res, 'Provide "id"'); return; }
+    const deleted = mm.delete(id);
+    ok(res, { deleted });
+  }
+
+  handleMemoryTypes(req, res) {
+    const mm = this.nodeManager?.memoryManager;
+    if (!mm) { serviceUnavailable(res, 'MemoryManager not initialized'); return; }
+    ok(res, mm.getTypes());
+  }
+
+  /* ─── Hybrid Retriever ─── */
+
+  handleHybridStatus(req, res) {
+    const hr = this.nodeManager?.hybridRetriever;
+    if (!hr) { serviceUnavailable(res, 'HybridRetriever not initialized'); return; }
+    ok(res, hr.getStats());
+  }
+
+  async handleHybridSearch(req, res) {
+    const hr = this.nodeManager?.hybridRetriever;
+    if (!hr) { serviceUnavailable(res, 'HybridRetriever not initialized'); return; }
+    const body = await parseBody(req);
+    const { workspace, query, queryEmbedding, limit, rerank, filters } = body;
+    if (!workspace || !query) { badRequest(res, 'Provide "workspace" and "query"'); return; }
+    const results = await hr.search(workspace, query, queryEmbedding, {
+      limit, rerank,
+      inferenceLayer: rerank ? this.nodeManager.inferenceLayer : null,
+      filters,
+    });
+    ok(res, { results });
+  }
+
+  /* ─── Enrichment Queue ─── */
+
+  handleEnrichmentStatus(req, res) {
+    const eq = this.nodeManager?.enrichmentQueue;
+    if (!eq) { serviceUnavailable(res, 'EnrichmentQueue not initialized'); return; }
+    ok(res, eq.getStats());
+  }
+
+  async handleEnrichmentSave(req, res) {
+    const eq = this.nodeManager?.enrichmentQueue;
+    if (!eq) { serviceUnavailable(res, 'EnrichmentQueue not initialized'); return; }
+    const body = await parseBody(req);
+    const { content, id, metadata, enrich, jobTypes } = body;
+    if (!content) { badRequest(res, 'Provide "content"'); return; }
+    const result = eq.save({ content, id, metadata }, { enrich, jobTypes });
+    ok(res, result);
+  }
+
+  /* ─── Link Metadata ─── */
+
+  handleLinkMetaStatus(req, res) {
+    const lm = this.nodeManager?.linkMetadataCache;
+    if (!lm) { serviceUnavailable(res, 'LinkMetadataCache not initialized'); return; }
+    ok(res, lm.getStats());
+  }
+
+  async handleLinkMetaFetch(req, res) {
+    const lm = this.nodeManager?.linkMetadataCache;
+    if (!lm) { serviceUnavailable(res, 'LinkMetadataCache not initialized'); return; }
+    const body = await parseBody(req);
+    const { url } = body;
+    if (!url) { badRequest(res, 'Provide "url"'); return; }
+    const metadata = await lm.get(url);
+    ok(res, metadata);
+  }
+
+  /* ─── Vision Captioner ─── */
+
+  handleVisionStatus(req, res) {
+    const vc = this.nodeManager?.visionCaptioner;
+    if (!vc) { serviceUnavailable(res, 'VisionCaptioner not initialized'); return; }
+    ok(res, vc.getStats());
+  }
+
+  async handleVisionCaption(req, res) {
+    const vc = this.nodeManager?.visionCaptioner;
+    if (!vc) { serviceUnavailable(res, 'VisionCaptioner not initialized'); return; }
+    const body = await parseBody(req);
+    const { imagePath, prompt, maxTokens } = body;
+    if (!imagePath) { badRequest(res, 'Provide "imagePath"'); return; }
+    const result = await vc.caption(imagePath, { prompt, maxTokens });
+    ok(res, result);
+  }
+
+  /* ─── Evidence Exporter ─── */
+
+  handleEvidenceTypes(req, res) {
+    const ee = this.nodeManager?.evidenceExporter;
+    if (!ee) { serviceUnavailable(res, 'EvidenceExporter not initialized'); return; }
+    ok(res, { types: ee.getTypes() });
+  }
+
+  async handleEvidenceExport(req, res) {
+    const ee = this.nodeManager?.evidenceExporter;
+    if (!ee) { serviceUnavailable(res, 'EvidenceExporter not initialized'); return; }
+    const body = await parseBody(req);
+    const { type } = body;
+    if (!type) { badRequest(res, 'Provide "type"'); return; }
+    const context = {
+      auditLogger: this.nodeManager.audit,
+      p2pNetwork: this.nodeManager.p2pNetwork,
+      hybridRetriever: this.nodeManager.hybridRetriever,
+      embeddingService: this.nodeManager.embeddingService,
+      modelRegistry: this.nodeManager.modelRegistry,
+      nodeManager: this.nodeManager,
+      promptGuard: this.nodeManager.promptGuard,
+      promptBudgeter: this.nodeManager.promptBudgeter,
+      dataStore: this.nodeManager.dataStore,
+      knowledgeGraph: this.nodeManager.knowledgeGraph,
+    };
+    const result = await ee.export(type, context);
+    ok(res, result);
+  }
+
+  async handleEvidenceExportAll(req, res) {
+    const ee = this.nodeManager?.evidenceExporter;
+    if (!ee) { serviceUnavailable(res, 'EvidenceExporter not initialized'); return; }
+    const context = {
+      auditLogger: this.nodeManager.audit,
+      p2pNetwork: this.nodeManager.p2pNetwork,
+      hybridRetriever: this.nodeManager.hybridRetriever,
+      embeddingService: this.nodeManager.embeddingService,
+      modelRegistry: this.nodeManager.modelRegistry,
+      nodeManager: this.nodeManager,
+      promptGuard: this.nodeManager.promptGuard,
+      promptBudgeter: this.nodeManager.promptBudgeter,
+      dataStore: this.nodeManager.dataStore,
+      knowledgeGraph: this.nodeManager.knowledgeGraph,
+    };
+    const results = await ee.exportAll(context);
+    ok(res, { results });
+  }
+
+  /* ─── MCP Client ─── */
+
+  handleMCPStatus(req, res) {
+    const mcp = this.nodeManager?.mcpClient;
+    if (!mcp) { serviceUnavailable(res, 'MCPClient not initialized'); return; }
+    ok(res, mcp.getStats());
+  }
+
+  handleMCPServers(req, res) {
+    const mcp = this.nodeManager?.mcpClient;
+    if (!mcp) { serviceUnavailable(res, 'MCPClient not initialized'); return; }
+    ok(res, { servers: mcp.listServers() });
+  }
+
+  handleMCPTools(req, res) {
+    const mcp = this.nodeManager?.mcpClient;
+    if (!mcp) { serviceUnavailable(res, 'MCPClient not initialized'); return; }
+    ok(res, { tools: mcp.getAllTools() });
+  }
+
+  async handleMCPConnect(req, res) {
+    const mcp = this.nodeManager?.mcpClient;
+    if (!mcp) { serviceUnavailable(res, 'MCPClient not initialized'); return; }
+    const body = await parseBody(req);
+    const { name, transport, command, args, url } = body;
+    if (!name) { badRequest(res, 'Provide "name"'); return; }
+    let success = false;
+    if (transport === 'http' && url) {
+      success = await mcp.connectHttp(name, url);
+    } else if (command) {
+      success = await mcp.connectStdio(name, command, args || []);
+    } else {
+      badRequest(res, 'Provide "transport": "http" with "url" or "command" with "args"');
+      return;
+    }
+    ok(res, { connected: success, name });
+  }
+
+  async handleMCPCall(req, res) {
+    const mcp = this.nodeManager?.mcpClient;
+    if (!mcp) { serviceUnavailable(res, 'MCPClient not initialized'); return; }
+    const body = await parseBody(req);
+    const { serverName, toolName, args: toolArgs } = body;
+    if (!serverName || !toolName) { badRequest(res, 'Provide "serverName" and "toolName"'); return; }
+    try {
+      const result = await mcp.callTool(serverName, toolName, toolArgs || {});
+      ok(res, { result });
+    } catch (e) { serverError(res, e); }
+  }
+
+  async handleMCPDisconnect(req, res) {
+    const mcp = this.nodeManager?.mcpClient;
+    if (!mcp) { serviceUnavailable(res, 'MCPClient not initialized'); return; }
+    const body = await parseBody(req);
+    const { serverName } = body;
+    if (!serverName) { badRequest(res, 'Provide "serverName"'); return; }
+    await mcp.disconnect(serverName);
+    ok(res, { disconnected: true });
+  }
+
+  /* ─── Auto Linker ─── */
+
+  handleAutoLinkStatus(req, res) {
+    const al = this.nodeManager?.autoLinker;
+    if (!al) { serviceUnavailable(res, 'AutoLinker not initialized'); return; }
+    ok(res, al.getStats());
+  }
+
+  async handleAutoLinkBuild(req, res) {
+    const al = this.nodeManager?.autoLinker;
+    if (!al) { serviceUnavailable(res, 'AutoLinker not initialized'); return; }
+    const body = await parseBody(req);
+    const { workspace } = body;
+    if (!workspace) { badRequest(res, 'Provide "workspace"'); return; }
+    await al.buildLinks(workspace);
+    ok(res, { built: true, stats: al.getStats() });
+  }
+
+  handleAutoLinkRelated(req, res) {
+    const al = this.nodeManager?.autoLinker;
+    if (!al) { serviceUnavailable(res, 'AutoLinker not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const workspace = url.searchParams.get('workspace');
+    const docId = url.searchParams.get('docId');
+    const limit = parseInt(url.searchParams.get('limit') || '10', 10);
+    if (!workspace || !docId) { badRequest(res, 'Provide "workspace" and "docId"'); return; }
+    ok(res, { related: al.getRelated(workspace, docId, limit) });
+  }
+
+  handleAutoLinkGraph(req, res) {
+    const al = this.nodeManager?.autoLinker;
+    if (!al) { serviceUnavailable(res, 'AutoLinker not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const workspace = url.searchParams.get('workspace');
+    if (!workspace) { badRequest(res, 'Provide "workspace"'); return; }
+    ok(res, al.getGraph(workspace));
+  }
+
+  handleAutoLinkClusters(req, res) {
+    const al = this.nodeManager?.autoLinker;
+    if (!al) { serviceUnavailable(res, 'AutoLinker not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const workspace = url.searchParams.get('workspace');
+    if (!workspace) { badRequest(res, 'Provide "workspace"'); return; }
+    ok(res, { clusters: al.findClusters(workspace) });
+  }
+
+  /* ─── Private helpers (original) ─── */
+
+  /* ─── Capability Prober ─── */
+
+  handleProbeStatus(req, res) {
+    const cp = this.nodeManager?.capabilityProber;
+    if (!cp) { serviceUnavailable(res, 'CapabilityProber not initialized'); return; }
+    ok(res, cp.getStats());
+  }
+
+  async handleProbeRun(req, res) {
+    const cp = this.nodeManager?.capabilityProber;
+    if (!cp) { serviceUnavailable(res, 'CapabilityProber not initialized'); return; }
+    const profile = await cp.probe();
+    ok(res, profile);
+  }
+
+  async handleProbeProfile(req, res) {
+    const cp = this.nodeManager?.capabilityProber;
+    if (!cp) { serviceUnavailable(res, 'CapabilityProber not initialized'); return; }
+    const profile = await cp.getProfile();
+    ok(res, profile);
+  }
+
+  handleProbeOffer(req, res) {
+    const cp = this.nodeManager?.capabilityProber;
+    if (!cp) { serviceUnavailable(res, 'CapabilityProber not initialized'); return; }
+    ok(res, { offer: cp.getOffer(), canSell: cp.canSell() });
+  }
+
+  /* ─── Marketplace Broadcaster ─── */
+
+  handleMarketStatus(req, res) {
+    const mb = this.nodeManager?.marketplaceBroadcaster;
+    if (!mb) { serviceUnavailable(res, 'MarketplaceBroadcaster not initialized'); return; }
+    ok(res, mb.getStats());
+  }
+
+  async handleMarketStart(req, res) {
+    const mb = this.nodeManager?.marketplaceBroadcaster;
+    if (!mb) { serviceUnavailable(res, 'MarketplaceBroadcaster not initialized'); return; }
+    await mb.start();
+    ok(res, { started: true });
+  }
+
+  async handleMarketStop(req, res) {
+    const mb = this.nodeManager?.marketplaceBroadcaster;
+    if (!mb) { serviceUnavailable(res, 'MarketplaceBroadcaster not initialized'); return; }
+    mb.stop();
+    ok(res, { stopped: true });
+  }
+
+  handleMarketDiscoverSellers(req, res) {
+    const mb = this.nodeManager?.marketplaceBroadcaster;
+    if (!mb) { serviceUnavailable(res, 'MarketplaceBroadcaster not initialized'); return; }
+    ok(res, { sellers: mb.discoverSellers() });
+  }
+
+  async handleMarketRequestQuote(req, res) {
+    const mb = this.nodeManager?.marketplaceBroadcaster;
+    if (!mb) { serviceUnavailable(res, 'MarketplaceBroadcaster not initialized'); return; }
+    const body = await parseBody(req);
+    const { sellerId, prompt, maxTokens } = body;
+    if (!sellerId || !prompt) { badRequest(res, 'Provide "sellerId" and "prompt"'); return; }
+    const quoteId = await mb.requestQuote(sellerId, prompt, { maxTokens });
+    ok(res, { quoteId });
+  }
+
+  async handleMarketAcceptQuote(req, res) {
+    const mb = this.nodeManager?.marketplaceBroadcaster;
+    if (!mb) { serviceUnavailable(res, 'MarketplaceBroadcaster not initialized'); return; }
+    const body = await parseBody(req);
+    const { quoteId } = body;
+    if (!quoteId) { badRequest(res, 'Provide "quoteId"'); return; }
+    try {
+      const quote = await mb.acceptQuote(quoteId);
+      ok(res, { accepted: true, quote });
+    } catch (e) { serverError(res, e); }
+  }
+
+  handleMarketQuoteStatus(req, res) {
+    const mb = this.nodeManager?.marketplaceBroadcaster;
+    if (!mb) { serviceUnavailable(res, 'MarketplaceBroadcaster not initialized'); return; }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const quoteId = url.searchParams.get('quoteId');
+    if (!quoteId) { badRequest(res, 'Provide "quoteId"'); return; }
+    const quote = mb.getQuote(quoteId);
+    if (!quote) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Quote not found' })); return; }
+    ok(res, quote);
+  }
+
+  handleMarketMyOffer(req, res) {
+    const mb = this.nodeManager?.marketplaceBroadcaster;
+    if (!mb) { serviceUnavailable(res, 'MarketplaceBroadcaster not initialized'); return; }
+    ok(res, { offer: mb.getMyOffer() });
+  }
+
+  /* ─── Memory Extractor ─── */
+
+  handleExtractStatus(req, res) {
+    const me = this.nodeManager?.memoryExtractor;
+    if (!me) { serviceUnavailable(res, 'MemoryExtractor not initialized'); return; }
+    ok(res, me.getStats());
+  }
+
+  async handleExtractRun(req, res) {
+    const me = this.nodeManager?.memoryExtractor;
+    if (!me) { serviceUnavailable(res, 'MemoryExtractor not initialized'); return; }
+    const body = await parseBody(req);
+    const { content, namespace, source, skipStore, skipDedup } = body;
+    if (!content) { badRequest(res, 'Provide "content"'); return; }
+    const result = await me.extract(content, { namespace, source, skipStore, skipDedup });
+    ok(res, result);
+  }
+
+  async handleExtractBatch(req, res) {
+    const me = this.nodeManager?.memoryExtractor;
+    if (!me) { serviceUnavailable(res, 'MemoryExtractor not initialized'); return; }
+    const body = await parseBody(req);
+    const { contents, namespace, source, skipStore, skipDedup } = body;
+    if (!contents || !Array.isArray(contents)) { badRequest(res, 'Provide "contents" array'); return; }
+    const result = await me.extractBatch(contents, { namespace, source, skipStore, skipDedup });
+    ok(res, result);
+  }
+
+  /* ─── Private helpers (original) ─── */
 
   async _spawnBridgeJob({ topic, customPrompt, category, tags, description, links = [], fileSource = '' }) {
     const workspace = path.join(process.cwd(), 'llmwiki-data');

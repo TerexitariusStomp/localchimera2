@@ -118,4 +118,30 @@ export class AuditLogger {
       modelId
     });
   }
+
+  proofOfInference({ routeId, merkleRoot, chainIndex }) {
+    this._emit({ type: 'proofOfInference', routeId, merkleRoot, chainIndex });
+  }
+
+  voiceTranscribe({ audioPath, durationMs, transcriptLength }) {
+    this._emit({ type: 'voiceTranscribe', audioPath, durationMs, transcriptLength });
+  }
+
+  agentLoop({ query, rounds, toolCalls, citations }) {
+    this._emit({
+      type: 'agentLoop',
+      query: typeof query === 'string' ? query.slice(0, 200) : '',
+      rounds,
+      toolCalls: toolCalls || 0,
+      citations: citations || 0,
+    });
+  }
+
+  contentVerify({ hash, valid }) {
+    this._emit({ type: 'contentVerify', hash: hash?.slice(0, 16), valid });
+  }
+
+  tokenSettle({ routeId, amount, txHash }) {
+    this._emit({ type: 'tokenSettle', routeId, amount, txHash });
+  }
 }
