@@ -25,7 +25,8 @@
         "backgroundColor": "#0a0a14"
       },
       "package": "io.chimera.mobile",
-      "versionCode": 10022
+      "versionCode": 10022,
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
       "@qvac/sdk/expo-plugin"

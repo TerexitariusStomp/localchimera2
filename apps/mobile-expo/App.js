@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
+import * as FileSystem from 'expo-file-system';
 import { loadModel, completion, BITNET_0_7B_INST_TQ2_0 } from '@qvac/sdk';
 
 export default function App() {
@@ -114,6 +115,133 @@ export default function App() {
     return { success: true, data: [] };
   }
 
+  // ─── Local Notes Storage ───
+  const NOTES_DIR = FileSystem.documentDirectory + 'notes/';
+
+  async function ensureNotesDir() {
+    const dir = await FileSystem.getInfoAsync(NOTES_DIR);
+    if (!dir.exists) {
+      await FileSystem.makeDirectoryAsync(NOTES_DIR, { intermediates: true });
+    }
+  }
+
+  async function listNotes() {
+    await ensureNotesDir();
+    const files = await FileSystem.readDirectoryAsync(NOTES_DIR);
+    const notes = [];
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue;
+      try {
+        const content = await FileSystem.readAsStringAsync(NOTES_DIR + file);
+        const note = JSON.parse(content);
+        notes.push({
+          id: note.id || file.replace('.json', ''),
+          title: note.title || 'Untitled',
+          body: note.content || '',
+          category: note.category || '.',
+          createdAt: note.createdAt || Date.now(),
+          updatedAt: note.updatedAt || Date.now(),
+        });
+      } catch (e) {
+        console.warn('Failed to read note', file, e);
+      }
+    }
+    return notes.sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  async function saveNote(body) {
+    await ensureNotesDir();
+    const id = body.id || `note-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const now = Date.now();
+    const note = {
+      id,
+      title: body.title || 'Untitled',
+      content: body.content || '',
+      category: body.category || '.',
+      createdAt: now,
+      updatedAt: now,
+    };
+    try {
+      const existing = await FileSystem.readAsStringAsync(NOTES_DIR + id + '.json');
+      const parsed = JSON.parse(existing);
+      note.createdAt = parsed.createdAt || now;
+    } catch {}
+    await FileSystem.writeAsStringAsync(NOTES_DIR + id + '.json', JSON.stringify(note));
+    return { id, title: note.title, body: note.content, category: note.category, createdAt: note.createdAt, updatedAt: note.updatedAt };
+  }
+
+  async function deleteNote(id) {
+    await ensureNotesDir();
+    const path = NOTES_DIR + id + '.json';
+    const info = await FileSystem.getInfoAsync(path);
+    if (info.exists) {
+      await FileSystem.deleteAsync(path);
+    }
+  }
+
+  async function handleStatus() {
+    return {
+      success: true,
+      data: {
+        running: !!modelId,
+        mining: { minerStatus: !!modelId ? 'active' : 'idle' },
+      },
+    };
+  }
+
+  async function handleWikiDocs() {
+    const notes = await listNotes();
+    return { success: true, data: notes };
+  }
+
+  async function handleWikiSave(body) {
+    const note = await saveNote(body);
+    return { success: true, data: note };
+  }
+
+  async function handleWikiDelete(query) {
+    const id = query?.id;
+    if (!id) return { success: false, error: 'Missing id' };
+    await deleteNote(id);
+    return { success: true };
+  }
+
+  async function handleSwarmStatus() {
+    return { success: true, data: { peers: 0, topics: [] } };
+  }
+
+  async function handleSwarmCreate() {
+    return { success: false, error: 'Swarm is not available in mobile mode' };
+  }
+
+  async function handleSwarmJoin() {
+    return { success: false, error: 'Swarm is not available in mobile mode' };
+  }
+
+  async function handleStop() {
+    return { success: false, error: 'Node stop is not available in mobile mode' };
+  }
+
+  async function handleSignIn() {
+    return { success: false, error: 'Sign-in is not required in mobile mode' };
+  }
+
+  async function handleSignOut() {
+    return { success: true };
+  }
+
+  function parseQuery(path) {
+    const idx = path.indexOf('?');
+    if (idx === -1) return {};
+    const qs = path.slice(idx + 1);
+    const result = {};
+    for (const pair of qs.split('&')) {
+      const [k, v] = pair.split('=');
+      if (k) result[decodeURIComponent(k)] = v ? decodeURIComponent(v) : '';
+    }
+    return result;
+  }
+
   async function resolveBridge(id, res) {
     try {
       webViewRef.current?.injectJavaScript(`
@@ -131,7 +259,10 @@ export default function App() {
 
       if (msg.type === 'bridge-ready') return;
 
-      const { id, method, path, body } = msg;
+      const { id, method, path: rawPath, body } = msg;
+      const queryIdx = rawPath.indexOf('?');
+      const path = queryIdx === -1 ? rawPath : rawPath.slice(0, queryIdx);
+      const query = parseQuery(rawPath);
       let res;
 
       try {
@@ -143,6 +274,26 @@ export default function App() {
           res = await handleAIStatus();
         } else if (method === 'GET' && path === '/api/ai-docs') {
           res = await handleAIDocs();
+        } else if (method === 'GET' && path === '/api/status') {
+          res = await handleStatus();
+        } else if (method === 'GET' && path === '/api/llmwiki-docs') {
+          res = await handleWikiDocs();
+        } else if (method === 'POST' && path === '/api/llmwiki-save') {
+          res = await handleWikiSave(body);
+        } else if (method === 'DELETE' && path === '/api/llmwiki-delete') {
+          res = await handleWikiDelete(query);
+        } else if (method === 'GET' && path === '/api/swarm/status') {
+          res = await handleSwarmStatus();
+        } else if (method === 'POST' && path === '/api/swarm/create') {
+          res = await handleSwarmCreate();
+        } else if (method === 'POST' && path === '/api/swarm/join') {
+          res = await handleSwarmJoin();
+        } else if (method === 'POST' && path === '/api/stop') {
+          res = await handleStop();
+        } else if (method === 'POST' && path === '/api/signin') {
+          res = await handleSignIn();
+        } else if (method === 'POST' && path === '/api/signout') {
+          res = await handleSignOut();
         } else {
           res = { success: false, error: 'Not found' };
         }
