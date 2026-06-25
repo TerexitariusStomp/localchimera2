@@ -2,12 +2,12 @@ const { remote } = require('webdriverio');
 const fs = require('fs');
 const path = require('path');
 
-async function createSession(retries = 3) {
+async function createSession(retries = 4) {
   const devices = [
-    { deviceName: 'Samsung Galaxy S22 5G', osVersion: '12.0' },
+    { deviceName: 'Google Pixel 6', osVersion: '12.0' },
     { deviceName: 'Google Pixel 7', osVersion: '13.0' },
     { deviceName: 'Google Pixel 6', osVersion: '12.0' },
-    { deviceName: 'Samsung Galaxy S23 5G', osVersion: '13.0' },
+    { deviceName: 'Google Pixel 7', osVersion: '13.0' },
   ];
 
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -22,7 +22,7 @@ async function createSession(retries = 3) {
         protocol: 'https',
         port: 443,
         path: '/wd/hub',
-        connectionRetryTimeout: 180000,
+        connectionRetryTimeout: 300000,
         connectionRetryCount: 1,
         capabilities: {
           'bstack:options': {
@@ -33,13 +33,13 @@ async function createSession(retries = 3) {
             sessionName: 'Smoke test - Enable AI button',
             debug: true,
             networkLogs: true,
-            appiumVersion: '2.4.1',
           },
           'appium:app': process.env.BROWSERSTACK_APP_URL,
           'appium:automationName': 'UiAutomator2',
-          'appium:newCommandTimeout': 120,
+          'appium:newCommandTimeout': 300,
           'appium:appWaitForLaunch': true,
-          'appium:appWaitDuration': 60000,
+          'appium:appWaitDuration': 180000,
+          'appium:androidInstallTimeout': 180000,
         },
       });
       console.log(`Successfully connected on ${device.deviceName}`);
@@ -47,8 +47,8 @@ async function createSession(retries = 3) {
     } catch (e) {
       console.log(`Attempt ${attempt + 1} failed: ${e.message}`);
       if (attempt < retries - 1) {
-        console.log('Waiting 15s before retry...');
-        await new Promise(r => setTimeout(r, 15000));
+        console.log('Waiting 30s before retry...');
+        await new Promise(r => setTimeout(r, 30000));
       }
     }
   }
