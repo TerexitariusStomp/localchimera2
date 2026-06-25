@@ -290,6 +290,11 @@ jobs:
           echo "JAVA_HOME=$JAVA_HOME"
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+      - name: Install NDK 27.2.12479018
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;27.2.12479018" > /dev/null 2>&1 || true
+          echo "Installed NDKs:"
+          ls $ANDROID_HOME/ndk/ 2>/dev/null || echo "No NDK directory found"
       - name: Install frontend deps
         run: |
           cd qvac/frontend
