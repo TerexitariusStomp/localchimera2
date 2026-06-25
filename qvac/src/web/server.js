@@ -911,10 +911,6 @@ Copy the topic hex and invite others to join.
 
       // Propagate to already-constructed miners so they start with the correct address
       const miners = this.nodeManager.minerManager.miners;
-      for (const name of ['cortensor', 'fortytwo']) {
-        const m = miners.get(name);
-        if (m) m.walletAddress = machineOwner;
-      }
       for (const name of ['chutes', 'routstr']) {
         const m = miners.get(name);
         if (m) m.evmAddress = machineOwner;
@@ -926,8 +922,6 @@ Copy the topic hex and invite others to join.
         const raw = await fs.readFile(configPath, 'utf-8');
         const cfg = JSON.parse(raw);
         cfg.multisig.machineOwnerAddress = machineOwner;
-        cfg.miners.cortensor.config.walletAddress = machineOwner;
-        cfg.miners.fortytwo.config.walletAddress = machineOwner;
         await fs.writeFile(configPath, JSON.stringify(cfg, null, 2), 'utf-8');
         this.logger.info(`[miner] Persisted EVM address to config.json`);
       } catch (e) {
@@ -1011,6 +1005,56 @@ Copy the topic hex and invite others to join.
     const casper = this.nodeManager.minerManager.miners.get('casper');
     if (!casper) { ok(res, { available: false, reason: 'Casper miner not configured' }); return; }
     ok(res, { available: true, ...casper.getStatus() });
+  }
+
+  async handleCasperRelay(req, res) {
+    const body = await parseBody(req);
+    const { contractHash, entryPoint, args, payment, rpcUrl, chainName } = body;
+    if (!contractHash || !entryPoint || !args) {
+      return badRequest(res, 'Missing contractHash, entryPoint, or args');
+    }
+
+    const pem = process.env.CASPER_PROVIDER_KEY_PEM;
+    if (!pem) {
+      return serviceUnavailable(res, 'Casper relay not configured: CASPER_PROVIDER_KEY_PEM not set');
+    }
+
+    try {
+      const { default: casperSdk } = await import('casper-js-sdk');
+      const { PrivateKey, KeyAlgorithm, CLValue, Args, ContractHash, StoredContractByHash, ExecutableDeployItem, DeployHeader, Deploy } = casperSdk;
+
+      const providerKey = PrivateKey.fromPem(pem, KeyAlgorithm.SECP256K1);
+      const publicKey = providerKey.publicKey;
+      const argsMap = {};
+      for (const [k, v] of Object.entries(args)) {
+        argsMap[k] = CLValue.newCLString(v);
+      }
+      const argsObj = Args.fromMap(argsMap);
+      const contractHashObj = ContractHash.newContract(contractHash);
+      const storedContract = new StoredContractByHash(contractHashObj, entryPoint, argsObj);
+      const session = new ExecutableDeployItem();
+      session.storedContractByHash = storedContract;
+      const paymentItem = ExecutableDeployItem.standardPayment(payment || '10000000000');
+      const header = DeployHeader.default();
+      header.account = publicKey;
+      header.chainName = chainName || 'casper';
+      const deploy = Deploy.makeDeploy(header, paymentItem, session);
+      deploy.sign(providerKey);
+
+      const deployJSON = Deploy.toJSON(deploy);
+      const rpcRes = await fetch(rpcUrl || 'https://rpc.mainnet.casper.network/rpc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'account_put_deploy', params: { deploy: deployJSON } }),
+      });
+      const rpcData = await rpcRes.json();
+      if (rpcData.error) {
+        return serverError(res, `Deploy submission failed: ${rpcData.error.message}`);
+      }
+      ok(res, { deployHash: rpcData.result?.deploy_hash });
+    } catch (e) {
+      serverError(res, `Relay signing failed: ${e.message}`);
+    }
   }
 
   async handleMinerTest(req, res) {

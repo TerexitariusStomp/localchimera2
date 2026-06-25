@@ -81,6 +81,9 @@ export class CasperEscrowBridge {
     this.providerKey = null;
     this.providerAccountHash = null;
     this.processedJobs = new Set();
+    this.relayUrl = config.relayUrl || process.env.CASPER_RELAY_URL || '';
+    this.relayToken = config.relayToken || process.env.CASPER_RELAY_TOKEN || '';
+    this.useRelay = false;
   }
 
   get rpcUrl() {
@@ -110,30 +113,36 @@ export class CasperEscrowBridge {
     }
 
     const pem = this.config.providerKeyPem || process.env.CASPER_PROVIDER_KEY_PEM;
-    if (!pem) {
-      this.logger.warn('No provider private key configured. Set CASPER_PROVIDER_KEY_PEM env var or config.providerKeyPem to accept jobs.');
+    if (pem) {
+      try {
+        this.providerKey = PrivateKey.fromPem(pem, KeyAlgorithm.SECP256K1);
+        this.providerAccountHash = this.providerKey.publicKey.accountHash().toHex();
+        this.logger.info(`Provider account: ${this.providerAccountHash}`);
+      } catch (e) {
+        this.logger.error(`Invalid provider key PEM: ${e.message}`);
+        return;
+      }
+
+      // Check balance
+      try {
+        const balance = await this.getAccountBalance(this.providerAccountHash);
+        this.logger.info(`Provider balance: ${balance}`);
+        if (balance === '0 CSPR' || balance.startsWith('Error')) {
+          this.logger.warn('Provider account has no balance. Fund it with CSPR before accepting jobs.');
+        }
+      } catch (e) {
+        this.logger.warn(`Balance check failed: ${e.message}`);
+      }
+    } else if (this.relayUrl) {
+      this.useRelay = true;
+      this.providerAccountHash = this.config.providerAccountHash || '';
+      this.logger.info(`Relay mode active — provider key lives on relay: ${this.relayUrl}`);
+      this.logger.info('Casper escrow bridge initialized (relay mode — untrusted-hardware-safe)');
+      return;
+    } else {
+      this.logger.warn('No provider private key or relay configured. Set CASPER_PROVIDER_KEY_PEM for direct mode, or CASPER_RELAY_URL for relay mode.');
       this.logger.info('Casper escrow bridge initialized (observer mode)');
       return;
-    }
-
-    try {
-      this.providerKey = PrivateKey.fromPem(pem, KeyAlgorithm.SECP256K1);
-      this.providerAccountHash = this.providerKey.publicKey.accountHash().toHex();
-      this.logger.info(`Provider account: ${this.providerAccountHash}`);
-    } catch (e) {
-      this.logger.error(`Invalid provider key PEM: ${e.message}`);
-      return;
-    }
-
-    // Check balance
-    try {
-      const balance = await this.getAccountBalance(this.providerAccountHash);
-      this.logger.info(`Provider balance: ${balance}`);
-      if (balance === '0 CSPR' || balance.startsWith('Error')) {
-        this.logger.warn('Provider account has no balance. Fund it with CSPR before accepting jobs.');
-      }
-    } catch (e) {
-      this.logger.warn(`Balance check failed: ${e.message}`);
     }
 
     this.logger.info('Casper escrow bridge initialized');
@@ -169,8 +178,8 @@ export class CasperEscrowBridge {
 
   async start() {
     if (this.isRunning) return;
-    if (!this.providerKey) {
-      this.logger.warn('Cannot start Casper miner: no provider key configured');
+    if (!this.providerKey && !this.useRelay) {
+      this.logger.warn('Cannot start Casper miner: no provider key or relay configured');
       return;
     }
     this.isRunning = true;
@@ -377,6 +386,10 @@ export class CasperEscrowBridge {
   }
 
   async sendDeploy(contractHash, entryPoint, argsMap, payment = '10000000000') {
+    if (this.useRelay) {
+      return this.sendViaRelay(contractHash, entryPoint, argsMap, payment);
+    }
+
     const publicKey = this.providerKey.publicKey;
     const deploy = this.buildDeploy(publicKey, contractHash, entryPoint, argsMap, payment);
     deploy.sign(this.providerKey);
@@ -391,6 +404,41 @@ export class CasperEscrowBridge {
 
     this.logger.info(`Deploy ${entryPoint} submitted: ${res.result?.deploy_hash || 'unknown'}`);
     return res.result?.deploy_hash;
+  }
+
+  async sendViaRelay(contractHash, entryPoint, argsMap, payment = '10000000000') {
+    const payload = {
+      contractHash,
+      entryPoint,
+      args: Object.fromEntries(
+        Object.entries(argsMap).map(([k, v]) => [k, v.toJSON ? v.toJSON() : String(v)])
+      ),
+      payment,
+      rpcUrl: this.rpcUrl,
+      chainName: this.chainName,
+    };
+
+    const res = await fetch(this.relayUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.relayToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Relay deploy failed: ${res.status} ${errText}`);
+    }
+
+    const data = await res.json();
+    if (data.error) {
+      throw new Error(`Relay deploy error: ${data.error}`);
+    }
+
+    this.logger.info(`Deploy ${entryPoint} relayed: ${data.deployHash || 'unknown'}`);
+    return data.deployHash;
   }
 
   buildDeploy(publicKey, contractHash, entryPoint, argsMap, payment = '10000000000') {
@@ -418,6 +466,8 @@ export class CasperEscrowBridge {
       rpcUrl: this.rpcUrl,
       providerAccount: this.providerAccountHash || null,
       hasKey: !!this.providerKey,
+      relayMode: this.useRelay,
+      relayUrl: this.relayUrl || null,
       processedJobs: this.processedJobs.size,
     };
   }

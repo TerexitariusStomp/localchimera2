@@ -31,7 +31,8 @@ async function runTest() {
   let failureReason = '';
 
   try {
-    await browser.pause(5000);
+    // Wait for app to fully launch (emulators can be slow)
+    await browser.pause(10000);
     await browser.saveScreenshot(path.join(__dirname, 'screenshot-01-launch.png'));
     console.log('Screenshot 1: app launched');
 
@@ -44,15 +45,22 @@ async function runTest() {
       'android=new UiSelector().textContains("Enable")',
     ];
 
-    for (const sel of selectors) {
-      try {
-        const el = await browser.$(sel);
-        if (await el.isExisting()) {
-          enableAIBtn = el;
-          console.log('Found Enable AI button with selector:', sel);
-          break;
-        }
-      } catch (e) {}
+    // Retry finding the button for up to 30s (app may still be loading)
+    for (let retry = 0; retry < 6 && !enableAIBtn; retry++) {
+      for (const sel of selectors) {
+        try {
+          const el = await browser.$(sel);
+          if (await el.isExisting()) {
+            enableAIBtn = el;
+            console.log('Found Enable AI button with selector:', sel);
+            break;
+          }
+        } catch (e) {}
+      }
+      if (!enableAIBtn) {
+        console.log(`Button not found yet, retry ${retry + 1}/6...`);
+        await browser.pause(5000);
+      }
     }
 
     if (enableAIBtn) {

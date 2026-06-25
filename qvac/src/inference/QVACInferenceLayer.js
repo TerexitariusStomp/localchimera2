@@ -4,7 +4,7 @@ import { Logger } from '../core/Logger.js';
  * QVACInferenceLayer — unified inference backend for miners and services.
  *
  * Loads the official @qvac/sdk and serves inference requests from all
- * task networks (Cortensor, Routstr, Solana, etc.) as well as internal
+ * task networks (Chutes, Routstr, Casper, BTT AI, Golem, etc.) as well as internal
  * services like the wiki AI writer.
  *
  * Shares the same QVAC runtime as LocalLLM so the entire node uses one

@@ -1,6 +1,8 @@
 #!/bin/bash
 # localchimera — Provider Startup Script
-# Active providers: Akash, Salad, Targon, BTFS, 0Chain, Income Generator, CashPilot, CESS, BTT AI Miner
+# Untrusted-hardware-safe: Chutes, Routstr, BTT AI, Golem, Anyone Protocol, Mysterium, Casper (relay mode)
+# Self-managed (local keys required): BTFS, ZCN
+# Removed (incompatible with untrusted hardware): Akash, Targon, CESS, Income Generator, CashPilot, Salad
 
 set -e
 LOGDIR="/home/user/CascadeProjects/qvac-chimera/providers/logs"
@@ -8,49 +10,12 @@ mkdir -p "$LOGDIR"
 
 echo "======================================"
 echo " localchimera Provider Launcher"
-echo " Active: Akash, Salad, Targon, BTFS, 0Chain, Income Generator, CashPilot, CESS, BTT AI Miner"
+echo " Untrusted-safe: Chutes, Routstr, BTT AI, Golem, Anyone Protocol, Mysterium, Casper (relay)"
+echo " Self-managed:  BTFS, ZCN"
 echo "======================================"
 
-# 1. AKASH PROVIDER (best CPU earner)
-echo "[1/9] Akash Provider..."
-if provider-services version >/dev/null 2>&1; then
-  echo "  Wallet: mykey -> AKASH_ADDRESS_REDACTED"
-  echo "  k3s:"
-  sudo kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get nodes 2>/dev/null || echo "  kubectl failed"
-  echo "  TO START: provider-services run --from mykey --node https://rpc.akashnet.net:443"
-  echo "  (needs AKT wallet funding + on-chain registration)"
-else
-  echo "  provider-services not found"
-fi
-
-# 2. SALAD JOB QUEUE WORKER (local dev mode)
-echo ""
-echo "[2/9] Salad Worker (local mode)..."
-cd /home/user/CascadeProjects/qvac-chimera/upstream/salad-job-queue-worker
-if [ -f ./salad-worker ]; then
-  SALAD_LOCAL_MODE=true SALAD_LOCAL_TOKEN=dev-token \
-    nohup ./salad-worker > "$LOGDIR/salad.log" 2>&1 &
-  echo $! > "$LOGDIR/salad.pid"
-  echo "  Salad PID: $!"
-else
-  echo "  Salad binary not found."
-fi
-
-# 3. TARGON CPU PROVIDER
-echo ""
-echo "[3/9] Targon CPU Provider..."
-cd /home/user/CascadeProjects/qvac-chimera/upstream/targon
-if [ -f ./targon-cli ]; then
-  echo "  Hotkey configured in config.json"
-  echo "  TO START: ./targon-cli"
-  echo "  (needs 1000 TAO stake + on-chain registration)"
-else
-  echo "  targon-cli not found. Build: cd targon && go build -o targon-cli ./cmd/targon-cli"
-fi
-
-# 4. BTFS STORAGE NODE
-echo ""
-echo "[4/9] BTFS Storage Node..."
+# 1. BTFS STORAGE NODE (self-managed — requires local BTT wallet)
+echo "[1/7] BTFS Storage Node..."
 if [ -f /home/user/CascadeProjects/qvac-chimera/upstream/btfs/btfs ]; then
   if [ -d "${HOME}/.btfs" ]; then
     echo "  Repo initialized. Starting BTFS daemon..."
@@ -58,7 +23,7 @@ if [ -f /home/user/CascadeProjects/qvac-chimera/upstream/btfs/btfs ]; then
     echo $! > "$LOGDIR/btfs.pid"
     echo "  BTFS PID: $!"
     echo "  UI: http://127.0.0.1:5001/hostui"
-    echo "  (needs BTT wallet funding for earnings)"
+    echo "  ⚠️  SELF-MANAGED: needs BTT wallet funding for earnings on this machine"
   else
     echo "  Repo not initialized. Run: ./providers/setup-btfs.sh"
   fi
@@ -66,16 +31,16 @@ else
   echo "  BTFS binary not found. Build: cd upstream/btfs && go build -o btfs ./cmd/btfs"
 fi
 
-# 5. 0CHAIN BLOBBER
+# 2. 0CHAIN BLOBBER (self-managed — requires local ZCN wallet + stake)
 echo ""
-echo "[5/9] 0Chain Blobber..."
+echo "[2/7] 0Chain Blobber..."
 if [ -f /home/user/CascadeProjects/qvac-chimera/upstream/zcn-blobber/blobber ]; then
   if [ -f "${HOME}/.zcn/config/0chain_blobber.yaml" ]; then
     echo "  Config exists. Starting blobber..."
     nohup /home/user/CascadeProjects/qvac-chimera/upstream/zcn-blobber/blobber --configDir "${HOME}/.zcn/config" --port 5050 > "$LOGDIR/zcn-blobber.log" 2>&1 &
     echo $! > "$LOGDIR/zcn-blobber.pid"
     echo "  Blobber PID: $!"
-    echo "  (needs ZCN wallet + stake for earnings)"
+    echo "  ⚠️  SELF-MANAGED: needs ZCN wallet + stake for earnings on this machine"
   else
     echo "  Config not found. Run: ./providers/setup-zcn-blobber.sh"
   fi
@@ -83,60 +48,9 @@ else
   echo "  Blobber binary not found. Build: cd upstream/zcn-blobber/code/go/0chain.net/blobber && go build -o ../../../blobber ."
 fi
 
-# 6. INCOME GENERATOR (bandwidth sharing)
+# 3. BTT AI MINER (GPU tasking network — vLLM/SGLang; untrusted-safe if proxy mode used)
 echo ""
-echo "[6/9] Income Generator (bandwidth)..."
-if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/income-generator ]; then
-  if docker compose version >/dev/null 2>&1; then
-    echo "  Starting Income Generator Docker stack..."
-    cd /home/user/CascadeProjects/qvac-chimera/upstream/income-generator
-    docker compose -f compose/compose.yml up -d > "$LOGDIR/income-generator.log" 2>&1
-    echo "  Income Generator started (docker compose)"
-    echo "  (needs app credentials in compose/.env for earnings)"
-  else
-    echo "  Docker Compose not available"
-  fi
-else
-  echo "  Income Generator not found. Clone: git submodule add https://github.com/XternA/income-generator.git upstream/income-generator"
-fi
-
-# 7. CASHPILOT (DePIN manager)
-echo ""
-echo "[7/9] CashPilot (DePIN manager)..."
-if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/cashpilot ]; then
-  if docker compose version >/dev/null 2>&1; then
-    echo "  Starting CashPilot Docker stack..."
-    cd /home/user/CascadeProjects/qvac-chimera/upstream/cashpilot
-    docker compose up -d > "$LOGDIR/cashpilot.log" 2>&1
-    echo "  CashPilot started (docker compose)"
-    echo "  UI: http://localhost:8080"
-    echo "  (needs service credentials for earnings)"
-  else
-    echo "  Docker Compose not available"
-  fi
-else
-  echo "  CashPilot not found. Clone: git submodule add https://github.com/GeiserX/CashPilot.git upstream/cashpilot"
-fi
-
-# 8. CESS STORAGE NODE
-echo ""
-echo "[8/9] CESS Storage Node..."
-if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/cess-nodeadm ]; then
-  if command -v cess >/dev/null 2>&1; then
-    echo "  Starting CESS node..."
-    sudo cess start > "$LOGDIR/cess.log" 2>&1
-    echo "  CESS started"
-    echo "  (needs ZCN stake + storage for earnings)"
-  else
-    echo "  CESS CLI not installed. Run: cd upstream/cess-nodeadm && sudo ./install.sh"
-  fi
-else
-  echo "  CESS nodeadm not found. Clone: git submodule add https://github.com/CESSProject/cess-nodeadm.git upstream/cess-nodeadm"
-fi
-
-# 9. BTT AI MINER (GPU tasking network — vLLM/SGLang)
-echo ""
-echo "[9/9] BTT AI Miner (GPU tasking)..."
+echo "[3/7] BTT AI Miner (GPU tasking)..."
 if [ -d /home/user/CascadeProjects/qvac-chimera/upstream/btt-ai-miner ]; then
   if command -v nvidia-smi >/dev/null 2>&1; then
     echo "  GPU detected. BTT AI miner can run."
@@ -149,20 +63,62 @@ else
   echo "  BTT AI miner not found. Clone: git submodule add https://github.com/BTT-AI-labs/miner-cli.git upstream/btt-ai-miner"
 fi
 
+# 4. GOLEM PROVIDER (decentralized compute marketplace — Docker-based, no local keys)
+echo ""
+echo "[4/7] Golem Provider (decentralized compute)..."
+if command -v docker >/dev/null 2>&1; then
+  if [ -c /dev/kvm ]; then
+    echo "  Docker + KVM available. Golem provider can run."
+    echo "  TO START: docker run -d --name yagna-provider --privileged -v /dev/kvm:/dev/kvm golemfactory/yagna:latest provider run"
+    echo "  (payout address only — node identity managed inside container)"
+  else
+    echo "  KVM not available (/dev/kvm missing). Golem provider requires nested virtualization."
+  fi
+else
+  echo "  Docker not available. Golem provider requires Docker."
+fi
+
+# 5. ANYONE PROTOCOL (onion routing relay — Docker-based, no keys required)
+echo ""
+echo "[5/7] Anyone Protocol Relay (onion routing)..."
+if command -v docker >/dev/null 2>&1; then
+  echo "  Docker available. Anyone Protocol relay can run."
+  echo "  TO START: docker run -d --name anon-relay --net host ghcr.io/anyone-protocol/ator-protocol:latest-manual"
+  echo "  Ports: OR 9001, DIR 9030 (must be open/firewalled)"
+else
+  echo "  Docker not available. Anyone Protocol relay requires Docker."
+fi
+
+# 6. MYSTERIUM VPN NODE (Docker-based, no keys required)
+echo ""
+echo "[6/7] Mysterium VPN Node..."
+if command -v docker >/dev/null 2>&1; then
+  echo "  Docker available. Mysterium node can run."
+  echo "  TO START: docker run --cap-add NET_ADMIN --net host -d --name myst mysteriumnetwork/myst:latest service --agreed-terms-and-conditions"
+  echo "  UI: http://localhost:4449"
+else
+  echo "  Docker not available. Mysterium node requires Docker."
+fi
+
+# 7. QVAC NATIVE MINERS (managed by ChimeraSDK / NodeManager)
+echo ""
+echo "[7/7] QVAC Native Miners..."
+echo "  Chutes    (Bittensor subnet — inference provider)"
+echo "  Routstr   (Nostr/Cashu AI inference router — no external credentials)"
+echo "  Casper    (Casper Network escrow bridge — relay mode, no local keys)"
+
 echo ""
 echo "======================================"
+echo " Removed providers (incompatible with untrusted hardware):"
+echo "   - Akash            (requires local AKT wallet + k3s)"
+echo "   - Targon           (requires local hotkey + 1000 TAO stake)"
+echo "   - CESS             (requires local CESS wallet + stake)"
+echo "   - Income Generator (requires per-app credentials)"
+echo "   - CashPilot        (requires service credentials)"
+echo "   - Salad            (proprietary container host, not self-hosted)"
 echo " Removed providers (require GPU):"
 echo "   - nosana-cli"
 echo "   - lium-io"
 echo "   - heurist-miner-release"
 echo "   - byteleap-worker"
-echo " Removed providers (not consumer-friendly):"
-echo "   - sia-hostd (needs 4 TB+ storage)"
-echo "   - filecoin-lotus (needs 256 GB RAM + GPU)"
-echo "   - arweave-node (archival weave)"
-echo "   - hippius-storage-miner (complex Ansible)"
-echo " Removed providers (browser-only, not self-hosted):"
-echo "   - b1m.ai (browser extension)"
-echo "   - Grass (browser extension / desktop app)"
-echo "   - FilBeam (no valid self-hosted repo)"
 echo "======================================"

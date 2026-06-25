@@ -52,6 +52,7 @@ export const ROUTES = [
   ['POST', '/api/stop',               'handleStop'],
   ['POST', '/api/miner-test',         'handleMinerTest'],
   ['GET',  '/api/casper/status',      'handleCasperStatus'],
+  ['POST', '/api/casper/relay',       'handleCasperRelay'],
   // OpenAI-compatible proxy (for Routstr upstream)
   ['POST', '/v1/chat/completions',          'handleOpenAIChat'],
   ['GET',  '/v1/models',                   'handleOpenAIModels'],

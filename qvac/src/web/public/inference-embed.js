@@ -138,11 +138,9 @@
 
     // Connect to QVAC-Pear mining networks
     // This would establish connections to:
-    // - Earnidle (Solana)
-    // - Fortytwo-Network (EVM)
-    // - Cortensor (Arbitrum testnet)
     // - Chutes (Bittensor)
     // - Routstr (Nostr)
+    // - Casper (Casper Network — relay mode, untrusted-safe)
 
     // Register with the API
     registerWithAPI();

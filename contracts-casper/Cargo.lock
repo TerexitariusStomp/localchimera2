@@ -9,6 +9,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "bandwidth-market"
+version = "0.1.0"
+dependencies = [
+ "casper-contract",
+ "casper-types",
+ "wee_alloc",
+]
+
+[[package]]
 name = "base16"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -114,6 +123,15 @@ name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
+
+[[package]]
+name = "compute-market"
+version = "0.1.0"
+dependencies = [
+ "casper-contract",
+ "casper-types",
+ "wee_alloc",
+]
 
 [[package]]
 name = "compute-registry"
@@ -382,6 +400,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "inference-market"
+version = "0.1.0"
+dependencies = [
+ "casper-contract",
+ "casper-types",
+ "wee_alloc",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -552,9 +579,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.45"
+version = "1.0.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924"
+checksum = "dfbc457d0c7a0759a614551b11a6409e5951f6c7537be1f1b7682b9ae9230368"
 dependencies = [
  "proc-macro2",
 ]
@@ -718,6 +745,15 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "storage-market"
+version = "0.1.0"
+dependencies = [
+ "casper-contract",
+ "casper-types",
+ "wee_alloc",
+]
 
 [[package]]
 name = "subtle"

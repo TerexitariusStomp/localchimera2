@@ -11,14 +11,12 @@
 
 export { ChimeraSDK } from './ChimeraSDK.js';
 export {
-  AkashProvider,
-  TargonProvider,
   BtfsProvider,
   ZcnProvider,
-  IncomeGeneratorProvider,
-  CashPilotProvider,
-  CessProvider,
   BttAiMinerProvider,
+  GolemProvider,
+  AnyoneProtocolProvider,
+  MysteriumProvider,
   KeyringManager,
   WalletSetup,
 } from './miners/index.js';

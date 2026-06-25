@@ -1,18 +1,28 @@
 #!/bin/bash
 echo "============================================"
 echo "  localchimera Provider Status Dashboard"
+echo "  Untrusted-safe: Chutes, Routstr, BTT AI, Golem, Anyone Protocol, Mysterium"
+echo "  Self-managed:   BTFS, ZCN"
 echo "============================================"
 echo ""
-echo "--- Running Processes ---"
-ps aux | grep -E "salad-worker|byteleap-worker|nosana|provider-services|k3s|python.*miner" | grep -v grep | grep -v "status.sh"
+
+echo "--- Self-Managed Storage Provider Processes ---"
+ps aux | grep -E "btfs.*daemon|blobber" | grep -v grep | grep -v "status.sh" || echo "  No storage provider processes running"
 echo ""
-echo "--- k3s Cluster ---"
-sudo kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get nodes 2>/dev/null || echo "k3s: kubectl not accessible"
+
+echo "--- QVAC Native Miner Processes ---"
+ps aux | grep -E "chutes|routstr" | grep -v grep | grep -v "status.sh" || echo "  No QVAC miner processes running"
 echo ""
-echo "--- Docker ---"
-sudo docker ps 2>/dev/null | head -5 || echo "Docker: no containers"
+
+echo "--- Docker Containers ---"
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null | grep -E "yagna-provider|anon-relay|myst" || echo "  No proxy/relay containers running"
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null | head -10 || echo "  Docker: no containers or docker unavailable"
 echo ""
-echo "--- Wallets ---"
-ls -la ~/.nosana/nosana_key.json 2>/dev/null && echo "Nosana: ~/.nosana/nosana_key.json exists"
+
+echo "--- Key / Config Files (Self-Managed) ---"
+[ -d ~/.btfs ] && echo "  BTFS: ~/.btfs repo exists"
+[ -f ~/.zcn/config/0chain_blobber.yaml ] && echo "  ZCN: ~/.zcn/config/0chain_blobber.yaml exists"
+[ -d ~/.local/share/golem ] && echo "  Golem: ~/.local/share/golem data dir exists"
 echo ""
+
 echo "============================================"

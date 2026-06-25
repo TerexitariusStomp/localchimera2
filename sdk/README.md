@@ -6,7 +6,9 @@ Integrate local AI mining into your application. Your users earn revenue from id
 
 All mining rewards flow through **Chimera protocol multisigs** — you never need a Bittensor, Solana, or Nostr wallet.
 
-1. **Mining** — user's device completes tasks on Cortensor, Chutes, Fortytwo, Earnidle, Routstr
+1. **Mining** — user's device completes tasks on:
+   - **Untrusted-hardware-safe**: Chutes, Routstr, BTT AI, Golem, Anyone Protocol, Mysterium, Casper (relay mode)
+   - **Self-managed** (local keys required): BTFS, ZCN
 2. **Weekly sweep** — all funds are swept into the Chimera EVM collection multisig
 3. **Monthly distribution** — funds are split and sent to:
    - **Machine owner** EVM address (set on the Chimera landing page)
@@ -124,8 +126,8 @@ await sdk.start();
 └────────┬────────┘
          │
 ┌────────▼────────┐
-│  External       │  ← Akash provider (k3s), Targon CPU provider
-│  Providers      │    (auto-detected, keyless SDK integration)
+│  External       │  ← BTT AI (GPU tasking), Golem (compute), Anyone Protocol,
+│  Providers      │    Mysterium (VPN), Casper (relay), BTFS, ZCN (self-managed; local keys required)
 └────────┬────────┘
          │
 ┌────────▼────────┐
@@ -138,19 +140,23 @@ await sdk.start();
 
 **The SDK never stores or exposes private keys.**
 
-| Network | Key Storage | SDK Access | App Can Steal? |
-|---------|-------------|------------|----------------|
-| **Akash** | `provider-services` OS keyring | Key **name** only (`--from mykey`) | ❌ No |
-| **Targon** | `~/.config/.targon.json` (0600) | Config **path** only | ❌ No |
-| **Heurist** | Removed from SDK | — | — |
-| **Lium** | Removed from SDK | — | — |
-| **Nosana** | Removed from SDK | — | — |
-| **ByteLeap** | Removed from SDK | — | — |
+| Provider | Untrusted Hardware | Key Storage | SDK Access | App Can Steal? |
+|----------|-------------------|-------------|------------|----------------|
+| **Chutes** | ✅ Safe | Relay holds hotkey | Worker reports endpoint only | ❌ No |
+| **Routstr** | ✅ Safe | No keys required | Nostr nsec reference only | ❌ No |
+| **BTT AI** | ✅ Safe (proxy mode) | Relay holds wallet | Worker reports endpoint only | ❌ No |
+| **Golem** | ✅ Safe | Payout address only; node identity inside container | Wallet address reference only | ❌ No |
+| **Anyone Protocol** | ✅ Safe | No keys required | Container name reference only | ❌ No |
+| **Mysterium** | ✅ Safe | No keys required | Container name reference only | ❌ No |
+| **Casper** | ✅ Safe (relay mode) | Provider key lives on relay; worker never sees PEM | Relay URL + token only | ❌ No |
+| **BTFS** | ❌ Self-managed | `~/.btfs` (user-managed) | Binary path only | ❌ No |
+| **ZCN** | ❌ Self-managed | `~/.zcn` (user-managed) | Config path only | ❌ No |
 
-- **Akash**: The mnemonic lives in the provider-services keyring. The SDK only knows the key name (`mykey`) and passes `--from mykey` to the CLI. The app never sees the mnemonic.
-- **Targon**: The hotkey lives in `~/.config/.targon.json` (user-owned, mode 0600). The SDK only knows the file path and passes it to the miner binary. The app never opens or reads the file.
+**Removed from SDK** (incompatible with untrusted hardware): Akash, Targon, CESS, Income Generator, CashPilot, Salad, Heurist, Lium, Nosana, ByteLeap.
 
 **Apps using the SDK cannot extract funds** because they never receive the actual key material — only references to OS-level secure storage.
+
+**Self-managed providers** require local wallet setup (mnemonics, config files, or PEM keys stored on the machine). They will not function on untrusted hardware unless the machine owner has already configured the wallet.
 
 ## Full example
 

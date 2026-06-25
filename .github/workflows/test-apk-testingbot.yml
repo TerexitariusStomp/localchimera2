@@ -18,16 +18,10 @@ jobs:
 
       - name: Download latest APK
         run: |
-          # Try debug APK first (no ProGuard/R8), fall back to release
-          DEBUG_URL="https://github.com/LocalChimera/localchimera/releases/download/v0.1.0-build.72/app-arm64-v8a-debug.apk"
+          # Use release APK (debug APK doesn't include pre-packaged JS bundle)
           RELEASE_URL="https://github.com/LocalChimera/localchimera/releases/download/v0.1.0-build.72/app-arm64-v8a-release.apk"
-          if curl -fsSL --retry 2 --max-time 60 -o chimera.apk "$DEBUG_URL"; then
-            echo "Downloaded DEBUG APK"
-          else
-            echo "Debug APK not available, trying release APK..."
-            curl -fsSL --retry 3 --max-time 120 -o chimera.apk "$RELEASE_URL"
-            echo "Downloaded RELEASE APK"
-          fi
+          curl -fsSL --retry 3 --max-time 120 -o chimera.apk "$RELEASE_URL"
+          echo "Downloaded RELEASE APK"
           ls -lh chimera.apk
 
       - name: Upload APK to TestingBot

@@ -1,10 +1,8 @@
 import { Logger } from '../core/Logger.js';
-import { CortensorMiner } from './CortensorMiner.js';
 import { ChutesMiner } from './ChutesMiner.js';
-import { FortytwoMiner } from './FortytwoMiner.js';
-import { EarnidleMiner } from './EarnidleMiner.js';
 import { RoutstrMiner } from './RoutstrMiner.js';
 import { CasperEscrowBridge } from './CasperEscrowBridge.js';
+import { CasperUnifiedBridge } from './CasperUnifiedBridge.js';
 
 export class MinerManager {
   constructor(config, dataStore, taskMonitor = null, inferenceLayer = null) {
@@ -28,28 +26,10 @@ export class MinerManager {
     }
 
     // Initialize miners based on config
-    if (this.config.cortensor.enabled) {
-      const miner = new CortensorMiner(this.config.cortensor.config, this.inferenceLayer);
-      await miner.initialize();
-      this.miners.set('cortensor', miner);
-    }
-
     if (this.config.chutes.enabled) {
       const miner = new ChutesMiner(this.config.chutes.config, this.inferenceLayer, this.evmAddress);
       await miner.initialize();
       this.miners.set('chutes', miner);
-    }
-
-    if (this.config.fortytwo.enabled) {
-      const miner = new FortytwoMiner(this.config.fortytwo.config, this.inferenceLayer);
-      await miner.initialize();
-      this.miners.set('fortytwo', miner);
-    }
-
-    if (this.config.earnidle.enabled) {
-      const miner = new EarnidleMiner(this.config.earnidle.config, this.inferenceLayer);
-      await miner.initialize();
-      this.miners.set('earnidle', miner);
     }
 
     if (this.config.routstr.enabled) {
@@ -62,6 +42,17 @@ export class MinerManager {
       const miner = new CasperEscrowBridge(this.config.casper.config, this.inferenceLayer);
       await miner.initialize();
       this.miners.set('casper', miner);
+    }
+
+    if (this.config.casperUnified?.enabled) {
+      const layers = {
+        inference: this.inferenceLayer,
+        compute: this.config.casperUnified.config?.computeLayer || null,
+        bandwidth: this.config.casperUnified.config?.bandwidthLayer || null,
+      };
+      const miner = new CasperUnifiedBridge(this.config.casperUnified.config, layers);
+      await miner.initialize();
+      this.miners.set('casperUnified', miner);
     }
 
     this.logger.info(`Initialized ${this.miners.size} miners`);

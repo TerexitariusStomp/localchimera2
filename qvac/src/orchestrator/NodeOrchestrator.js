@@ -89,7 +89,6 @@ export class CommanderOrchestrator {
       totalPages: w.totalPages,
       lastSeen: new Date(w.lastSeen).toISOString(),
       evmAddress: w.evmAddress || '',
-      casperProvider: w.casperProvider || '',
       capacity: w.capacity ?? 1,
       inferenceUrl: w.inferenceUrl || '',
       inferenceReady: w.inferenceReady ?? false,

@@ -9,14 +9,12 @@ import { NodeManager } from '../../qvac/src/core/NodeManager.js';
 import { Logger } from '../../qvac/src/core/Logger.js';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { AkashProvider } from './miners/AkashProvider.js';
-import { TargonProvider } from './miners/TargonProvider.js';
 import { BtfsProvider } from './miners/BtfsProvider.js';
 import { ZcnProvider } from './miners/ZcnProvider.js';
-import { IncomeGeneratorProvider } from './miners/IncomeGeneratorProvider.js';
-import { CashPilotProvider } from './miners/CashPilotProvider.js';
-import { CessProvider } from './miners/CessProvider.js';
 import { BttAiMinerProvider } from './miners/BttAiMinerProvider.js';
+import { GolemProvider } from './miners/GolemProvider.js';
+import { AnyoneProtocolProvider } from './miners/AnyoneProtocolProvider.js';
+import { MysteriumProvider } from './miners/MysteriumProvider.js';
 import { KeyringManager } from './miners/KeyringManager.js';
 import { WalletSetup } from './miners/WalletSetup.js';
 
@@ -141,35 +139,14 @@ export class ChimeraSDK {
   }
 
   /**
-   * Initialize external providers (Akash, Targon, BTFS, Sia, ZCN) by key reference only.
-   * Private keys live in OS keyrings / user config files, never in SDK code.
+   * Initialize external providers (BTFS, ZCN, BTT AI, Golem, Anyone Protocol, Mysterium).
+   * Untrusted-safe providers (Golem, Anyone Protocol, Mysterium, BTT AI):
+   *   run in Docker with no local private keys in SDK.
+   * Self-managed providers (BTFS, ZCN):
+   *   require local wallet setup before use on untrusted hardware.
    */
   async _initExternalProviders() {
-    const keyStatus = await KeyringManager.status();
-
-    if (keyStatus.akash.kubeconfig) {
-      try {
-        const akash = new AkashProvider();
-        await akash.init();
-        this.externalProviders.push(akash);
-        logger.info(`[${this.appName}] Akash provider ready (key: ${keyStatus.akash.keyName})`);
-      } catch (err) {
-        logger.warn(`[${this.appName}] Akash provider init failed: ${err.message}`);
-      }
-    }
-
-    if (keyStatus.targon.exists) {
-      try {
-        const targon = new TargonProvider();
-        await targon.init();
-        this.externalProviders.push(targon);
-        logger.info(`[${this.appName}] Targon provider ready (config: ~/.config/.targon.json)`);
-      } catch (err) {
-        logger.warn(`[${this.appName}] Targon provider init failed: ${err.message}`);
-      }
-    }
-
-    // Storage providers — auto-detect binaries, no keys needed upfront
+    // Storage providers — self-managed, require local wallet setup
     try {
       const btfs = new BtfsProvider();
       await btfs.init();
@@ -188,35 +165,6 @@ export class ChimeraSDK {
       logger.warn(`[${this.appName}] 0Chain provider init failed: ${err.message}`);
     }
 
-    // Bandwidth / DePIN providers (Docker-based, consumer-friendly)
-    try {
-      const ig = new IncomeGeneratorProvider();
-      await ig.init();
-      this.externalProviders.push(ig);
-      logger.info(`[${this.appName}] Income Generator provider ready`);
-    } catch (err) {
-      logger.warn(`[${this.appName}] Income Generator init failed: ${err.message}`);
-    }
-
-    try {
-      const cp = new CashPilotProvider();
-      await cp.init();
-      this.externalProviders.push(cp);
-      logger.info(`[${this.appName}] CashPilot provider ready`);
-    } catch (err) {
-      logger.warn(`[${this.appName}] CashPilot init failed: ${err.message}`);
-    }
-
-    // Memory / caching provider (Docker-based storage)
-    try {
-      const cess = new CessProvider();
-      await cess.init();
-      this.externalProviders.push(cess);
-      logger.info(`[${this.appName}] CESS provider ready`);
-    } catch (err) {
-      logger.warn(`[${this.appName}] CESS init failed: ${err.message}`);
-    }
-
     // GPU tasking network (vLLM/SGLang inference miner)
     try {
       const btt = new BttAiMinerProvider();
@@ -225,6 +173,36 @@ export class ChimeraSDK {
       logger.info(`[${this.appName}] BTT AI miner provider ready`);
     } catch (err) {
       logger.warn(`[${this.appName}] BTT AI miner init failed: ${err.message}`);
+    }
+
+    // Decentralized compute marketplace (Docker-based, no local keys in SDK)
+    try {
+      const golem = new GolemProvider();
+      await golem.init();
+      this.externalProviders.push(golem);
+      logger.info(`[${this.appName}] Golem provider ready`);
+    } catch (err) {
+      logger.warn(`[${this.appName}] Golem init failed: ${err.message}`);
+    }
+
+    // Onion routing relay (Docker-based, no keys)
+    try {
+      const anyone = new AnyoneProtocolProvider();
+      await anyone.init();
+      this.externalProviders.push(anyone);
+      logger.info(`[${this.appName}] Anyone Protocol relay ready`);
+    } catch (err) {
+      logger.warn(`[${this.appName}] Anyone Protocol init failed: ${err.message}`);
+    }
+
+    // VPN node (Docker-based, no keys)
+    try {
+      const myst = new MysteriumProvider();
+      await myst.init();
+      this.externalProviders.push(myst);
+      logger.info(`[${this.appName}] Mysterium provider ready`);
+    } catch (err) {
+      logger.warn(`[${this.appName}] Mysterium init failed: ${err.message}`);
     }
   }
 

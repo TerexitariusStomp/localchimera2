@@ -4,12 +4,17 @@ members = [
     "order-book",
     "escrow-vault",
     "reputation",
+    "inference-market",
+    "storage-market",
+    "bandwidth-market",
+    "compute-market",
 ]
 resolver = "2"
 
 [workspace.dependencies]
 casper-contract = "5.1"
 casper-types = "=6.0.1"
+wee_alloc = "0.4"
 
 [profile.release]
 opt-level = "z"

@@ -5,7 +5,7 @@ import { Logger } from '../core/Logger.js';
  *
  * This allows SDK providers (Akash, Targon, BTFS, ZCN, IncomeGenerator,
  * CashPilot, CESS, BTT AI Miner) to appear in the desktop app alongside
- * native QVAC miners (Cortensor, Chutes, Routstr, etc.).
+ * native QVAC miners (Chutes, Fortytwo, Earnidle, Routstr, Casper, etc.).
  */
 export class SdkProviderMiner {
   constructor(name, ProviderClass, config = {}, inferenceLayer = null, evmAddress = null) {

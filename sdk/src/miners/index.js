@@ -5,13 +5,11 @@
  * Keys are referenced by name/path only, stored in OS-level secure storage.
  */
 
-export { AkashProvider } from './AkashProvider.js';
-export { TargonProvider } from './TargonProvider.js';
 export { BtfsProvider } from './BtfsProvider.js';
 export { ZcnProvider } from './ZcnProvider.js';
-export { IncomeGeneratorProvider } from './IncomeGeneratorProvider.js';
-export { CashPilotProvider } from './CashPilotProvider.js';
-export { CessProvider } from './CessProvider.js';
 export { BttAiMinerProvider } from './BttAiMinerProvider.js';
+export { GolemProvider } from './GolemProvider.js';
+export { AnyoneProtocolProvider } from './AnyoneProtocolProvider.js';
+export { MysteriumProvider } from './MysteriumProvider.js';
 export { KeyringManager } from './KeyringManager.js';
 export { WalletSetup } from './WalletSetup.js';
