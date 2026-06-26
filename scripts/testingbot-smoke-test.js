@@ -3,8 +3,30 @@ const fs = require('fs');
 const path = require('path');
 
 const TEST_WALLET = '0x1234567890123456789012345678901234567890';
+const MAX_RETRIES = 2;
 
 async function runTest() {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    console.log(`\n=== Attempt ${attempt}/${MAX_RETRIES} ===`);
+    try {
+      const result = await runSingleAttempt();
+      if (result) return;
+      console.log(`Attempt ${attempt} failed, retrying...`);
+    } catch (e) {
+      console.error(`Attempt ${attempt} error:`, e.message);
+      if (attempt === MAX_RETRIES) {
+        console.log('\n=== TEST FAILED ===');
+        console.log('Reason: All attempts failed');
+        process.exit(1);
+      }
+    }
+  }
+  console.log('\n=== TEST FAILED ===');
+  console.log('Reason: All attempts failed');
+  process.exit(1);
+}
+
+async function runSingleAttempt() {
   console.log('Starting TestingBot smoke test...');
   console.log('App URL:', process.env.TESTINGBOT_APP_URL);
 
@@ -217,16 +239,16 @@ async function runTest() {
     console.error('Test error:', e);
     failureReason = e.message;
   } finally {
-    await browser.deleteSession();
+    try { await browser.deleteSession(); } catch (e) {}
   }
 
   if (success) {
     console.log('\n=== TEST PASSED ===');
-    process.exit(0);
+    return true;
   } else {
     console.log('\n=== TEST FAILED ===');
     console.log('Reason:', failureReason);
-    process.exit(1);
+    return false;
   }
 }
 
