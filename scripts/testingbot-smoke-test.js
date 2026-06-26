@@ -57,177 +57,77 @@ async function runSingleAttempt() {
   try {
     await browser.pause(8000);
     await browser.saveScreenshot(path.join(__dirname, 'screenshot-01-launch.png'));
-    console.log('Screenshot 1: setup screen');
+    console.log('Screenshot 1: app launch');
 
-    // Find the wallet input
-    let walletInput = null;
-    const walletSelectors = [
-      'android.widget.EditText',
-      '//android.widget.EditText',
-      '//*[contains(@text, "EVM wallet")]',
-      'android=new UiSelector().className("android.widget.EditText")',
-    ];
-    for (const sel of walletSelectors) {
+    // App now shows WebView immediately — no native setup screen
+    // Wait for WebView to appear and verify wiki content
+    const startTime = Date.now();
+    let success = false;
+    let failureReason = '';
+
+    while (Date.now() - startTime < 120000) {
+      await browser.pause(5000);
+      await browser.saveScreenshot(path.join(__dirname, 'screenshot-02-checking.png'));
+
+      // Check for WebView element
       try {
-        const el = await browser.$(sel);
-        if (await el.isExisting()) {
-          walletInput = el;
-          console.log('Found wallet input with selector:', sel);
+        const webViewEl = await browser.$('//android.webkit.WebView');
+        if (await webViewEl.isExisting()) {
+          console.log('WebView element found');
+          await browser.pause(3000);
+          await browser.saveScreenshot(path.join(__dirname, 'screenshot-03-webview.png'));
+
+          // Try to switch to WebView context to verify content
+          try {
+            const contexts = await browser.getContexts();
+            console.log('Available contexts:', contexts);
+            for (const ctx of contexts) {
+              if (typeof ctx === 'string' && ctx.includes('WEBVIEW')) {
+                await browser.switchContext(ctx);
+                console.log('Switched to WebView context:', ctx);
+                await browser.pause(2000);
+
+                // Check for key UI elements in the WebView
+                const bodyText = await browser.$('body').getText();
+                console.log('WebView body text (first 500 chars):', bodyText.substring(0, 500));
+
+                // Check for wiki/notes related elements
+                const hasWiki = bodyText.toLowerCase().includes('wiki') || bodyText.toLowerCase().includes('chimera');
+                const hasNotes = bodyText.toLowerCase().includes('notes') || bodyText.toLowerCase().includes('editor');
+                const hasAI = bodyText.toLowerCase().includes('ai') || bodyText.toLowerCase().includes('writer');
+                const hasPrivy = bodyText.toLowerCase().includes('privy') || bodyText.toLowerCase().includes('log in');
+
+                console.log(`WebView content check: wiki=${hasWiki}, notes=${hasNotes}, ai=${hasAI}, privy=${hasPrivy}`);
+
+                if (hasWiki || hasNotes || hasAI) {
+                  console.log('SUCCESS: WebView is showing wiki/notes UI with AI writer');
+                  success = true;
+                } else {
+                  console.log('WebView present but expected content not found yet');
+                }
+
+                // Switch back to native context
+                await browser.switchContext('NATIVE_APP');
+                break;
+              }
+            }
+          } catch (ctxErr) {
+            console.log('Could not switch to WebView context:', ctxErr.message);
+            // WebView element exists even if we can't switch context
+            console.log('SUCCESS: WebView element is present (context switch failed but WebView exists)');
+            success = true;
+          }
           break;
+        } else {
+          console.log('WebView not found yet, waiting...');
         }
-      } catch (e) {}
+      } catch (webErr) {
+        console.log('WebView check error:', webErr.message);
+      }
     }
 
-    if (!walletInput) {
-      failureReason = 'Wallet address input not found on setup screen';
-      console.log(failureReason);
-      try {
-        const source = await browser.getPageSource();
-        fs.writeFileSync(path.join(__dirname, 'page-source.xml'), source);
-      } catch (e) {}
-    } else {
-      await walletInput.setValue(TEST_WALLET);
-      console.log('Entered wallet address');
-      await browser.pause(1000);
-      await browser.saveScreenshot(path.join(__dirname, 'screenshot-02-wallet-entered.png'));
-
-      // Find and tap the Start button
-      let startBtn = null;
-      const startSelectors = [
-        '//*[contains(@text, "Start")]',
-        '//android.widget.Button[contains(@text, "Start")]',
-        'android=new UiSelector().textContains("Start")',
-      ];
-      for (const sel of startSelectors) {
-        try {
-          const el = await browser.$(sel);
-          if (await el.isExisting()) {
-            startBtn = el;
-            console.log('Found Start button with selector:', sel);
-            break;
-          }
-        } catch (e) {}
-      }
-
-      if (!startBtn) {
-        failureReason = 'Start button not found';
-        console.log(failureReason);
-      } else {
-        await startBtn.click();
-        console.log('Tapped Start button');
-        await browser.pause(3000);
-        await browser.saveScreenshot(path.join(__dirname, 'screenshot-03-after-start.png'));
-
-        // Wait for model load: success is the WebView appearing (setup screen gone)
-        const startTime = Date.now();
-        let lastProgress = '';
-        let webViewVerified = false;
-        while (Date.now() - startTime < 300000) {
-          await browser.saveScreenshot(path.join(__dirname, 'screenshot-04-checking.png'));
-
-          // Check for error text
-          try {
-            const errorEl = await browser.$('//*[contains(@text, "Model error") or contains(@text, "error")]');
-            if (await errorEl.isExisting()) {
-              const txt = await errorEl.getText();
-              console.log('Error text:', txt);
-              failureReason = txt;
-              break;
-            }
-          } catch (e) {}
-
-          // Check for loading progress text
-          try {
-            const loadingEl = await browser.$('//*[contains(@text, "loading model")]');
-            if (await loadingEl.isExisting()) {
-              const txt = await loadingEl.getText();
-              if (txt !== lastProgress) {
-                console.log('Progress:', txt);
-                lastProgress = txt;
-              }
-            }
-          } catch (e) {}
-
-          // Success: setup screen elements are gone and WebView is present
-          try {
-            const walletInputCheck = await browser.$('//*[contains(@text, "EVM wallet")]');
-            const startBtnCheck = await browser.$('//*[contains(@text, "Start")]');
-            const inputExists = await walletInputCheck.isExisting();
-            const btnExists = await startBtnCheck.isExisting();
-            if (!inputExists && !btnExists) {
-              console.log('Setup screen passed — checking WebView content...');
-              await browser.pause(3000);
-              await browser.saveScreenshot(path.join(__dirname, 'screenshot-05-webview.png'));
-
-              // Verify WebView is showing the wiki/notes UI
-              try {
-                const pageSource = await browser.getPageSource();
-                fs.writeFileSync(path.join(__dirname, 'page-source-webview.xml'), pageSource);
-                
-                // Check for WebView presence
-                const webViewEl = await browser.$('//android.webkit.WebView');
-                if (await webViewEl.isExisting()) {
-                  console.log('WebView element found');
-                  
-                  // Try to switch to WebView context to verify content
-                  try {
-                    const contexts = await browser.getContexts();
-                    console.log('Available contexts:', contexts);
-                    for (const ctx of contexts) {
-                      if (typeof ctx === 'string' && ctx.includes('WEBVIEW')) {
-                        await browser.switchContext(ctx);
-                        console.log('Switched to WebView context:', ctx);
-                        await browser.pause(2000);
-                        
-                        // Check for key UI elements in the WebView
-                        const bodyText = await browser.$('body').getText();
-                        console.log('WebView body text (first 500 chars):', bodyText.substring(0, 500));
-                        
-                        // Check for wiki/notes related elements
-                        const hasWiki = bodyText.toLowerCase().includes('wiki') || bodyText.toLowerCase().includes('chimera');
-                        const hasNotes = bodyText.toLowerCase().includes('notes') || bodyText.toLowerCase().includes('editor');
-                        const hasAI = bodyText.toLowerCase().includes('ai') || bodyText.toLowerCase().includes('writer');
-                        
-                        console.log(`WebView content check: wiki=${hasWiki}, notes=${hasNotes}, ai=${hasAI}`);
-                        
-                        if (hasWiki || hasNotes || hasAI) {
-                          console.log('SUCCESS: WebView is showing wiki/notes UI');
-                          webViewVerified = true;
-                          success = true;
-                        } else {
-                          console.log('WebView present but expected content not found yet');
-                        }
-                        
-                        // Switch back to native context
-                        await browser.switchContext('NATIVE_APP');
-                        break;
-                      }
-                    }
-                  } catch (ctxErr) {
-                    console.log('Could not switch to WebView context:', ctxErr.message);
-                    // WebView element exists even if we can't switch context
-                    console.log('SUCCESS: WebView element is present (context switch failed but WebView exists)');
-                    webViewVerified = true;
-                    success = true;
-                  }
-                } else {
-                  console.log('WebView element not found yet, still waiting...');
-                }
-              } catch (webErr) {
-                console.log('WebView check error:', webErr.message);
-              }
-              
-              if (success) break;
-            }
-          } catch (e) {}
-
-          await browser.pause(5000);
-        }
-
-        if (!success && !failureReason) {
-          failureReason = 'Timed out waiting for model load result';
-        }
-      }
+    if (!success && !failureReason) {
+      failureReason = 'Timed out waiting for WebView';
     }
 
     try {
