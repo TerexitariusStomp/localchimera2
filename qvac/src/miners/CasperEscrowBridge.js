@@ -81,6 +81,7 @@ export class CasperEscrowBridge {
     this.providerKey = null;
     this.providerAccountHash = null;
     this.processedJobs = new Set();
+    this.inProgressJobs = new Set();
     this.relayUrl = config.relayUrl || process.env.CASPER_RELAY_URL || '';
     this.relayToken = config.relayToken || process.env.CASPER_RELAY_TOKEN || '';
     this.useRelay = false;
@@ -251,19 +252,25 @@ export class CasperEscrowBridge {
 
       this.logger.info(`Job ${jobId}: state=${state}, provider=${isZeroProvider ? 'AUTO-ASSIGN' : providerHex.slice(0,16) + '...'}, consumer=${consumerHex.slice(0,16)}..., amount=${amountVal}`);
 
-      // Skip already processed jobs
+      // Skip already processed or in-progress jobs
       if (state >= STATE.PROVIDER_DONE) {
         this.logger.debug(`Job ${jobId} already completed (state=${state})`);
         return;
       }
+      if (this.inProgressJobs.has(jobId)) {
+        this.logger.debug(`Job ${jobId} already being processed, skipping`);
+        return;
+      }
+      this.inProgressJobs.add(jobId);
 
       // Skip zero-provider jobs in PENDING state — the current contract requires
       // provider_ack to be called by the assigned provider, and zero-provider jobs
       // have no assigned provider. Only ASSIGNED zero-provider jobs (auto-assigned
       // by a newer contract version) can be completed directly.
       if (isZeroProvider && state === STATE.PENDING) {
-        this.logger.debug(`Job ${jobId} has zero provider in PENDING state, skipping (no auto-assign in this contract version)`);
+        this.logger.debug(`Job ${jobId} has zero provider in PENDING state, skipping`);
         this.processedJobs.add(jobId);
+        this.inProgressJobs.delete(jobId);
         return;
       }
 
@@ -288,6 +295,7 @@ export class CasperEscrowBridge {
         this.logger.info(`Job ${jobId} completed, awaiting consumer confirmation...`);
 
         this.processedJobs.add(jobId);
+        this.inProgressJobs.delete(jobId);
         this.monitorJobSettlement(jobId);
         return;
       }
@@ -295,6 +303,7 @@ export class CasperEscrowBridge {
       // Non-auto-assigned jobs: only handle jobs assigned to us
       if (!isZeroProvider && providerHex !== this.providerAccountHash) {
         this.logger.debug(`Job ${jobId} not assigned to us`);
+        this.inProgressJobs.delete(jobId);
         return;
       }
 
@@ -313,12 +322,14 @@ export class CasperEscrowBridge {
         this.logger.info(`Job ${jobId} completed, awaiting consumer confirmation...`);
 
         this.processedJobs.add(jobId);
+        this.inProgressJobs.delete(jobId);
         this.monitorJobSettlement(jobId);
         return;
       }
 
       if (state !== STATE.PENDING) {
         this.logger.debug(`Job ${jobId} not pending (state=${state})`);
+        this.inProgressJobs.delete(jobId);
         return;
       }
 
@@ -347,11 +358,13 @@ export class CasperEscrowBridge {
 
       // Mark as processed so we don't re-process
       this.processedJobs.add(jobId);
+      this.inProgressJobs.delete(jobId);
 
       // Start monitoring for settlement
       this.monitorJobSettlement(jobId);
 
     } catch (e) {
+      this.inProgressJobs.delete(jobId);
       this.logger.error(`Failed to handle job ${jobId}: ${e.message}`);
     }
   }

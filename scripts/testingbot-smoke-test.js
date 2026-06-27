@@ -61,24 +61,22 @@ async function runSingleAttempt() {
 
     // Capture early logcat to see app startup/crash
     try {
-      // Get full logcat — we'll filter in JS
       const earlyLogcat = await browser.execute('mobile: shell', { command: 'logcat', args: ['-d', '-t', '5000'] });
+      fs.writeFileSync(path.join(__dirname, 'logcat-early.txt'), earlyLogcat || '(empty)');
+      console.log('Saved early logcat to logcat-early.txt');
+      // Print filtered lines to console
       const lines = (earlyLogcat || '').split('\n');
-      // Filter for app-related logs
-      const appLines = lines.filter(l => l.includes('chimera') || l.includes('ReactNative') || l.includes('com.facebook') || l.includes('SoLoader') || l.includes('Hermes') || l.includes('FATAL') || l.includes('qvac') || l.includes('AndroidRuntime'));
-      const appLogText = appLines.join('\n') || '(no app-related logs found)';
-      console.log('\n=== APP-RELATED LOGCAT ===');
-      console.log(appLogText);
+      const appLines = lines.filter(l => 
+        l.includes('chimera') || l.includes('ReactNative') || l.includes('com.facebook') || 
+        l.includes('SoLoader') || l.includes('Hermes') || l.includes('FATAL') || 
+        l.includes('qvac') || l.includes('AndroidRuntime') || l.includes('Error'));
+      console.log('\n=== APP-RELATED LOGCAT (' + appLines.length + ' lines) ===');
+      appLines.forEach(l => console.log(l));
       console.log('=== END APP LOGCAT ===\n');
-      fs.writeFileSync(path.join(__dirname, 'logcat-app.txt'), appLogText);
-
-      // Also get error-level logs
-      const errorLogcat = await browser.execute('mobile: shell', { command: 'logcat', args: ['-d', '*:E', '-t', '1000'] });
-      console.log('\n=== ERROR LOGCAT ===');
-      console.log(errorLogcat || '(empty)');
-      console.log('=== END ERROR LOGCAT ===\n');
-      fs.writeFileSync(path.join(__dirname, 'logcat-errors.txt'), errorLogcat || '(empty)');
-    } catch (e) { console.log('Could not capture early logcat:', e.message); }
+    } catch (e) { 
+      console.log('Could not capture early logcat:', e.message);
+      fs.writeFileSync(path.join(__dirname, 'logcat-early.txt'), 'Error: ' + e.message);
+    }
 
     // App now shows WebView immediately — no native setup screen
     // Wait for WebView to appear and verify wiki content
