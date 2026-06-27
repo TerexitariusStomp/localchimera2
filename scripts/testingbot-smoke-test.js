@@ -62,8 +62,6 @@ async function runSingleAttempt() {
     // App now shows WebView immediately — no native setup screen
     // Wait for WebView to appear and verify wiki content
     const startTime = Date.now();
-    let success = false;
-    let failureReason = '';
 
     while (Date.now() - startTime < 120000) {
       await browser.pause(5000);
