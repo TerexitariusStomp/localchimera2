@@ -5,11 +5,11 @@ import pkg from 'casper-js-sdk';
 const sdk = pkg;
 const { PrivateKey, PublicKey, KeyAlgorithm, CLValue, Args, ContractHash, StoredContractByHash, ExecutableDeployItem, DeployHeader, Deploy, RpcClient, HttpHandler } = sdk;
 
-const DEFAULT_RPC_URL = 'https://rpc.mainnet.casper.network/rpc';
+const DEFAULT_RPC_URL = 'https://node.testnet.casper.network/rpc';
 
 const TESTNET_CONTRACTS = {
-  escrowVault: '161f9eb54e9bcdc7345084285243ba718abc4ac5601132e8d069c0df6157fb74',
-  computeRegistry: 'f8c969bfa7553a23deab0f77fb43210d4810156a977e0cc2695b23182e5b41d0',
+  escrowVault: 'd19feffe13c397aaeee6278c2789b886ea978e681ac36eafdfecf8caaa0de0fc',
+  computeRegistry: 'bed17bda7a3597725a5d19531faae67bd2f68f08be17d02ea36a6830be2fc152',
   orderBook: 'cecfc698508213f63e7e7fe6f0729b090af23c87c7e444db7fc90be73736e399',
   reputation: 'fd0bf02161433c13c3070b7d0ea383c976bcbc799413638b4fedc703d4efa1db',
 };
@@ -247,11 +247,43 @@ export class CasperEscrowBridge {
       const providerHex = toHex(providerVal);
       const state = Number(stateVal);
       const consumerHex = toHex(consumerVal);
+      const isZeroProvider = providerHex === '0'.repeat(64);
 
-      this.logger.info(`Job ${jobId}: state=${state}, provider=${providerHex.slice(0,16)}..., consumer=${consumerHex.slice(0,16)}..., amount=${amountVal}`);
+      this.logger.info(`Job ${jobId}: state=${state}, provider=${isZeroProvider ? 'AUTO-ASSIGN' : providerHex.slice(0,16) + '...'}, consumer=${consumerHex.slice(0,16)}..., amount=${amountVal}`);
 
-      // Only handle jobs assigned to us in pending state
-      if (providerHex !== this.providerAccountHash) {
+      // Skip already processed jobs
+      if (state >= STATE.PROVIDER_DONE) {
+        this.logger.debug(`Job ${jobId} already completed (state=${state})`);
+        return;
+      }
+
+      // Auto-assigned jobs: provider is zero, state should be ASSIGNED
+      // Skip provider_ack and go straight to inference + provider_complete
+      if (isZeroProvider && state === STATE.ASSIGNED) {
+        this.logger.info(`Auto-assigned job ${jobId}, completing directly...`);
+
+        // Get the request hash (order_id/prompt)
+        const requestHash = await getDictionaryItem(this.rpcUrl, this.contracts.escrowVault, 'jobs_dict', `${jobId}:request_hash`);
+        this.logger.info(`Job ${jobId} request: ${requestHash}`);
+
+        // Run inference
+        const inferenceResult = await this.runInference(requestHash || jobId);
+
+        // Compute response hash
+        const responseHash = stringToHash(JSON.stringify(inferenceResult));
+        this.logger.info(`Job ${jobId} response hash: ${responseHash}`);
+
+        // Complete job
+        await this.providerComplete(jobId, responseHash);
+        this.logger.info(`Job ${jobId} completed, awaiting consumer confirmation...`);
+
+        this.processedJobs.add(jobId);
+        this.monitorJobSettlement(jobId);
+        return;
+      }
+
+      // Non-auto-assigned jobs: only handle jobs assigned to us in pending state
+      if (!isZeroProvider && providerHex !== this.providerAccountHash) {
         this.logger.debug(`Job ${jobId} not assigned to us`);
         return;
       }
@@ -272,7 +304,7 @@ export class CasperEscrowBridge {
       const inferenceResult = await this.runInference(requestHash || jobId);
 
       // Compute response hash
-      const responseHash = await stringToHash(JSON.stringify(inferenceResult));
+      const responseHash = stringToHash(JSON.stringify(inferenceResult));
       this.logger.info(`Job ${jobId} response hash: ${responseHash}`);
 
       // Complete job

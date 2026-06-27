@@ -29,7 +29,7 @@ jobs:
       - name: Install frontend deps
         run: |
           cd qvac/frontend
-          npm install
+          npm install --legacy-peer-deps
       - name: Build frontend
         run: |
           cd qvac/frontend

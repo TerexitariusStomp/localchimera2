@@ -460,9 +460,18 @@ pub extern "C" fn create_job() {
     write_dict(jobs_dict, &format!("{}:valid_until", job_id), valid_until);
     write_dict(jobs_dict, &format!("{}:amount", job_id), amount.clone());
     write_dict(jobs_dict, &format!("{}:provider_fee_bps", job_id), provider_fee_bps);
-    write_dict(jobs_dict, &format!("{}:state", job_id), STATE_PENDING);
     write_dict(jobs_dict, &format!("{}:created_at", job_id), now);
 
+    // Auto-assign: if provider is all zeros, skip pending and go straight to ASSIGNED
+    let is_auto_assign = provider == AccountHash::default();
+    if is_auto_assign {
+        write_dict(jobs_dict, &format!("{}:state", job_id), STATE_ASSIGNED);
+        write_dict(jobs_dict, &format!("{}:acked_at", job_id), now);
+    } else {
+        write_dict(jobs_dict, &format!("{}:state", job_id), STATE_PENDING);
+    }
+
+    // Add to pending list (bridge polls this for both pending and auto-assigned jobs)
     let pending_dict = get_dict(PENDING_JOBS);
     let mut pending: Vec<String> = read_dict(pending_dict, "list").unwrap_or_default();
     if !pending.contains(&job_id) {
@@ -519,7 +528,11 @@ pub extern "C" fn provider_complete() {
 
     let provider: AccountHash = read_dict(jobs_dict, &format!("{}:provider", job_id))
         .unwrap_or_revert_with(ApiError::User(2));
-    if provider != caller {
+
+    // Auto-assign: if provider is zero (default), any provider can complete the job
+    // and becomes the assigned provider for payment purposes
+    let is_auto_assign = provider == AccountHash::default();
+    if !is_auto_assign && provider != caller {
         runtime::revert(ApiError::User(3));
     }
 
@@ -527,6 +540,20 @@ pub extern "C" fn provider_complete() {
         .unwrap_or(STATE_REFUNDED);
     if state != STATE_ASSIGNED && state != STATE_IN_PROGRESS {
         runtime::revert(ApiError::User(4));
+    }
+
+    // For auto-assigned jobs, set the provider to the caller so payment goes to them
+    if is_auto_assign {
+        write_dict(jobs_dict, &format!("{}:provider", job_id), caller);
+
+        // Add to provider's job list
+        let provider_jobs_dict = get_dict(PROVIDER_JOBS);
+        let mut provider_list: Vec<String> = read_dict(provider_jobs_dict, &caller.to_string())
+            .unwrap_or_default();
+        if !provider_list.contains(&job_id) {
+            provider_list.push(job_id.clone());
+            write_dict(provider_jobs_dict, &caller.to_string(), provider_list);
+        }
     }
 
     let now: u64 = Into::<u64>::into(runtime::get_blocktime());

@@ -73,16 +73,18 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
     try {
       // Inference jobs - query by consumer's account hash
       const imKeys = await getContractNamedKeys(CONTRACTS.inferenceMarket);
-      const getNK = (name: string) => imKeys.find((nk: any) => nk.name === name)?.key || '';
-      const jobsUref = getNK('jobs_dict');
+      const jobsUref = imKeys['jobs_dict'] || '';
       if (jobsUref && accountHash) {
         const loaded: any[] = [];
         const ahStr = accountHash.replace('account-hash-', '');
-        const pendingUref = getNK('pending_jobs');
+        const pendingUref = imKeys['pending_jobs'] || '';
         let jobIds: string[] = [];
         if (pendingUref) {
           const pendingList = await queryDictionary(pendingUref, 'list');
+          console.log('[tasker] pending_jobs list:', pendingList);
           if (Array.isArray(pendingList)) jobIds = pendingList as string[];
+        } else {
+          console.log('[tasker] no pending_jobs named key found');
         }
         for (const jobId of jobIds) {
           if (!jobId.includes(ahStr)) continue;
@@ -96,13 +98,15 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
             responseHash: responseHash || '',
           });
         }
+        console.log('[tasker] loaded jobs:', loaded.length, loaded);
         setJobs(loaded);
+      } else {
+        console.log('[tasker] missing jobsUref or accountHash', { jobsUref: !!jobsUref, accountHash: !!accountHash });
       }
 
       // Storage allocations + files
       const smKeys = await getContractNamedKeys(CONTRACTS.storageMarket);
-      const smGet = (name: string) => smKeys.find((nk: any) => nk.name === name)?.key || '';
-      const allocsUref = smGet('sm_allocations');
+      const allocsUref = smKeys['sm_allocations'] || '';
       if (allocsUref) {
         const loaded: any[] = [];
         for (let i = 0; i < 20; i++) {
@@ -116,7 +120,7 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
         }
         setAllocations(loaded);
       }
-      const filesUref = smGet('sm_files');
+      const filesUref = smKeys['sm_files'] || '';
       if (filesUref) {
         const loaded: any[] = [];
         for (let i = 0; i < 20; i++) {
@@ -130,7 +134,7 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
 
       // Compute agreements
       const cmKeys = await getContractNamedKeys(CONTRACTS.computeMarket);
-      const agreementsUref = cmKeys.find((nk: any) => nk.name === 'cm_agreements')?.key || '';
+      const agreementsUref = cmKeys['cm_agreements'] || '';
       if (agreementsUref) {
         const loaded: any[] = [];
         for (let i = 0; i < 20; i++) {
@@ -144,7 +148,7 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
 
       // Bandwidth sessions
       const bmKeys = await getContractNamedKeys(CONTRACTS.bandwidthMarket);
-      const sessionsUref = bmKeys.find((nk: any) => nk.name === 'bm_sessions')?.key || '';
+      const sessionsUref = bmKeys['bm_sessions'] || '';
       if (sessionsUref) {
         const loaded: any[] = [];
         for (let i = 0; i < 20; i++) {
@@ -161,10 +165,10 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
   }, [accountHash]);
 
   useEffect(() => {
-    loadData();
-    const id = setInterval(loadData, 15000);
-    return () => clearInterval(id);
-  }, [loadData]);
+    if (accountHash) loadData();
+    const id = accountHash ? setInterval(loadData, 15000) : undefined;
+    return () => { if (id) clearInterval(id); };
+  }, [loadData, accountHash]);
 
   return (
     <div className="space-y-6">

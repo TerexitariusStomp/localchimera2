@@ -75,7 +75,7 @@ jobs:
       - name: Build QVAC frontend
         run: |
           cd qvac/frontend
-          npm install
+          npm install --legacy-peer-deps
           npm run build
       - name: Install desktop deps
         run: |
@@ -126,7 +126,7 @@ jobs:
         run: |
           cd qvac/frontend
           for ($i = 1; $i -le 3; $i++) {
-            npm install
+            npm install --legacy-peer-deps
             if ($LASTEXITCODE -eq 0) { break }
             Write-Host "npm install attempt $i failed, retrying in 10s..."
             Start-Sleep -Seconds 10
@@ -183,7 +183,7 @@ jobs:
       - name: Build QVAC frontend
         run: |
           cd qvac/frontend
-          npm install
+          npm install --legacy-peer-deps
           npm run build
       - name: Install desktop deps
         run: |
@@ -219,7 +219,7 @@ jobs:
       - name: Install frontend deps
         run: |
           cd qvac/frontend
-          npm install
+          npm install --legacy-peer-deps
       - name: Build frontend
         run: |
           cd qvac/frontend
@@ -296,7 +296,7 @@ jobs:
       - name: Install frontend deps
         run: |
           cd qvac/frontend
-          npm install
+          npm install --legacy-peer-deps
       - name: Build frontend
         run: |
           cd qvac/frontend
