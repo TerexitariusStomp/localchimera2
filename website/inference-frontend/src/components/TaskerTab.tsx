@@ -91,11 +91,13 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
           const state = await queryDictionary(jobsUref, `${jobId}:state`);
           if (state === null || state === undefined) continue;
           const responseHash = await queryDictionary(jobsUref, `${jobId}:response_hash`);
+          const requestHash = await queryDictionary(jobsUref, `${jobId}:request_hash`);
           loaded.push({
             id: jobId, state: Number(state),
             status: JOB_STATUS[String(state)] || String(state),
             amount: String(await queryDictionary(jobsUref, `${jobId}:amount`) || '0'),
             responseHash: responseHash || '',
+            requestHash: requestHash || '',
           });
         }
         console.log('[tasker] loaded jobs:', loaded.length, loaded);
@@ -245,10 +247,18 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
               {completedJobs.length > 0 && (
                 <div className="space-y-2 mt-3 border-t border-white/10 pt-3">
                   <div className="text-xs font-semibold text-[#00e5ff] flex items-center gap-1"><CheckCircle className="h-3 w-3" />Inference Results</div>
-                  {completedJobs.map((job) => (
-                    <div key={job.id} className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-1 overflow-hidden">
-                      <div className="text-[10px] text-[#7a7468] font-mono truncate">{job.id}</div>
-                      <div className="text-xs text-[#e8e2d8] whitespace-pre-wrap break-words overflow-hidden">{job.responseHash}</div>
+                  {completedJobs.slice(-5).reverse().map((job) => (
+                    <div key={job.id} className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-2">
+                      {job.requestHash && (
+                        <div className="space-y-1">
+                          <div className="text-[10px] text-[#7a7468] font-semibold">Prompt</div>
+                          <div className="text-xs text-[#e8e2d8] whitespace-pre-wrap break-words">{job.requestHash}</div>
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        <div className="text-[10px] text-[#00e5ff] font-semibold">Response</div>
+                        <div className="text-xs text-[#e8e2d8] whitespace-pre-wrap break-words">{job.responseHash}</div>
+                      </div>
                       <div className="text-[10px] text-[#7a7468]">Status: {job.status}</div>
                     </div>
                   ))}

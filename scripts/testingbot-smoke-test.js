@@ -54,10 +54,19 @@ async function runSingleAttempt() {
   let success = false;
   let failureReason = '';
 
+  // Create placeholder files so artifacts always exist
   try {
+    fs.writeFileSync(path.join(__dirname, 'logcat-early.txt'), '(not captured yet)');
+    fs.writeFileSync(path.join(__dirname, 'logcat.txt'), '(not captured yet)');
+    fs.writeFileSync(path.join(__dirname, 'page-source.xml'), '(not captured yet)');
+  } catch (e) {}
+
+  try {
+    console.log('Waiting 8 seconds for app to launch...');
     await browser.pause(8000);
+    console.log('Taking screenshot...');
     await browser.saveScreenshot(path.join(__dirname, 'screenshot-01-launch.png'));
-    console.log('Screenshot 1: app launch');
+    console.log('Screenshot 1 saved');
 
     // Capture page source and logcat for debugging
     try {
