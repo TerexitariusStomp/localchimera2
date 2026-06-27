@@ -147,7 +147,21 @@ async function runSingleAttempt() {
       const logcat = await browser.execute('mobile: shell', { command: 'logcat', args: ['-d', '-t', '500'] });
       fs.writeFileSync(path.join(__dirname, 'logcat.txt'), logcat || '(empty)');
       console.log('Logcat saved to logcat.txt');
+      // Print logcat to CI console for debugging
+      if (logcat) {
+        console.log('\n=== LOGCAT (last 500 lines) ===');
+        console.log(logcat);
+        console.log('=== END LOGCAT ===\n');
+      }
     } catch (e) { console.log('Could not capture logcat:', e.message); }
+
+    // Capture page source for debugging
+    try {
+      const pageSource = await browser.getPageSource();
+      fs.writeFileSync(path.join(__dirname, 'page-source.xml'), pageSource);
+      console.log('Page source saved to page-source.xml');
+      console.log('Page source (first 2000 chars):', pageSource.substring(0, 2000));
+    } catch (e) { console.log('Could not capture page source:', e.message); }
   } catch (e) {
     console.error('Test error:', e);
     failureReason = e.message;

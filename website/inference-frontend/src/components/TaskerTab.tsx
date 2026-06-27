@@ -222,7 +222,7 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
               if (!canSign || !promptText.trim()) return;
               const consumerHash = sdk.PublicKey.fromHex(publicKeyHex).accountHash();
               const zeroHash = new Uint8Array(32);
-              const orderId = `order-${Date.now()}`;
+              const orderId = promptText.trim();
               const result = await callEntryPointWithWallet(provider, publicKeyHex, CONTRACTS.inferenceMarket, 'create_job', {
                 consumer: sdk.CLValue.newCLByteArray(consumerHash.toBytes()),
                 provider: sdk.CLValue.newCLByteArray(zeroHash),
@@ -246,9 +246,9 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
                 <div className="space-y-2 mt-3 border-t border-white/10 pt-3">
                   <div className="text-xs font-semibold text-[#00e5ff] flex items-center gap-1"><CheckCircle className="h-3 w-3" />Inference Results</div>
                   {completedJobs.map((job) => (
-                    <div key={job.id} className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-1">
-                      <div className="text-[10px] text-[#7a7468] font-mono">{job.id}</div>
-                      <div className="text-xs text-[#e8e2d8] whitespace-pre-wrap break-words">{job.responseHash}</div>
+                    <div key={job.id} className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-1 overflow-hidden">
+                      <div className="text-[10px] text-[#7a7468] font-mono truncate">{job.id}</div>
+                      <div className="text-xs text-[#e8e2d8] whitespace-pre-wrap break-words overflow-hidden">{job.responseHash}</div>
                       <div className="text-[10px] text-[#7a7468]">Status: {job.status}</div>
                     </div>
                   ))}
@@ -258,9 +258,9 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
                 <div className="space-y-1 mt-3 border-t border-white/10 pt-3">
                   <div className="text-xs font-semibold text-[#7a7468]">Pending Jobs</div>
                   {jobs.filter(j => j.state < 3).map((job) => (
-                    <div key={job.id} className="flex items-center justify-between text-xs bg-white/[0.02] rounded p-2">
-                      <span className="font-mono text-[10px] text-[#7a7468]">{job.id}</span>
-                      <span className="text-[#00e5ff]">{job.status}</span>
+                    <div key={job.id} className="flex items-center justify-between text-xs bg-white/[0.02] rounded p-2 overflow-hidden">
+                      <span className="font-mono text-[10px] text-[#7a7468] truncate flex-1 mr-2">{job.id}</span>
+                      <span className="text-[#00e5ff] shrink-0">{job.status}</span>
                     </div>
                   ))}
                 </div>

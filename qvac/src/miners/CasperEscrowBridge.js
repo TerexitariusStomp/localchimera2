@@ -8,8 +8,8 @@ const { PrivateKey, PublicKey, KeyAlgorithm, CLValue, Args, ContractHash, Stored
 const DEFAULT_RPC_URL = 'https://node.testnet.casper.network/rpc';
 
 const TESTNET_CONTRACTS = {
-  escrowVault: '9d26a1353da754b478bd144b82b4642b562483da7565cd9f4e3e5dbb9e6b8afa',
-  computeRegistry: 'bed17bda7a3597725a5d19531faae67bd2f68f08be17d02ea36a6830be2fc152',
+  escrowVault: 'b8e8b7e087ec4ad7afcdc30460d39d5b6a8249875cd1e2da0716b89d710fda40',
+  computeRegistry: 'bb3044c3bbefc669c4c7c41a10cb645f5e160bfab62883b34e08d0a99b981d07',
   orderBook: 'cecfc698508213f63e7e7fe6f0729b090af23c87c7e444db7fc90be73736e399',
   reputation: 'fd0bf02161433c13c3070b7d0ea383c976bcbc799413638b4fedc703d4efa1db',
 };
@@ -279,12 +279,12 @@ export class CasperEscrowBridge {
         // Run inference
         const inferenceResult = await this.runInference(requestHash || jobId);
 
-        // Compute response hash
-        const responseHash = stringToHash(JSON.stringify(inferenceResult));
-        this.logger.info(`Job ${jobId} response hash: ${responseHash}`);
+        // Store the actual inference result text (not just a hash)
+        const responseText = inferenceResult.output || inferenceResult.text || JSON.stringify(inferenceResult);
+        this.logger.info(`Job ${jobId} response: ${responseText.slice(0, 100)}...`);
 
-        // Complete job
-        await this.providerComplete(jobId, responseHash);
+        // Complete job with actual result
+        await this.providerComplete(jobId, responseText);
         this.logger.info(`Job ${jobId} completed, awaiting consumer confirmation...`);
 
         this.processedJobs.add(jobId);
@@ -306,10 +306,10 @@ export class CasperEscrowBridge {
         this.logger.info(`Job ${jobId} request: ${requestHash}`);
 
         const inferenceResult = await this.runInference(requestHash || jobId);
-        const responseHash = stringToHash(JSON.stringify(inferenceResult));
-        this.logger.info(`Job ${jobId} response hash: ${responseHash}`);
+        const responseText = inferenceResult.output || inferenceResult.text || JSON.stringify(inferenceResult);
+        this.logger.info(`Job ${jobId} response: ${responseText.slice(0, 100)}...`);
 
-        await this.providerComplete(jobId, responseHash);
+        await this.providerComplete(jobId, responseText);
         this.logger.info(`Job ${jobId} completed, awaiting consumer confirmation...`);
 
         this.processedJobs.add(jobId);
@@ -337,12 +337,12 @@ export class CasperEscrowBridge {
       // Run inference
       const inferenceResult = await this.runInference(requestHash || jobId);
 
-      // Compute response hash
-      const responseHash = stringToHash(JSON.stringify(inferenceResult));
-      this.logger.info(`Job ${jobId} response hash: ${responseHash}`);
+      // Store the actual inference result text
+      const responseText = inferenceResult.output || inferenceResult.text || JSON.stringify(inferenceResult);
+      this.logger.info(`Job ${jobId} response: ${responseText.slice(0, 100)}...`);
 
-      // Complete job
-      await this.providerComplete(jobId, responseHash);
+      // Complete job with actual result
+      await this.providerComplete(jobId, responseText);
       this.logger.info(`Job ${jobId} completed, awaiting consumer confirmation...`);
 
       // Mark as processed so we don't re-process
@@ -473,7 +473,7 @@ export class CasperEscrowBridge {
     this.logger.info(`claim_payment sent for ${jobId}`);
   }
 
-  async sendDeploy(contractHash, entryPoint, argsMap, payment = '1000000000') {
+  async sendDeploy(contractHash, entryPoint, argsMap, payment = '5000000000') {
     // Drain protection: only allow specific entry points on the escrow vault contract
     const ALLOWED_ENTRY_POINTS = new Set(['provider_ack', 'provider_complete', 'claim_payment']);
     const ALLOWED_CONTRACTS = new Set(Object.values(this.contracts));
@@ -509,7 +509,7 @@ export class CasperEscrowBridge {
     return res.result?.deploy_hash;
   }
 
-  async sendViaRelay(contractHash, entryPoint, argsMap, payment = '10000000000') {
+  async sendViaRelay(contractHash, entryPoint, argsMap, payment = '5000000000') {
     const payload = {
       contractHash,
       entryPoint,
