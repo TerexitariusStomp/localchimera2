@@ -14,7 +14,7 @@ Usage:
 Commands:
   inference    --prompt "What is 2+2?" [--key /path/to/key.pem] [--amount 10]
   storage      --action allocate --space "myfiles" --size 100 [--key ...] [--amount 10]
-  storage      --action store --space "myfiles" --hash <sha256> --size 1 [--key ...] [--amount 5]
+  storage      --action store --space "myfiles" --hash <sha256> --size 1 [--key ...] [--amount 5] [--mode public|personal|encrypted] [--anon] [--tags "a,b"] [--desc "..."] [--encrypted]
   storage      --action retrieve --space "myfiles" --hash <sha256> [--key ...] [--amount 1]
   compute      --code "echo hello" [--runtime shell|python3|node|docker] [--cpu 2] [--ram 512] [--gpu] [--timeout 30] [--key ...] [--amount 10]
   bandwidth    --duration 1 --data 1 [--key ...] [--amount 5]
@@ -26,6 +26,7 @@ Note: --key is required (PEM file path or inline PEM). The account must have CSP
 Examples:
   node cli/market-cli.js inference --prompt "Hello world" --key /tmp/latest_key.pem
   node cli/market-cli.js compute --code "echo hello" --runtime shell --key /tmp/latest_key.pem
+  node cli/market-cli.js storage --action store --space public --hash abc123 --size 1 --mode public --anon --tags "docs" --key /tmp/latest_key.pem
   node cli/market-cli.js status --job "job:abc123:0"
 `);
 }
@@ -62,7 +63,18 @@ async function main() {
         if (flags.action === 'allocate') {
           result = await marketApi.createStorageAllocation({ privateKeyPem: key, spaceName: flags.space, sizeMb: flags.size || '100', amountCSPR: flags.amount || '10' });
         } else if (flags.action === 'store') {
-          result = await marketApi.createStorageFile({ privateKeyPem: key, spaceName: flags.space, fileHash: flags.hash, fileSizeMb: flags.size || '1', amountCSPR: flags.amount || '5' });
+          result = await marketApi.createStorageFile({
+            privateKeyPem: key,
+            spaceName: flags.space,
+            fileHash: flags.hash,
+            fileSizeMb: flags.size || '1',
+            amountCSPR: flags.amount || '5',
+            mode: flags.mode || 'file',
+            anonymous: flags.anon === 'true' || flags.anon === true,
+            encrypted: flags.encrypted === 'true' || flags.encrypted === true,
+            tags: flags.tags || '',
+            description: flags.desc || '',
+          });
         } else if (flags.action === 'retrieve') {
           result = await marketApi.retrieveFile({ privateKeyPem: key, spaceName: flags.space, fileHash: flags.hash, amountCSPR: flags.amount || '1' });
         } else {

@@ -1,6 +1,6 @@
 import { Logger } from '../core/Logger.js';
 import { createServer } from 'http';
-import { promises as fs } from 'fs';
+import { promises as fs, writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
@@ -2540,6 +2540,11 @@ Copy the topic hex and invite others to join.
         fileHash: body.file_hash,
         fileSizeMb: body.file_size_mb || '1',
         amountCSPR: body.amount_cspr || '5',
+        mode: body.mode || 'file',
+        anonymous: !!body.anonymous,
+        encrypted: !!body.encrypted,
+        tags: body.tags || '',
+        description: body.description || '',
       });
       ok(res, result);
     } catch (e) { serverError(res, e.message); }
@@ -2639,7 +2644,7 @@ Copy the topic hex and invite others to join.
         storage_store: {
           method: 'POST',
           path: '/api/market/storage/store',
-          body: { private_key_pem: 'string (required, funded)', space_name: 'string', file_hash: 'string (sha256)', file_size_mb: 'string', amount_cspr: 'string (default: 5)' },
+          body: { private_key_pem: 'string (required, funded)', space_name: 'string', file_hash: 'string (sha256)', file_size_mb: 'string', amount_cspr: 'string (default: 5)', mode: 'string (public|personal|encrypted, default: file)', anonymous: 'boolean (public only)', encrypted: 'boolean', tags: 'string', description: 'string' },
           returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'storage', sub_type: 'file' },
         },
         storage_retrieve: {
@@ -2678,5 +2683,74 @@ Copy the topic hex and invite others to join.
         job_status: "curl http://localhost:3002/api/market/job/job:abc123:0",
       },
     });
+  }
+
+  /* ─── Chimera Storage Hub (BTFS-inspired) ─── */
+
+  async handleStorageUpload(req, res) {
+    const contentType = req.headers['content-type'] || '';
+    if (!contentType.includes('multipart/form-data')) { badRequest(res, 'Expected multipart/form-data'); return; }
+
+    const boundary = extractBoundary(req);
+    if (!boundary) { badRequest(res, 'Missing boundary'); return; }
+
+    try {
+      const data = await readBody(req);
+      const parts = parseMultipart(data, boundary);
+      const filePart = parts.find(p => p.name === 'file' && p.filename);
+      if (!filePart) { badRequest(res, 'Missing file field'); return; }
+
+      const getField = (name) => parts.find(p => p.name === name && !p.filename)?.value || '';
+      const spaceName = getField('space_name').trim();
+      const fileHash = getField('file_hash').trim();
+      const mode = getField('mode') || 'public';
+      const anonymous = getField('anonymous') === 'true';
+      const encrypted = getField('encrypted') === 'true';
+      const tags = getField('tags');
+      const description = getField('description');
+
+      if (!spaceName || !fileHash) { badRequest(res, 'Missing space_name or file_hash'); return; }
+
+      const storageDir = path.join('/tmp/chimera-storage', spaceName);
+      mkdirSync(storageDir, { recursive: true });
+      const filePath = path.join(storageDir, fileHash);
+      writeFileSync(filePath, filePart.data);
+
+      const meta = { fileHash, spaceName, mode, anonymous, encrypted, tags, description, originalName: filePart.filename, uploadedAt: new Date().toISOString() };
+      writeFileSync(`${filePath}.meta.json`, JSON.stringify(meta, null, 2));
+
+      this.logger.info(`[storage] Uploaded ${filePart.filename} to ${filePath} (${filePart.data.length} bytes)`);
+      ok(res, { success: true, fileHash, spaceName, size: filePart.data.length });
+    } catch (e) {
+      this.logger.error(`[storage] Upload failed: ${e.message}`);
+      serverError(res, e.message);
+    }
+  }
+
+  async handleStorageDownload(req, res) {
+    const { spaceName, fileHash } = extractRouteParams(req.url);
+    if (!spaceName || !fileHash) { badRequest(res, 'Missing spaceName or fileHash'); return; }
+
+    const filePath = path.join('/tmp/chimera-storage', spaceName, fileHash);
+    if (!existsSync(filePath)) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'File not found' })); return; }
+
+    try {
+      let fileName = fileHash;
+      const metaPath = `${filePath}.meta.json`;
+      if (existsSync(metaPath)) {
+        const meta = JSON.parse(readFileSync(metaPath, 'utf8'));
+        fileName = meta.originalName || fileName;
+      }
+      const data = readFileSync(filePath);
+      res.writeHead(200, {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': data.length,
+      });
+      res.end(data);
+    } catch (e) {
+      this.logger.error(`[storage] Download failed: ${e.message}`);
+      serverError(res, e.message);
+    }
   }
 }

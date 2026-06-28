@@ -250,6 +250,10 @@ export const ROUTES = [
   ['GET',  '/api/market/job/:jobId',        'handleMarketJobStatus'],
   ['GET',  '/api/market/job/:jobId/result', 'handleMarketJobResult'],
   ['GET',  '/api/market/docs',              'handleMarketDocs'],
+
+  // Chimera Storage Hub (BTFS-inspired)
+  ['POST', '/api/storage/upload',          'handleStorageUpload'],
+  ['GET',  '/api/storage/download/:spaceName/:fileHash', 'handleStorageDownload'],
 ];
 
 /**

@@ -396,55 +396,79 @@ export class CasperEscrowBridge {
   }
 
   async _handleStorageJob(orderId) {
-    // Parse: STORAGE:ALLOC:spaceName:sizeMb  |  STORAGE:FILE:spaceName:fileHash:sizeMb  |  STORAGE:RETRIEVE:spaceName:fileHash
+    // New format: STORAGE:<MODE>:<query-string>
+    // Legacy formats: STORAGE:ALLOC:spaceName:sizeMb | STORAGE:FILE:spaceName:fileHash:sizeMb | STORAGE:RETRIEVE:spaceName:fileHash
     const parts = orderId.split(':');
     const subType = parts[1] || 'ALLOC';
-    const spaceName = parts[2] || 'unknown';
 
-    if (subType === 'FILE') {
-      const fileHash = parts[3] || '';
-      const sizeMb = parts[4] || '0';
-      this.logger.info(`Storage FILE job: space=${spaceName}, hash=${fileHash.slice(0, 16)}, size=${sizeMb}`);
+    // Parse new query-string format if present
+    let meta = { spaceName: parts[2] || 'unknown', fileHash: '', sizeMb: '0', mode: subType, anonymous: false, encrypted: false, tags: '', description: '' };
+    if (parts.length >= 3 && parts[2].includes('=')) {
+      const query = parts.slice(2).join(':'); // rejoin because base64 desc may contain colons? No, base64 doesn't. But keep safe.
+      try {
+        const params = new URLSearchParams(query);
+        meta.spaceName = params.get('space') || meta.spaceName;
+        meta.fileHash = params.get('hash') || '';
+        meta.sizeMb = params.get('size') || '0';
+        meta.anonymous = params.get('anon') === '1';
+        meta.encrypted = params.get('enc') === '1';
+        meta.tags = params.get('tags') || '';
+        const descB64 = params.get('desc') || '';
+        if (descB64) meta.description = Buffer.from(descB64, 'base64').toString('utf8');
+      } catch (e) {
+        this.logger.warn(`Storage parse failed for ${orderId}: ${e.message}`);
+      }
+    }
 
-      const proof = this.computeHash(`${spaceName}:${fileHash}:${this.providerAccountHash}:${Date.now()}`);
-      const storageDir = `/tmp/chimera-storage/${spaceName}`;
-      const storagePath = `${storageDir}/${fileHash.slice(0, 16)}`;
+    const { spaceName, fileHash, sizeMb, mode, anonymous, encrypted } = meta;
+    const storageDir = `/tmp/chimera-storage/${spaceName}`;
+    const storagePath = `${storageDir}/${fileHash}`;
+
+    if (['FILE', 'PUBLIC', 'PERSONAL', 'ENCRYPTED'].includes(mode)) {
+      this.logger.info(`Storage ${mode} job: space=${spaceName}, hash=${fileHash.slice(0, 16)}, size=${sizeMb}, anon=${anonymous}, enc=${encrypted}`);
       try {
         const fs = await import('fs');
         fs.mkdirSync(storageDir, { recursive: true });
-        fs.writeFileSync(storagePath, `hash:${fileHash}\nsize:${sizeMb}\nstored_at:${new Date().toISOString()}\nproof:${proof}\n`);
-        this.logger.info(`Storage FILE written to ${storagePath}`);
+        if (!fs.existsSync(storagePath)) {
+          // Legacy path: hash was truncated to 16 chars in old UI; check legacy path too
+          const legacyPath = `${storageDir}/${fileHash.slice(0, 16)}`;
+          if (!fs.existsSync(legacyPath)) {
+            return `File not found on this provider. Space: ${spaceName}, Hash: ${fileHash.slice(0, 32)}..., Expected path: ${storagePath}`;
+          }
+        }
+        const proof = this.computeHash(`${spaceName}:${fileHash}:${this.providerAccountHash}:${Date.now()}`);
+        this.logger.info(`Storage ${mode} confirmed at ${storagePath}`);
+        return `File stored. Mode: ${mode}, Space: ${spaceName}, Hash: ${fileHash.slice(0, 32)}..., Size: ${sizeMb}, Encrypted: ${encrypted}, Anonymous: ${anonymous}, Proof: ${proof.slice(0, 32)}..., Path: ${storagePath}`;
       } catch (e) {
-        this.logger.warn(`Storage FILE write failed: ${e.message}`);
+        this.logger.warn(`Storage ${mode} verify failed: ${e.message}`);
+        return `Storage verify error for ${spaceName}/${fileHash.slice(0, 16)}: ${e.message}`;
       }
-      return `File stored. Space: ${spaceName}, Hash: ${fileHash.slice(0, 32)}..., Size: ${sizeMb}, Proof: ${proof.slice(0, 32)}..., Path: ${storagePath}`;
     }
 
     if (subType === 'RETRIEVE') {
-      const fileHash = parts[3] || '';
-      this.logger.info(`Storage RETRIEVE job: space=${spaceName}, hash=${fileHash.slice(0, 16)}`);
-
-      const storagePath = `/tmp/chimera-storage/${spaceName}/${fileHash.slice(0, 16)}`;
+      // Legacy RETRIEVE format
+      const legacyFileHash = parts[3] || '';
+      this.logger.info(`Storage RETRIEVE job: space=${spaceName}, hash=${legacyFileHash.slice(0, 16)}`);
       try {
         const fs = await import('fs');
-        if (fs.existsSync(storagePath)) {
-          const data = fs.readFileSync(storagePath, 'utf8');
-          return `File retrieved. Space: ${spaceName}, Hash: ${fileHash.slice(0, 32)}..., Path: ${storagePath}, Data: ${data.slice(0, 500)}`;
+        const p = `${storageDir}/${legacyFileHash}`;
+        const legacyP = `${storageDir}/${legacyFileHash.slice(0, 16)}`;
+        const foundPath = fs.existsSync(p) ? p : (fs.existsSync(legacyP) ? legacyP : null);
+        if (foundPath) {
+          return `File available. Download: /api/storage/download/${encodeURIComponent(spaceName)}/${legacyFileHash}`;
         }
-        // File not on this provider — return metadata from proof
-        return `File not found on this provider. Space: ${spaceName}, Hash: ${fileHash.slice(0, 32)}..., Expected path: ${storagePath}`;
+        return `File not found on this provider. Space: ${spaceName}, Hash: ${legacyFileHash.slice(0, 32)}..., Expected path: ${p}`;
       } catch (e) {
-        return `Retrieval error for ${spaceName}/${fileHash.slice(0, 16)}: ${e.message}`;
+        return `Retrieval error for ${spaceName}/${legacyFileHash.slice(0, 16)}: ${e.message}`;
       }
     }
 
     // ALLOC
-    const sizeMb = parts[3] || '0';
     this.logger.info(`Storage ALLOC job: space=${spaceName}, size=${sizeMb}`);
-
+    const fs = await import('fs');
+    fs.mkdirSync(storageDir, { recursive: true });
     const proof = this.computeHash(`${spaceName}:${sizeMb}:${this.providerAccountHash}:${Date.now()}`);
-    const storagePath = `/tmp/chimera-storage/${spaceName}`;
-    return `Storage space allocated. Name: ${spaceName}, Size: ${sizeMb}, Proof: ${proof.slice(0, 32)}..., Path: ${storagePath}`;
+    return `Storage space allocated. Name: ${spaceName}, Size: ${sizeMb}, Proof: ${proof.slice(0, 32)}..., Path: ${storageDir}`;
   }
 
   async _handleComputeJob(orderId) {

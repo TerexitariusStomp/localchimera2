@@ -12,9 +12,10 @@ import MachinesTab from './components/MachinesTab';
 import CompletedTab from './components/CompletedTab';
 import TaskerTab from './components/TaskerTab';
 import ProviderTab from './components/ProviderTab';
+import StorageHub from './components/StorageHub';
 import type { TxRecord } from './types';
 
-type Page = 'market' | 'machines' | 'completed' | 'tasker' | 'provider';
+type Page = 'market' | 'machines' | 'completed' | 'tasker' | 'provider' | 'storage';
 
 export default function App() {
   const [provider, setProvider] = useState<any>(null);
@@ -71,6 +72,7 @@ export default function App() {
             {([
               { id: 'tasker', label: 'Tasker' },
               { id: 'provider', label: 'Provider' },
+              { id: 'storage', label: 'Storage' },
               { id: 'market', label: 'Market' },
               { id: 'machines', label: 'Machines' },
               { id: 'completed', label: 'Completed' },
@@ -80,6 +82,14 @@ export default function App() {
                 {tab.label}
               </button>
             ))}
+            <a href="/console.html"
+              className="rounded-md px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5 hover:text-[#00e5ff] text-[#7a7468]">
+              Console
+            </a>
+            <a href="/rental.html"
+              className="rounded-md px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5 hover:text-[#00e5ff] text-[#00e5ff]">
+              Rent GPU
+            </a>
           </nav>
           {/* Wallet controls */}
           <div className="flex items-center gap-3">
@@ -130,6 +140,10 @@ export default function App() {
 
         {page === 'provider' && (
           <ProviderTab provider={provider} publicKeyHex={publicKeyHex} accountHash={accountHash} onTx={updateTx} />
+        )}
+
+        {page === 'storage' && (
+          <StorageHub provider={provider} publicKeyHex={publicKeyHex} accountHash={accountHash} onTx={updateTx} />
         )}
       </main>
 

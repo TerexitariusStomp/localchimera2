@@ -130,10 +130,19 @@ const marketApi = {
     return { deployHash, order_id: orderId, resource_type: 'storage', sub_type: 'allocation', space_name: spaceName, size_mb: sizeMb, amount: amountCSPR };
   },
 
-  async createStorageFile({ privateKeyPem, spaceName, fileHash, fileSizeMb, amountCSPR = '5' }) {
+  async createStorageFile({ privateKeyPem, spaceName, fileHash, fileSizeMb, amountCSPR = '5', mode = 'file', anonymous = false, encrypted = false, tags = '', description = '' }) {
     const privateKey = loadPrivateKey(privateKeyPem);
     const consumerBytes = privateKey.publicKey.accountHash().toBytes();
-    const orderId = `STORAGE:FILE:${spaceName}:${fileHash}:${fileSizeMb}MB`;
+    const upperMode = String(mode).toUpperCase();
+    const params = new URLSearchParams();
+    params.set('space', spaceName);
+    params.set('hash', fileHash);
+    params.set('size', String(fileSizeMb));
+    params.set('anon', anonymous ? '1' : '0');
+    params.set('enc', encrypted ? '1' : '0');
+    params.set('tags', tags);
+    params.set('desc', Buffer.from(description).toString('base64'));
+    const orderId = `STORAGE:${upperMode}:${params.toString()}`;
     const args = {
       consumer: CLValue.newCLByteArray(consumerBytes),
       provider: CLValue.newCLByteArray(makeZeroHash()),
@@ -142,7 +151,7 @@ const marketApi = {
       order_id: CLValue.newCLString(orderId),
     };
     const deployHash = await submitDeploy(privateKey, ESCROW_VAULT, 'create_job', args);
-    return { deployHash, order_id: orderId, resource_type: 'storage', sub_type: 'file', space_name: spaceName, file_hash: fileHash, file_size_mb: fileSizeMb, amount: amountCSPR };
+    return { deployHash, order_id: orderId, resource_type: 'storage', sub_type: upperMode.toLowerCase(), space_name: spaceName, file_hash: fileHash, file_size_mb: fileSizeMb, amount: amountCSPR, mode: upperMode, anonymous, encrypted, tags, description };
   },
 
   async retrieveFile({ privateKeyPem, spaceName, fileHash, amountCSPR = '1' }) {
