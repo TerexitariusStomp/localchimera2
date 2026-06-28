@@ -2499,7 +2499,7 @@ Copy the topic hex and invite others to join.
   async handleMarketInference(req, res) {
     try {
       const body = await parseBody(req);
-      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path — a funded Casper account key is required');
       if (!body.prompt) return badRequest(res, 'Missing prompt');
       
       const result = await marketApi.createInferenceJob({
@@ -2514,7 +2514,7 @@ Copy the topic hex and invite others to join.
   async handleMarketStorageAllocate(req, res) {
     try {
       const body = await parseBody(req);
-      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path — a funded Casper account key is required');
       if (!body.space_name) return badRequest(res, 'Missing space_name');
       
       const result = await marketApi.createStorageAllocation({
@@ -2530,7 +2530,7 @@ Copy the topic hex and invite others to join.
   async handleMarketStorageStore(req, res) {
     try {
       const body = await parseBody(req);
-      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path — a funded Casper account key is required');
       if (!body.space_name) return badRequest(res, 'Missing space_name');
       if (!body.file_hash) return badRequest(res, 'Missing file_hash');
       
@@ -2548,7 +2548,7 @@ Copy the topic hex and invite others to join.
   async handleMarketStorageRetrieve(req, res) {
     try {
       const body = await parseBody(req);
-      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path — a funded Casper account key is required');
       if (!body.space_name) return badRequest(res, 'Missing space_name');
       if (!body.file_hash) return badRequest(res, 'Missing file_hash');
       
@@ -2565,7 +2565,7 @@ Copy the topic hex and invite others to join.
   async handleMarketCompute(req, res) {
     try {
       const body = await parseBody(req);
-      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path — a funded Casper account key is required');
       if (!body.code) return badRequest(res, 'Missing code');
       
       const result = await marketApi.createComputeJob({
@@ -2585,7 +2585,7 @@ Copy the topic hex and invite others to join.
   async handleMarketBandwidth(req, res) {
     try {
       const body = await parseBody(req);
-      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path — a funded Casper account key is required');
       
       const result = await marketApi.createBandwidthJob({
         privateKeyPem: body.private_key_pem || body.key_pem_path,
@@ -2622,42 +2622,42 @@ Copy the topic hex and invite others to join.
       title: 'Chimera Market API',
       description: 'Programmatic API for requesting compute resources on the Casper testnet',
       base_url: '/api/market',
-      authentication: 'All POST endpoints require a Casper private key (PEM format) to sign deploys',
+      authentication: 'All POST endpoints require a Casper private key (PEM string or file path) from a funded account to sign transactions',
       endpoints: {
         inference: {
           method: 'POST',
           path: '/api/market/inference',
-          body: { private_key_pem: 'string (PEM) or key_pem_path: string (file path)', prompt: 'string', amount_cspr: 'string (default: 10)' },
+          body: { private_key_pem: 'string (PEM) or key_pem_path: string (file path) — required, must be funded', prompt: 'string', amount_cspr: 'string (default: 10)' },
           returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'inference' },
         },
         storage_allocate: {
           method: 'POST',
           path: '/api/market/storage/allocate',
-          body: { private_key_pem: 'string', space_name: 'string', size_mb: 'string (default: 100)', amount_cspr: 'string (default: 10)' },
+          body: { private_key_pem: 'string (required, funded)', space_name: 'string', size_mb: 'string (default: 100)', amount_cspr: 'string (default: 10)' },
           returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'storage', sub_type: 'allocation' },
         },
         storage_store: {
           method: 'POST',
           path: '/api/market/storage/store',
-          body: { private_key_pem: 'string', space_name: 'string', file_hash: 'string (sha256)', file_size_mb: 'string', amount_cspr: 'string (default: 5)' },
+          body: { private_key_pem: 'string (required, funded)', space_name: 'string', file_hash: 'string (sha256)', file_size_mb: 'string', amount_cspr: 'string (default: 5)' },
           returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'storage', sub_type: 'file' },
         },
         storage_retrieve: {
           method: 'POST',
           path: '/api/market/storage/retrieve',
-          body: { private_key_pem: 'string', space_name: 'string', file_hash: 'string', amount_cspr: 'string (default: 1)' },
+          body: { private_key_pem: 'string (required, funded)', space_name: 'string', file_hash: 'string', amount_cspr: 'string (default: 1)' },
           returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'storage', sub_type: 'retrieve' },
         },
         compute: {
           method: 'POST',
           path: '/api/market/compute',
-          body: { private_key_pem: 'string', runtime: 'shell|wasm|docker', code: 'string', cpu_cores: 'string (default: 2)', ram_mb: 'string (default: 512)', gpu: 'boolean (default: false)', timeout_sec: 'string (default: 30)', amount_cspr: 'string (default: 10)' },
+          body: { private_key_pem: 'string (required, funded)', runtime: 'shell|python3|node|docker', code: 'string', cpu_cores: 'string (default: 2)', ram_mb: 'string (default: 512)', gpu: 'boolean (default: false)', timeout_sec: 'string (default: 30)', amount_cspr: 'string (default: 10)' },
           returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'compute' },
         },
         bandwidth: {
           method: 'POST',
           path: '/api/market/bandwidth',
-          body: { private_key_pem: 'string', duration_hours: 'string (default: 1)', data_allowance_gb: 'string (default: 1)', amount_cspr: 'string (default: 5)' },
+          body: { private_key_pem: 'string (required, funded)', duration_hours: 'string (default: 1)', data_allowance_gb: 'string (default: 1)', amount_cspr: 'string (default: 5)' },
           returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'bandwidth' },
         },
         job_status: {

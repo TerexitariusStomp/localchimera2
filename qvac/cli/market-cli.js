@@ -21,9 +21,11 @@ Commands:
   status       --job <jobId>
   result       --job <jobId>
 
+Note: --key is required (PEM file path or inline PEM). The account must have CSPR funds for gas.
+
 Examples:
   node cli/market-cli.js inference --prompt "Hello world" --key /tmp/latest_key.pem
-  node cli/market-cli.js compute --code "echo hello" --key /tmp/latest_key.pem
+  node cli/market-cli.js compute --code "echo hello" --runtime shell --key /tmp/latest_key.pem
   node cli/market-cli.js status --job "job:abc123:0"
 `);
 }
@@ -47,7 +49,7 @@ async function main() {
   }
 
   const flags = parseFlags(args.slice(1));
-  const key = flags.key || process.env.CASPER_KEY_PEM || '/tmp/latest_key.pem';
+  const key = flags.key || process.env.CASPER_PROVIDER_KEY_PEM_PATH || process.env.CASPER_KEY_PEM || '/tmp/latest_key.pem';
 
   try {
     let result;

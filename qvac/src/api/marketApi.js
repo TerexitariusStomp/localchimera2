@@ -66,7 +66,8 @@ function buildDeploy(publicKey, contractHash, entryPoint, argsMap, payment = '50
 
 function loadPrivateKey(pemOrPath) {
   if (pemOrPath.includes('BEGIN PRIVATE KEY') || pemOrPath.includes('BEGIN EC PRIVATE KEY')) {
-    return PrivateKey.fromPem(pemOrPath, KeyAlgorithm.SECP256K1);
+    const cleanPem = pemOrPath.includes('\\n') ? pemOrPath.replace(/\\n/g, '\n') : pemOrPath;
+    return PrivateKey.fromPem(cleanPem, KeyAlgorithm.SECP256K1);
   }
   const pem = readFileSync(pemOrPath, 'utf8');
   return PrivateKey.fromPem(pem, KeyAlgorithm.SECP256K1);
