@@ -598,7 +598,8 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
                   <select value={runtime} onChange={(e) => setRuntime(e.target.value)}
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
                     <option value="shell">Shell Script</option>
-                    <option value="wasm">WebAssembly</option>
+                    <option value="python3">Python 3</option>
+                    <option value="node">Node.js</option>
                     <option value="docker">Docker Container</option>
                   </select>
                 </div>

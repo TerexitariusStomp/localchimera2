@@ -16,7 +16,7 @@ Commands:
   storage      --action allocate --space "myfiles" --size 100 [--key ...] [--amount 10]
   storage      --action store --space "myfiles" --hash <sha256> --size 1 [--key ...] [--amount 5]
   storage      --action retrieve --space "myfiles" --hash <sha256> [--key ...] [--amount 1]
-  compute      --code "echo hello" [--runtime shell] [--cpu 2] [--ram 512] [--gpu] [--timeout 30] [--key ...] [--amount 10]
+  compute      --code "echo hello" [--runtime shell|python3|node|docker] [--cpu 2] [--ram 512] [--gpu] [--timeout 30] [--key ...] [--amount 10]
   bandwidth    --duration 1 --data 1 [--key ...] [--amount 5]
   status       --job <jobId>
   result       --job <jobId>
