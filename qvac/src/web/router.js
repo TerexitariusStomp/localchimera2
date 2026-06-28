@@ -239,6 +239,17 @@ export const ROUTES = [
   ['POST', '/api/payout/confirm',            'handlePayoutConfirm'],
   ['POST', '/api/payout/execute',            'handlePayoutExecute'],
   ['GET',  '/api/payout/stats',            'handlePayoutStats'],
+
+  // Market API — programmatic resource requests
+  ['POST', '/api/market/inference',         'handleMarketInference'],
+  ['POST', '/api/market/storage/allocate',  'handleMarketStorageAllocate'],
+  ['POST', '/api/market/storage/store',     'handleMarketStorageStore'],
+  ['POST', '/api/market/storage/retrieve',  'handleMarketStorageRetrieve'],
+  ['POST', '/api/market/compute',           'handleMarketCompute'],
+  ['POST', '/api/market/bandwidth',         'handleMarketBandwidth'],
+  ['GET',  '/api/market/job/:jobId',        'handleMarketJobStatus'],
+  ['GET',  '/api/market/job/:jobId/result', 'handleMarketJobResult'],
+  ['GET',  '/api/market/docs',              'handleMarketDocs'],
 ];
 
 /**

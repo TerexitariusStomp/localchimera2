@@ -28,7 +28,20 @@
       "versionCode": 10022,
       "softwareKeyboardLayoutMode": "resize"
     },
-    "plugins": [],
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 29,
+            "ndkVersion": "27.2.12479018",
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
+          }
+        }
+      ]
+    ],
     "extra": {
       "qvac": {
         "modelsDir": "models",

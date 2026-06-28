@@ -11,6 +11,7 @@ import { ok, accepted, badRequest, serverError, serviceUnavailable, parseBody } 
 import { extractBoundary, readBody, parseMultipart } from './multipart.js';
 import { repoToMarkdown } from './repoDigest.js';
 import { PayoutRouter } from '../payout/PayoutRouter.js';
+import { marketApi } from '../api/marketApi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2491,5 +2492,191 @@ Copy the topic hex and invite others to join.
       else this.logger.info(`[llmwiki] Job ${jobId} completed`);
     });
     return jobId;
+  }
+
+  /* ─── Market API — programmatic resource requests ─── */
+
+  async handleMarketInference(req, res) {
+    try {
+      const body = await parseBody(req);
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      if (!body.prompt) return badRequest(res, 'Missing prompt');
+      
+      const result = await marketApi.createInferenceJob({
+        privateKeyPem: body.private_key_pem || body.key_pem_path,
+        prompt: body.prompt,
+        amountCSPR: body.amount_cspr || '10',
+      });
+      ok(res, result);
+    } catch (e) { serverError(res, e.message); }
+  }
+
+  async handleMarketStorageAllocate(req, res) {
+    try {
+      const body = await parseBody(req);
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      if (!body.space_name) return badRequest(res, 'Missing space_name');
+      
+      const result = await marketApi.createStorageAllocation({
+        privateKeyPem: body.private_key_pem || body.key_pem_path,
+        spaceName: body.space_name,
+        sizeMb: body.size_mb || '100',
+        amountCSPR: body.amount_cspr || '10',
+      });
+      ok(res, result);
+    } catch (e) { serverError(res, e.message); }
+  }
+
+  async handleMarketStorageStore(req, res) {
+    try {
+      const body = await parseBody(req);
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      if (!body.space_name) return badRequest(res, 'Missing space_name');
+      if (!body.file_hash) return badRequest(res, 'Missing file_hash');
+      
+      const result = await marketApi.createStorageFile({
+        privateKeyPem: body.private_key_pem || body.key_pem_path,
+        spaceName: body.space_name,
+        fileHash: body.file_hash,
+        fileSizeMb: body.file_size_mb || '1',
+        amountCSPR: body.amount_cspr || '5',
+      });
+      ok(res, result);
+    } catch (e) { serverError(res, e.message); }
+  }
+
+  async handleMarketStorageRetrieve(req, res) {
+    try {
+      const body = await parseBody(req);
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      if (!body.space_name) return badRequest(res, 'Missing space_name');
+      if (!body.file_hash) return badRequest(res, 'Missing file_hash');
+      
+      const result = await marketApi.retrieveFile({
+        privateKeyPem: body.private_key_pem || body.key_pem_path,
+        spaceName: body.space_name,
+        fileHash: body.file_hash,
+        amountCSPR: body.amount_cspr || '1',
+      });
+      ok(res, result);
+    } catch (e) { serverError(res, e.message); }
+  }
+
+  async handleMarketCompute(req, res) {
+    try {
+      const body = await parseBody(req);
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      if (!body.code) return badRequest(res, 'Missing code');
+      
+      const result = await marketApi.createComputeJob({
+        privateKeyPem: body.private_key_pem || body.key_pem_path,
+        runtime: body.runtime || 'shell',
+        code: body.code,
+        cpuCores: body.cpu_cores || '2',
+        ramMb: body.ram_mb || '512',
+        gpu: body.gpu || false,
+        timeoutSec: body.timeout_sec || '30',
+        amountCSPR: body.amount_cspr || '10',
+      });
+      ok(res, result);
+    } catch (e) { serverError(res, e.message); }
+  }
+
+  async handleMarketBandwidth(req, res) {
+    try {
+      const body = await parseBody(req);
+      if (!body.private_key_pem && !body.key_pem_path) return badRequest(res, 'Missing private_key_pem or key_pem_path');
+      
+      const result = await marketApi.createBandwidthJob({
+        privateKeyPem: body.private_key_pem || body.key_pem_path,
+        durationHours: body.duration_hours || '1',
+        dataAllowanceGb: body.data_allowance_gb || '1',
+        amountCSPR: body.amount_cspr || '5',
+      });
+      ok(res, result);
+    } catch (e) { serverError(res, e.message); }
+  }
+
+  async handleMarketJobStatus(req, res) {
+    try {
+      const params = extractRouteParams(req.url.pathname);
+      const jobId = params.jobId;
+      if (!jobId) return badRequest(res, 'Missing jobId');
+      const status = await marketApi.getJobStatus(jobId);
+      ok(res, status);
+    } catch (e) { serverError(res, e.message); }
+  }
+
+  async handleMarketJobResult(req, res) {
+    try {
+      const params = extractRouteParams(req.url.pathname);
+      const jobId = params.jobId;
+      if (!jobId) return badRequest(res, 'Missing jobId');
+      const result = await marketApi.getJobResult(jobId);
+      ok(res, result);
+    } catch (e) { serverError(res, e.message); }
+  }
+
+  async handleMarketDocs(req, res) {
+    ok(res, {
+      title: 'Chimera Market API',
+      description: 'Programmatic API for requesting compute resources on the Casper testnet',
+      base_url: '/api/market',
+      authentication: 'All POST endpoints require a Casper private key (PEM format) to sign deploys',
+      endpoints: {
+        inference: {
+          method: 'POST',
+          path: '/api/market/inference',
+          body: { private_key_pem: 'string (PEM) or key_pem_path: string (file path)', prompt: 'string', amount_cspr: 'string (default: 10)' },
+          returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'inference' },
+        },
+        storage_allocate: {
+          method: 'POST',
+          path: '/api/market/storage/allocate',
+          body: { private_key_pem: 'string', space_name: 'string', size_mb: 'string (default: 100)', amount_cspr: 'string (default: 10)' },
+          returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'storage', sub_type: 'allocation' },
+        },
+        storage_store: {
+          method: 'POST',
+          path: '/api/market/storage/store',
+          body: { private_key_pem: 'string', space_name: 'string', file_hash: 'string (sha256)', file_size_mb: 'string', amount_cspr: 'string (default: 5)' },
+          returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'storage', sub_type: 'file' },
+        },
+        storage_retrieve: {
+          method: 'POST',
+          path: '/api/market/storage/retrieve',
+          body: { private_key_pem: 'string', space_name: 'string', file_hash: 'string', amount_cspr: 'string (default: 1)' },
+          returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'storage', sub_type: 'retrieve' },
+        },
+        compute: {
+          method: 'POST',
+          path: '/api/market/compute',
+          body: { private_key_pem: 'string', runtime: 'shell|wasm|docker', code: 'string', cpu_cores: 'string (default: 2)', ram_mb: 'string (default: 512)', gpu: 'boolean (default: false)', timeout_sec: 'string (default: 30)', amount_cspr: 'string (default: 10)' },
+          returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'compute' },
+        },
+        bandwidth: {
+          method: 'POST',
+          path: '/api/market/bandwidth',
+          body: { private_key_pem: 'string', duration_hours: 'string (default: 1)', data_allowance_gb: 'string (default: 1)', amount_cspr: 'string (default: 5)' },
+          returns: { deploy_hash: 'string', order_id: 'string', resource_type: 'bandwidth' },
+        },
+        job_status: {
+          method: 'GET',
+          path: '/api/market/job/:jobId',
+          returns: { job_id: 'string', state: 'string', state_code: 'number', request_hash: 'string', response_hash: 'string' },
+        },
+        job_result: {
+          method: 'GET',
+          path: '/api/market/job/:jobId/result',
+          returns: { job_id: 'string', state: 'string', result: 'string|null' },
+        },
+      },
+      states: ['pending', 'assigned', 'in_progress', 'provider_done', 'consumer_confirmed', 'settled', 'refunded', 'disputed'],
+      examples: {
+        inference: "curl -X POST http://localhost:3002/api/market/inference -H 'Content-Type: application/json' -d '{\"key_pem_path\":\"/tmp/key.pem\",\"prompt\":\"What is 2+2?\",\"amount_cspr\":\"10\"}'",
+        compute: "curl -X POST http://localhost:3002/api/market/compute -H 'Content-Type: application/json' -d '{\"key_pem_path\":\"/tmp/key.pem\",\"runtime\":\"shell\",\"code\":\"echo hello\",\"cpu_cores\":\"2\",\"timeout_sec\":\"10\"}'",
+        job_status: "curl http://localhost:3002/api/market/job/job:abc123:0",
+      },
+    });
   }
 }
