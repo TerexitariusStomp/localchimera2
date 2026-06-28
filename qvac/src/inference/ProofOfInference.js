@@ -105,7 +105,7 @@ export class ProofOfInference {
     if (this.privateKey) {
       this.privateKey = BigInt('0x' + this.privateKey);
     } else {
-      this.privateKey = mod(BigInt(crypto.randomBytes(32).toString('hex')), SECP256K1_N - BigInt(1)) + BigInt(1);
+      this.privateKey = mod(BigInt('0x' + crypto.randomBytes(32).toString('hex')), SECP256K1_N - BigInt(1)) + BigInt(1);
     }
     const G = { x: SECP256K1_GX, y: SECP256K1_GY };
     this.publicKey = pointMul(this.privateKey, G);
