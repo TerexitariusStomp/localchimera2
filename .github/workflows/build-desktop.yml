@@ -353,28 +353,31 @@ jobs:
           echo 'IyBLZWVwIFJlYWN0IE5hdGl2ZQota2VlcCBjbGFzcyBjb20uZmFjZWJvb2sucmVhY3QuKiogeyAqOyB9Ci1rZWVwIGNsYXNzIGNvbS5mYWNlYm9vay5yZWFjdC5icmlkZ2UuKiogeyAqOyB9Ci1rZWVwIGNsYXNzIGNvbS5mYWNlYm9vay5yZWFjdC51aW1hbmFnZXIuKiogeyAqOyB9Ci1rZWVwIGNsYXNzIGNvbS5mYWNlYm9vay5yZWFjdC5tb2R1bGVzLioqIHsgKjsgfQota2VlcCBjbGFzcyBjb20uZmFjZWJvb2sucmVhY3Qudmlld3MuKiogeyAqOyB9CgojIEtlZXAgRXhwbyBtb2R1bGVzCi1rZWVwIGNsYXNzIGV4cG8ubW9kdWxlcy4qKiB7ICo7IH0KLWtlZXBjbGFzc21lbWJlcnMgY2xhc3MgZXhwby5tb2R1bGVzLioqIHsgKjsgfQoKIyBLZWVwIHJlYWN0LW5hdGl2ZS13ZWJ2aWV3Ci1rZWVwIGNsYXNzIGNvbS5yZWFjdG5hdGl2ZWNvbW11bml0eS53ZWJ2aWV3LioqIHsgKjsgfQoKIyBLZWVwIHJlYWN0LW5hdGl2ZS1iYXJlLWtpdAota2VlcCBjbGFzcyB0by5ob2xlLmJhcmUuKiogeyAqOyB9Ci1rZWVwIGNsYXNzIHRvLmhvbGUuYmFyZXNvY2suKiogeyAqOyB9Ci1rZWVwIGNsYXNzIHRvLmhvbGUuYmFyZWtpdC4qKiB7ICo7IH0KLWtlZXBjbGFzc21lbWJlcnMgY2xhc3MgdG8uaG9sZS5iYXJlLioqIHsgKjsgfQota2VlcGNsYXNzbWVtYmVycyBjbGFzcyB0by5ob2xlLmJhcmVzb2NrLioqIHsgKjsgfQota2VlcGNsYXNzbWVtYmVycyBjbGFzcyB0by5ob2xlLmJhcmVraXQuKiogeyAqOyB9CgojIEtlZXAgQHF2YWMvc2RrIGFuZCBsbG0gYWRkb24KLWtlZXAgY2xhc3MgY29tLnF2YWMuc2RrLioqIHsgKjsgfQota2VlcCBjbGFzcyBjb20ucXZhYy5hZGRvbnMubGxtLioqIHsgKjsgfQota2VlcGNsYXNzbWVtYmVycyBjbGFzcyBjb20ucXZhYy5zZGsuKiogeyAqOyB9Ci1rZWVwY2xhc3NtZW1iZXJzIGNsYXNzIGNvbS5xdmFjLmFkZG9ucy5sbG0uKiogeyAqOyB9CgojIEtlZXAgbmF0aXZlIG1ldGhvZHMgYW5kIEpOSSBjbGFzc2VzCi1rZWVwY2xhc3Nlc3dpdGhtZW1iZXJuYW1lcyBjbGFzcyAqIHsKICAgIG5hdGl2ZSA8bWV0aG9kcz47Cn0KLWtlZXAgY2xhc3MgKiBpbXBsZW1lbnRzIGphdmEuaW8uU2VyaWFsaXphYmxlIHsgKjsgfQota2VlcGNsYXNzbWVtYmVycyBjbGFzcyAqIGltcGxlbWVudHMgamF2YS5pby5TZXJpYWxpemFibGUgewogICAgc3RhdGljIGZpbmFsIGxvbmcgc2VyaWFsVmVyc2lvblVJRDsKICAgIHByaXZhdGUgc3RhdGljIGZpbmFsIGphdmEuaW8uT2JqZWN0U3RyZWFtRmllbGRbXSBzZXJpYWxQZXJzaXN0ZW50RmllbGRzOwogICAgcHJpdmF0ZSB2b2lkIHdyaXRlT2JqZWN0KGphdmEuaW8uT2JqZWN0T3V0cHV0U3RyZWFtKTsKICAgIHByaXZhdGUgdm9pZCByZWFkT2JqZWN0KGphdmEuaW8uT2JqZWN0SW5wdXRTdHJlYW0pOwogICAgamF2YS5sYW5nLk9iamVjdCB3cml0ZVJlcGxhY2UoKTsKICAgIGphdmEubGFuZy5PYmplY3QgcmVhZFJlc29sdmUoKTsKfQ==' | base64 -d > "$PROGUARD"
           echo "=== ProGuard rules ==="
           cat "$PROGUARD"
-      - name: Generate Hermes JS bundle
-        run: |
-          cd apps/mobile-expo
-          echo "=== Generating JS bundle for Android ==="
-          npx expo export:embed --platform android --dev false --entry-file App.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-output android/app/src/main/res 2>&1 | tail -20
-          echo "=== Bundle output ==="
-          ls -lh android/app/src/main/assets/index.android.bundle 2>&1 || echo "Bundle not found!"
-          find android/app/src/main/res -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" 2>/dev/null | head -10
-      - name: Build Expo AAB (Play Store) and APKs
+      - name: Generate JS bundle via Gradle (React Native createBundleReleaseJsAndAssets)
         run: |
           cd apps/mobile-expo/android
           chmod +x ./gradlew
           ./gradlew --version
+          ./gradlew :app:createBundleReleaseJsAndAssets --rerun-tasks
+          echo "=== Bundle in assets ==="
+          ls -lh ../app/src/main/assets/index.android.bundle 2>&1 || echo "Bundle not found!"
+      - name: Build Expo AAB (Play Store) and APKs
+        run: |
+          cd apps/mobile-expo/android
           ./gradlew bundleRelease -x mergeReleaseNativeDebugMetadata
           ./gradlew assembleRelease -x mergeReleaseNativeDebugMetadata
           ./gradlew assembleDebug -x mergeReleaseNativeDebugMetadata
-      - name: Show build outputs and verify sizes
+      - name: Show build outputs and verify JS bundle inside APKs
         run: |
           echo "=== AAB ==="
           ls -lh apps/mobile-expo/android/app/build/outputs/bundle/release/
           echo "=== APKs ==="
           ls -lh apps/mobile-expo/android/app/build/outputs/apk/release/
+          echo "=== Verify JS bundle in APKs ==="
+          for apk in apps/mobile-expo/android/app/build/outputs/apk/**/*.apk; do
+            echo "Checking $apk:"
+            unzip -l "$apk" | grep -E "index.android.bundle|assets/app.config" | head -5
+          done
           echo "=== Size checks ==="
           AAB=apps/mobile-expo/android/app/build/outputs/bundle/release/app-release.aab
           if [ -f "$AAB" ]; then
