@@ -108,8 +108,8 @@
     "casper": {
       "enabled": true,
       "config": {
-        "rpcUrl": "https://rpc.mainnet.casper.network/rpc",
-        "chainName": "casper",
+        "rpcUrl": "https://node.testnet.casper.network/rpc",
+        "chainName": "casper-test",
         "providerKeyPem": "",
         "providerAccountHash": "",
         "relayUrl": "",
@@ -119,8 +119,8 @@
     "casperUnified": {
       "enabled": false,
       "config": {
-        "rpcUrl": "https://rpc.mainnet.casper.network/rpc",
-        "chainName": "casper",
+        "rpcUrl": "https://node.testnet.casper.network/rpc",
+        "chainName": "casper-test",
         "providerKeyPem": "",
         "providerAccountHash": "",
         "relayUrl": "",
