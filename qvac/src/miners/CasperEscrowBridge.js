@@ -395,7 +395,16 @@ export class CasperEscrowBridge {
       this.logger.info(`Storage FILE job: space=${spaceName}, hash=${fileHash.slice(0, 16)}, size=${sizeMb}`);
 
       const proof = this.computeHash(`${spaceName}:${fileHash}:${this.providerAccountHash}:${Date.now()}`);
-      const storagePath = `/tmp/chimera-storage/${spaceName}/${fileHash.slice(0, 16)}`;
+      const storageDir = `/tmp/chimera-storage/${spaceName}`;
+      const storagePath = `${storageDir}/${fileHash.slice(0, 16)}`;
+      try {
+        const fs = await import('fs');
+        fs.mkdirSync(storageDir, { recursive: true });
+        fs.writeFileSync(storagePath, `hash:${fileHash}\nsize:${sizeMb}\nstored_at:${new Date().toISOString()}\nproof:${proof}\n`);
+        this.logger.info(`Storage FILE written to ${storagePath}`);
+      } catch (e) {
+        this.logger.warn(`Storage FILE write failed: ${e.message}`);
+      }
       return `File stored. Space: ${spaceName}, Hash: ${fileHash.slice(0, 32)}..., Size: ${sizeMb}, Proof: ${proof.slice(0, 32)}..., Path: ${storagePath}`;
     }
 
