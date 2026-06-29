@@ -20,9 +20,4 @@ Installers, build scripts, and startup helpers for Chimera apps.
 - `chimera.service` — systemd service for Linux
 - `com.chimera.desktop.plist` — macOS LaunchAgent plist
 
-## Specialized
-
-- `README-qubes.md` — Qubes OS install notes
-- `setup-brave-qubes.sh` — Brave browser setup on Qubes
-
 See `../desktop/`, `../macos/`, and `../mobile*/` for the application source code.
