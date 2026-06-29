@@ -43,13 +43,6 @@
     .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px}
     .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px}
     .panel-title{font-size:18px;font-weight:700}
-    .map-controls{display:flex;gap:8px;justify-content:center;margin-bottom:12px}
-    .map-btn{width:36px;height:36px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--panel);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--text)}
-    .map-btn:hover{background:#f5f5f7}
-    .map-wrap{position:relative;border-radius:var(--radius);overflow:hidden;background:#f0f0f0;border:1px solid var(--border)}
-    .map-wrap svg{width:100%;height:auto;display:block}
-    .map-dot{fill:var(--red);animation:pulse 2s infinite}
-    @keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
     .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px}
     .stat-card{border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center}
     .stat-label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;margin-bottom:12px}
@@ -174,32 +167,6 @@
       <p class="page-subtitle">63 active providers on Mainnet</p>
 
       <div class="panel">
-        <div class="map-controls">
-          <button class="map-btn" title="Zoom in">+</button>
-          <button class="map-btn" title="Zoom out">−</button>
-          <button class="map-btn" title="Refresh" onclick="renderDots()">↻</button>
-        </div>
-        <div class="map-wrap" id="mapWrap">
-          <svg viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet">
-            <defs>
-              <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="2.5" result="blur"/>
-                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-              </filter>
-            </defs>
-            <!-- Stylized world continents -->
-            <g fill="#e5e5e5">
-              <path d="M 60 80 Q 160 40 280 70 Q 320 100 300 160 Q 250 200 180 190 Q 100 170 60 130 Z"/>
-              <path d="M 200 220 Q 280 210 330 250 Q 320 360 260 400 Q 220 380 210 300 Z"/>
-              <path d="M 420 90 Q 520 70 620 90 Q 700 110 720 160 Q 680 200 600 190 Q 520 180 460 160 Q 400 140 420 90 Z"/>
-              <path d="M 720 110 Q 880 90 950 130 Q 960 200 900 240 Q 820 260 760 230 Q 710 190 720 110 Z"/>
-              <path d="M 430 210 Q 540 200 560 260 Q 550 360 480 390 Q 420 360 430 280 Z"/>
-              <path d="M 780 310 Q 900 300 930 340 Q 920 410 850 420 Q 780 400 780 340 Z"/>
-            </g>
-            <g id="mapDots"></g>
-          </svg>
-        </div>
-
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-label">CPU</div>
@@ -297,40 +264,17 @@
     document.getElementById('mobileNavOverlay').classList.remove('open');
   }
 
-  const cities=[
-    {name:'New York',x:230,y:140},{name:'Los Angeles',x:160,y:155},{name:'Dallas',x:200,y:160},{name:'Miami',x:245,y:185},
-    {name:'Toronto',x:235,y:125},{name:'London',x:470,y:120},{name:'Amsterdam',x:480,y:115},{name:'Frankfurt',x:490,y:120},
-    {name:'Paris',x:475,y:125},{name:'Madrid',x:465,y:140},{name:'Warsaw',x:510,y:115},{name:'Stockholm',x:500,y:95},
-    {name:'Singapore',x:800,y:210},{name:'Tokyo',x:870,y:140},{name:'Sydney',x:880,y:320},{name:'Mumbai',x:720,y:190},
-    {name:'São Paulo',x:310,y:310},{name:'Johannesburg',x:530,y:330}
-  ];
-  function renderDots(){
-    const g=document.getElementById('mapDots');
-    g.innerHTML='';
-    cities.forEach(c=>{
-      const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
-      circle.setAttribute('cx',c.x);
-      circle.setAttribute('cy',c.y);
-      circle.setAttribute('r',5);
-      circle.setAttribute('class','map-dot');
-      circle.setAttribute('filter','url(#glow)');
-      circle.setAttribute('title',c.name);
-      g.appendChild(circle);
-    });
-  }
-  renderDots();
-
   const providers=[
-    {name:'prov.aes-services.net',host:'AES Services',location:'US · DAL',uptime:'99.99%',leases:42,disk:'261 Mi / 4 Ti',audited:true,attrs:[{key:'host',val:'akash'},{key:'tier',val:'community'},{key:'organization',val:'AES Services'},{key:'location-region',val:'na-us-southwest'},{key:'country',val:'US'},{key:'city',val:'DAL'},{key:'capabilities/cpu',val:'intel'},{key:'capabilities/cpu/arch',val:'x86-64'},{key:'capabilities/memory',val:'ddr4ecc'},{key:'capabilities/storage/1/class',val:'beta2'},{key:'capabilities/storage/1/persistent',val:'true'},{key:'network-speed-up',val:'1000'},{key:'network-speed-down',val:'1000'},{key:'feat-persistent-storage',val:'true'}]},
-    {name:'prov.all frontier.io',host:'AllFrontier',location:'US · SFO',uptime:'99.95%',leases:38,disk:'701 Mi / 8 Ti',audited:true,attrs:[{key:'host',val:'akash'},{key:'tier',val:'community'},{key:'location-region',val:'na-us-west'},{key:'country',val:'US'},{key:'city',val:'SFO'},{key:'capabilities/cpu/arch',val:'x86-64'},{key:'network-speed-up',val:'1000'},{key:'network-speed-down',val:'1000'}]},
-    {name:'prov.ewtech.com.au',host:'EwTech',location:'AU · SYD',uptime:'99.91%',leases:31,disk:'916 Mi / 13 Ti',audited:true,attrs:[{key:'host',val:'akash'},{key:'country',val:'AU'},{key:'city',val:'SYD'},{key:'capabilities/cpu/arch',val:'x86-64'}]},
-    {name:'prov.aes-akash.pub',host:'AkashPub',location:'US · DAL',uptime:'99.98%',leases:29,disk:'2 Mi / 8 Ti',audited:true,attrs:[{key:'host',val:'akash'},{key:'country',val:'US'},{key:'city',val:'DAL'}]},
-    {name:'prov.ainrapids.com',host:'AInRapids',location:'US · NYC',uptime:'99.88%',leases:25,disk:'1 Mi / 12 Ti',audited:true,attrs:[{key:'host',val:'akash'},{key:'country',val:'US'},{key:'city',val:'NYC'}]},
-    {name:'prov.b-palm.be',host:'BPalm',location:'BE · BRU',uptime:'99.92%',leases:22,disk:'60 Mi / 2 Ti',audited:true,attrs:[{key:'host',val:'akash'},{key:'country',val:'BE'},{key:'city',val:'BRU'}]},
-    {name:'provider.golden.fy',host:'GoldenFY',location:'SG · SIN',uptime:'99.85%',leases:19,disk:'251 Mi / 6 Ti',audited:false,attrs:[{key:'host',val:'akash'},{key:'country',val:'SG'},{key:'city',val:'SIN'}]},
-    {name:'prov.akash.pal',host:'AkashPal',location:'IN · MUM',uptime:'99.79%',leases:15,disk:'73 Mi / 18 Ti',audited:true,attrs:[{key:'host',val:'akash'},{key:'country',val:'IN'},{key:'city',val:'MUM'}]},
-    {name:'prov.cloudmax.net',host:'CloudMax',location:'DE · FRA',uptime:'99.96%',leases:12,disk:'35 Mi / 31 Ti',audited:true,attrs:[{key:'host',val:'akash'},{key:'country',val:'DE'},{key:'city',val:'FRA'}]},
-    {name:'prov.northnode.io',host:'NorthNode',location:'CA · TOR',uptime:'99.90%',leases:10,disk:'492 Mi / 16 Ti',audited:true,attrs:[{key:'host',val:'akash'},{key:'country',val:'CA'},{key:'city',val:'TOR'}]}
+    {name:'prov.aes-services.net',host:'AES Services',location:'US · DAL',uptime:'99.99%',leases:42,disk:'261 Mi / 4 Ti',audited:true,attrs:[{key:'host',val:'chimera'},{key:'tier',val:'community'},{key:'organization',val:'AES Services'},{key:'location-region',val:'na-us-southwest'},{key:'country',val:'US'},{key:'city',val:'DAL'},{key:'capabilities/cpu',val:'intel'},{key:'capabilities/cpu/arch',val:'x86-64'},{key:'capabilities/memory',val:'ddr4ecc'},{key:'capabilities/storage/1/class',val:'beta2'},{key:'capabilities/storage/1/persistent',val:'true'},{key:'network-speed-up',val:'1000'},{key:'network-speed-down',val:'1000'},{key:'feat-persistent-storage',val:'true'}]},
+    {name:'prov.all frontier.io',host:'AllFrontier',location:'US · SFO',uptime:'99.95%',leases:38,disk:'701 Mi / 8 Ti',audited:true,attrs:[{key:'host',val:'chimera'},{key:'tier',val:'community'},{key:'location-region',val:'na-us-west'},{key:'country',val:'US'},{key:'city',val:'SFO'},{key:'capabilities/cpu/arch',val:'x86-64'},{key:'network-speed-up',val:'1000'},{key:'network-speed-down',val:'1000'}]},
+    {name:'prov.ewtech.com.au',host:'EwTech',location:'AU · SYD',uptime:'99.91%',leases:31,disk:'916 Mi / 13 Ti',audited:true,attrs:[{key:'host',val:'chimera'},{key:'country',val:'AU'},{key:'city',val:'SYD'},{key:'capabilities/cpu/arch',val:'x86-64'}]},
+    {name:'prov.aes-chimera.pub',host:'ChimeraPub',location:'US · DAL',uptime:'99.98%',leases:29,disk:'2 Mi / 8 Ti',audited:true,attrs:[{key:'host',val:'chimera'},{key:'country',val:'US'},{key:'city',val:'DAL'}]},
+    {name:'prov.ainrapids.com',host:'AInRapids',location:'US · NYC',uptime:'99.88%',leases:25,disk:'1 Mi / 12 Ti',audited:true,attrs:[{key:'host',val:'chimera'},{key:'country',val:'US'},{key:'city',val:'NYC'}]},
+    {name:'prov.b-palm.be',host:'BPalm',location:'BE · BRU',uptime:'99.92%',leases:22,disk:'60 Mi / 2 Ti',audited:true,attrs:[{key:'host',val:'chimera'},{key:'country',val:'BE'},{key:'city',val:'BRU'}]},
+    {name:'provider.golden.fy',host:'GoldenFY',location:'SG · SIN',uptime:'99.85%',leases:19,disk:'251 Mi / 6 Ti',audited:false,attrs:[{key:'host',val:'chimera'},{key:'country',val:'SG'},{key:'city',val:'SIN'}]},
+    {name:'prov.chimera.pal',host:'ChimeraPal',location:'IN · MUM',uptime:'99.79%',leases:15,disk:'73 Mi / 18 Ti',audited:true,attrs:[{key:'host',val:'chimera'},{key:'country',val:'IN'},{key:'city',val:'MUM'}]},
+    {name:'prov.cloudmax.net',host:'CloudMax',location:'DE · FRA',uptime:'99.96%',leases:12,disk:'35 Mi / 31 Ti',audited:true,attrs:[{key:'host',val:'chimera'},{key:'country',val:'DE'},{key:'city',val:'FRA'}]},
+    {name:'prov.northnode.io',host:'NorthNode',location:'CA · TOR',uptime:'99.90%',leases:10,disk:'492 Mi / 16 Ti',audited:true,attrs:[{key:'host',val:'chimera'},{key:'country',val:'CA'},{key:'city',val:'TOR'}]}
   ];
   let currentProviders=[...providers];
 
@@ -372,7 +316,7 @@
       <div class="attr-row">
         <div class="attr-key">${a.key}</div>
         <div class="attr-val">${a.val}</div>
-        <div class="attr-auditor">Akash Network</div>
+        <div class="attr-auditor">Localchimera Network</div>
       </div>
     `).join('');
     document.getElementById('attrModal').classList.add('open');

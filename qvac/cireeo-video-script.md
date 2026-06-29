@@ -26,11 +26,11 @@
 **Visual:** Split-screen diagram. Left: "Inference Mode" with chat bubbles and LLM icons. Right: "Mining Mode" with blockchain logos. A central gear labeled "NodeManager" switches between them.
 
 **Narration:**
-> "Most nodes do one thing. This one does two. It runs QVAC local inference — Llama models, speech-to-text, translation — and when your machine goes idle, it seamlessly rotates across five different mining networks: Cortensor, Chutes, Fortytwo, Earnidle, and Routstr."
+> "Most nodes do one thing. This one does two. It runs QVAC local inference — Llama models, speech-to-text, translation — and when your machine goes idle, it seamlessly rotates across untrusted-hardware-safe mining networks: Chutes, Routstr, Earnidle, BTT AI, Golem, Anyone Protocol, Mysterium, and Casper."
 
 **On-screen text:**
 - Dual Mode Operation
-- 5 Mining Protocols
+- 8 Mining Protocols
 - Zero idle time
 
 ---

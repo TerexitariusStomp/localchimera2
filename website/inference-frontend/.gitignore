@@ -2,6 +2,7 @@ node_modules
 dist
 .env
 .vite
+.netlify
 *.local
 test-*.mjs
 *.log

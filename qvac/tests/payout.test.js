@@ -128,14 +128,14 @@ describe('PayoutRouter — order recording', () => {
   after(async () => cleanup(tmpDir));
 
   it('records a valid order', async () => {
-    const r = await router.recordOrder({ orderId: 'ord-1', userId: 'u-1', appId: 'app-1', miner: 'cortensor', amount: 1.5 });
+    const r = await router.recordOrder({ orderId: 'ord-1', userId: 'u-1', appId: 'app-1', miner: 'chutes', amount: 1.5 });
     assert.equal(r.success, true);
     assert.equal(r.order.amount, 1.5);
-    assert.equal(r.order.miner, 'cortensor');
+    assert.equal(r.order.miner, 'chutes');
   });
 
   it('rejects amount <= 0', async () => {
-    const r = await router.recordOrder({ orderId: 'ord-2', userId: 'u-1', appId: 'app-1', miner: 'cortensor', amount: 0 });
+    const r = await router.recordOrder({ orderId: 'ord-2', userId: 'u-1', appId: 'app-1', miner: 'earnidle', amount: 0 });
     assert.equal(r.success, false);
   });
 
@@ -145,18 +145,18 @@ describe('PayoutRouter — order recording', () => {
   });
 
   it('rejects unknown userId', async () => {
-    const r = await router.recordOrder({ orderId: 'ord-4', userId: 'ghost', appId: 'app-1', miner: 'cortensor', amount: 1 });
+    const r = await router.recordOrder({ orderId: 'ord-4', userId: 'ghost', appId: 'app-1', miner: 'routstr', amount: 1 });
     assert.equal(r.success, false);
   });
 
   it('rejects unknown appId', async () => {
-    const r = await router.recordOrder({ orderId: 'ord-5', userId: 'u-1', appId: 'ghost', miner: 'cortensor', amount: 1 });
+    const r = await router.recordOrder({ orderId: 'ord-5', userId: 'u-1', appId: 'ghost', miner: 'chutes', amount: 1 });
     assert.equal(r.success, false);
   });
 
   it('updates user totalEarned aggregate', async () => {
     const before = (await router.getUsers()).users.find(u => u.userId === 'u-1').totalEarned;
-    await router.recordOrder({ orderId: 'ord-agg', userId: 'u-1', appId: 'app-1', miner: 'fortytwo', amount: 2 });
+    await router.recordOrder({ orderId: 'ord-agg', userId: 'u-1', appId: 'app-1', miner: 'chutes', amount: 2 });
     const after = (await router.getUsers()).users.find(u => u.userId === 'u-1').totalEarned;
     assert.ok(after > before);
   });
@@ -184,8 +184,8 @@ describe('PayoutRouter — calculateMonthlyPayout', () => {
 
     // Manually backdate orders to the target month
     const orders = await router.store.getOrders();
-    orders['ord-m1'] = { orderId: 'ord-m1', userId: 'u-1', appId: 'app-1', miner: 'cortensor', amount: 10, year, month, timestamp: Date.now() };
-    orders['ord-m2'] = { orderId: 'ord-m2', userId: 'u-1', appId: 'app-1', miner: 'fortytwo', amount: 20, year, month, timestamp: Date.now() };
+    orders['ord-m1'] = { orderId: 'ord-m1', userId: 'u-1', appId: 'app-1', miner: 'chutes', amount: 10, year, month, timestamp: Date.now() };
+    orders['ord-m2'] = { orderId: 'ord-m2', userId: 'u-1', appId: 'app-1', miner: 'routstr', amount: 20, year, month, timestamp: Date.now() };
     await router.store.saveOrders();
   });
   after(async () => cleanup(tmpDir));
@@ -228,7 +228,7 @@ describe('PayoutRouter — distribution lifecycle', () => {
     await router.registerApp({ appId: 'app-1', developerEVM: EVM_DEV, feePercent: 0.30 });
     await router.registerUser({ userId: 'u-1', machineOwnerEVM: EVM_USER, appId: 'app-1' });
     const orders = await router.store.getOrders();
-    orders['ord-d1'] = { orderId: 'ord-d1', userId: 'u-1', appId: 'app-1', miner: 'cortensor', amount: 5, year, month, timestamp: Date.now() };
+    orders['ord-d1'] = { orderId: 'ord-d1', userId: 'u-1', appId: 'app-1', miner: 'routstr', amount: 5, year, month, timestamp: Date.now() };
     await router.store.saveOrders();
     await router.calculateMonthlyPayout(year, month);
     await router.markDistributed(year, month, null);
@@ -302,7 +302,7 @@ describe('PayoutRouter — getStats', () => {
     ({ router, tmpDir } = await makeRouter());
     await router.registerApp({ appId: 'app-s', developerEVM: EVM_DEV, feePercent: 0.20 });
     await router.registerUser({ userId: 'u-s', machineOwnerEVM: EVM_USER, appId: 'app-s' });
-    await router.recordOrder({ orderId: 'ord-s1', userId: 'u-s', appId: 'app-s', miner: 'cortensor', amount: 7 });
+    await router.recordOrder({ orderId: 'ord-s1', userId: 'u-s', appId: 'app-s', miner: 'earnidle', amount: 7 });
   });
   after(async () => cleanup(tmpDir));
 

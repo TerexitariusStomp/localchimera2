@@ -1,5 +1,7 @@
 # Wallets Created
 
+> ⚠️ **ARCHIVED**: The networks listed below (Akash, Targon, Nosana, Lium, Heurist, ByteLeap) have been removed from the Localchimera codebase because they require a private key, wallet, or credentials on the local machine and cannot safely run on untrusted hardware. This document is kept only as a personal record of previously created wallets.
+>
 > ⚠️ **SECURITY NOTICE**: Mnemonic phrases are stored ONLY in OS-level secure
 > storage (provider-services keyring, `~/.config/.targon.json`). They are NOT
 > included in this repository. This document lists wallet names and public

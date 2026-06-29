@@ -40,8 +40,8 @@ contract ProofOfInferenceVerifier {
         uint256 chainIndex;
         uint256 tokensGenerated;
         uint256 durationMs;
-        bytes sigR;
-        bytes sigS;
+        bytes32 sigR;
+        bytes32 sigS;
         uint8 recoveryId;
         bytes publicKey; // 65 bytes uncompressed
         bytes32 previousHash;

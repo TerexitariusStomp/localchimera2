@@ -6,6 +6,7 @@ import { Send, Brain, HardDrive, Cpu, Wifi, Star, Gavel, AlertTriangle, Trash2, 
 import * as sdk from 'casper-js-sdk';
 import { CONTRACTS, getContractNamedKeys, queryDictionary, callEntryPointWithWallet } from '../casper-client';
 import { createKlerosDispute, hasEthereumWallet, SUBCOURT_IDS } from '../kleros-client';
+import FHEVMPanel from './FHEVMPanel';
 import type { TxRecord } from '../types';
 
 const JOB_STATUS: Record<string, string> = {
@@ -216,7 +217,7 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
         {resource === 'inference' && (
         <EntryPointCard title="Inference" contract="InferenceMarket" contractHash={CONTRACTS.inferenceMarket} provider={provider} publicKeyHex={publicKeyHex} onTx={onTx}>
           {() => {
-            const [mode, setMode] = useState<'single' | 'stream'>('single');
+            const [mode, setMode] = useState<'single' | 'stream' | 'fhevm'>('single');
             const [amount, setAmount] = useState('10');
             const [promptText, setPromptText] = useState('');
             const [streamModel, setStreamModel] = useState('llama3.2');
@@ -295,6 +296,7 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
               <div className="flex gap-2 mb-2">
                 <button type="button" onClick={() => setMode('single')} className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${mode === 'single' ? 'bg-[#00e5ff]/15 border border-[#00e5ff]/30 text-[#00e5ff]' : 'bg-white/[0.03] border border-white/10 text-[#7a7468] hover:bg-white/[0.06] hover:text-[#e8e2d8]'}`}>Single Task</button>
                 <button type="button" onClick={() => setMode('stream')} className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${mode === 'stream' ? 'bg-[#00e5ff]/15 border border-[#00e5ff]/30 text-[#00e5ff]' : 'bg-white/[0.03] border border-white/10 text-[#7a7468] hover:bg-white/[0.06] hover:text-[#e8e2d8]'}`}>Local Stream</button>
+                <button type="button" onClick={() => setMode('fhevm')} className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${mode === 'fhevm' ? 'bg-[#00e5ff]/15 border border-[#00e5ff]/30 text-[#00e5ff]' : 'bg-white/[0.03] border border-white/10 text-[#7a7468] hover:bg-white/[0.06] hover:text-[#e8e2d8]'}`}>fhEVM</button>
               </div>
               {mode === 'single' && (
                 <form onSubmit={handleSubmit} className="space-y-2">
@@ -323,6 +325,9 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
                     {streamOutput || <span className="text-[#7a7468] italic">Response will appear here...</span>}
                   </div>
                 </div>
+              )}
+              {mode === 'fhevm' && (
+                <FHEVMPanel onTx={onTx} />
               )}
               {mode === 'single' && completedJobs.length > 0 && (
                 <div className="space-y-2 mt-3 border-t border-white/10 pt-3">

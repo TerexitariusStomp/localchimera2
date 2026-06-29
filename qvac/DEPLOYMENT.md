@@ -83,7 +83,7 @@ Edit `config.json` before starting:
     }
   },
   "miners": {
-    "priority": ["cortensor", "chutes", "fortytwo", "earnidle"],
+    "priority": ["chutes", "routstr", "earnidle", "casper"],
     "switchInterval": 60000
   }
 }
@@ -114,7 +114,7 @@ The node logs status information:
 ```
 INFO [NodeManager] Node started successfully
 INFO [NodeManager] Node ID: abc123...
-INFO [MinerManager] Now running: cortensor
+INFO [MinerManager] Now running: chutes
 ```
 
 ### View Logs

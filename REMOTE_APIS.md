@@ -48,7 +48,6 @@ This document lists every remote API, RPC endpoint, and external service the Chi
 | Endpoint | Protocol | Purpose | Auth |
 |----------|----------|---------|------|
 | `https://llm.chutes.ai/v1` | HTTP (OpenAI-compatible) | Chutes miner upstream inference. API key sent via `Authorization: Bearer` header from `CHUTES_API_KEY` env var. | Bearer token |
-| `https://node.fortytwo.network/api` | HTTP | Fortytwo miner upstream inference and capability challenge submission. | Bearer token |
 
 **Notes:**
 - These are upstream inference APIs that miners call when forwarding tasks. The Chimera node itself does not hardcode keys; they are injected via environment variables (`CHUTES_API_KEY`).
@@ -66,9 +65,7 @@ This document lists every remote API, RPC endpoint, and external service the Chi
 
 ### 3.4 GitHub (Installer Fetch)
 
-| Endpoint | Purpose |
-|----------|---------|
-| `https://github.com/cortensor/installer/archive/main.tar.gz` | Downloaded by `CortensorMiner.js` during first-time setup to install the Cortensor node client. |
+No tasking-network installers are downloaded by Localchimera. The remaining miners are Docker-based or protocol-native and do not require a separate GitHub installer fetch.
 
 ---
 
@@ -125,7 +122,7 @@ This document lists every remote API, RPC endpoint, and external service the Chi
 | GitHub API (unauthenticated) | 60 req/hour | Cached in `sessionStorage` for 5 min |
 | Arbitrum public RPC | ~10 req/sec | 3 retries with 1s backoff in PayoutRouter |
 | Casper RPC | Varies by provider | No retry (deploy failures are logged) |
-| Chutes / Fortytwo | Determined by upstream | 3 retries with exponential backoff in miner clients |
+| Chutes | Determined by upstream | 3 retries with exponential backoff in miner client |
 
 ---
 

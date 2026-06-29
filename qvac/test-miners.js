@@ -1,6 +1,4 @@
-import { CortensorMiner } from './src/miners/CortensorMiner.js';
 import { ChutesMiner } from './src/miners/ChutesMiner.js';
-import { FortytwoMiner } from './src/miners/FortytwoMiner.js';
 import { EarnidleMiner } from './src/miners/EarnidleMiner.js';
 import { RoutstrMiner } from './src/miners/RoutstrMiner.js';
 import { Logger } from './src/core/Logger.js';
@@ -18,9 +16,7 @@ async function testMiners() {
   logger.info('Starting miner integration test...');
   
   const miners = {
-    cortensor: new CortensorMiner(config.miners.cortensor.config),
     chutes: new ChutesMiner(config.miners.chutes.config),
-    fortytwo: new FortytwoMiner(config.miners.fortytwo.config),
     earnidle: new EarnidleMiner(config.miners.earnidle.config),
     routstr: new RoutstrMiner(config.miners.routstr.config)
   };

@@ -4,7 +4,7 @@
 - **QVAC**: Local AI inference layer
 - **Hypercore**: Distributed data store
 - **Pear**: P2P app distribution network
-- **Miners**: Cortensor, Chutes, Fortytwo, Earnidle, Routstr
+- **Miners**: Chutes, Routstr, Earnidle, BTT AI, Golem, Anyone Protocol, Mysterium, Casper
 
 ## Container Compatibility Assessment
 

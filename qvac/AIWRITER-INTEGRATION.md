@@ -22,11 +22,11 @@ Active Writing (User Input)     Idle / Background (Mining)
 ┌─────────────────┐          ┌─────────────────┐
 │  AI Writer App  │          │  Multi-Protocol │
 │  - Prompt Entry │          │  Mining         │
-│  - LLM Gen      │          │  - Cortensor    │
-│  - Wiki Save    │          │  - Chutes       │
-│  - Peer Sync    │          │  - Fortytwo     │
-│                 │          │  - Earnidle     │
-│                 │          │  - Routstr      │
+│  - LLM Gen      │          │  - Chutes       │
+│  - Wiki Save    │          │  - Routstr      │
+│  - Peer Sync    │          │  - Earnidle     │
+│                 │          │  - Casper       │
+│                 │          │  - BTT AI       │
 └─────────────────┘          └─────────────────┘
         │                            │
         └──────────┬─────────────────┘
@@ -39,20 +39,20 @@ Active Writing (User Input)     Idle / Background (Mining)
         ┌──────────┼──────────┐
         │          │          │
     ┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐
-    │Cortensor│ │Chutes │ │Fortytwo│ │Earnidle│ │Routstr │
+    │Chutes   │ │Routstr│ │Earnidle│ │Casper  │ │BTT AI  │
     │Monitor  │ │Monitor│ │Monitor │ │Monitor │ │Monitor │
-    └─────────┘ └───────┘ └────────┘ └───────┘ └────────┘
+    └─────────┘ └───────┘ └───────┘ └───────┘ └───────┘
 ```
 
 ### Parallel Miner Monitoring
 
-All five miners run simultaneously in monitoring mode:
+The following untrusted-hardware-safe miners run simultaneously in monitoring mode:
 
-1. **CortensorMiner**: Monitors for AI network tasks
-2. **ChutesMiner**: Monitors for GPU compute tasks
-3. **FortytwoMiner**: Monitors for decentralized AI inference
-4. **EarnidleMiner**: Monitors for idle compute opportunities
-5. **RoutstrMiner**: Monitors for Nostr protocol tasks
+1. **ChutesMiner**: Monitors for GPU compute tasks
+2. **RoutstrMiner**: Monitors for Nostr protocol tasks
+3. **EarnidleMiner**: Monitors for idle compute opportunities
+4. **CasperEscrowBridge**: Monitors for Casper relay tasks
+5. **BttAiMinerProvider**: Monitors for BTT AI GPU tasks
 
 When a writing task arrives:
 - TaskMonitor immediately notifies all miners
@@ -71,7 +71,7 @@ Edit `config.json`:
   "miners": {
     "enabled": true,
     "parallelMode": true,
-    "priority": ["cortensor", "chutes", "fortytwo", "earnidle", "routstr"]
+    "priority": ["chutes", "routstr", "earnidle", "casper"]
   },
   "inference": {
     "enabled": true,

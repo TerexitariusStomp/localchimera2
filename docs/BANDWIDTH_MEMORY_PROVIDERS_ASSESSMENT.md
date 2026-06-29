@@ -1,15 +1,17 @@
 # Bandwidth & Memory/Caching Providers Assessment
 
+> **Archived**: The self-hosted providers below (Income Generator, CashPilot, CESS) have been **removed from the Localchimera codebase** because they require per-app credentials or a local wallet/config on the machine and cannot safely run on untrusted hardware. This document is kept as an assessment archive.
+
 ## Providers Requested
 
 | Provider | Type | Self-Hosted? | Consumer-Friendly? | Verdict |
 |----------|------|-------------|-------------------|---------|
 | **b1m.ai** | Bandwidth sharing | ❌ Browser extension | N/A | Cannot integrate — not self-hosted |
 | **Grass** | Bandwidth / DePIN | ❌ Browser extension / desktop app | N/A | Cannot integrate — not self-hosted |
-| **Income Generator (XternA)** | Bandwidth meta-orchestrator | ✅ Docker Compose | ✅ Raspberry Pi 3+ | **Integrated** |
-| **CashPilot (GeiserX)** | DePIN manager | ✅ Docker Compose (UI + Worker) | ✅ Docker-based | **Integrated** |
+| **Income Generator (XternA)** | Bandwidth meta-orchestrator | ✅ Docker Compose | ✅ Raspberry Pi 3+ | **Removed from Localchimera** — per-app credentials required |
+| **CashPilot (GeiserX)** | DePIN manager | ✅ Docker Compose (UI + Worker) | ✅ Docker-based | **Removed from Localchimera** — per-service credentials required |
 | **FilBeam** | Filecoin caching | ❌ No valid repo found | N/A | Cannot integrate — no self-hosted software |
-| **CESSProject** | Decentralized cloud storage | ✅ Docker + `cess` CLI | ✅ Docker-based | **Integrated** |
+| **CESSProject** | Decentralized cloud storage | ✅ Docker + `cess` CLI | ✅ Docker-based | **Removed from Localchimera** — local wallet/config required |
 
 ---
 
@@ -34,7 +36,7 @@
 
 ---
 
-### ✅ Integrated into SDK
+### ⚠️ Removed from Localchimera (not in SDK or node)
 
 #### 1. Income Generator (XternA) — Bandwidth Orchestrator ⭐
 
@@ -58,9 +60,10 @@
 - Network: Residential IP, unlimited bandwidth preferred
 - Docker + Docker Compose
 
-**SDK Integration:**
-- `IncomeGeneratorProvider.js` runs `docker compose -f compose/compose.yml up -d`
-- Status tracked via `docker compose ps`
+**Why removed from Localchimera:**
+- Requires per-app credentials on the local machine (Honeygain, PacketStream, Proxyrack, EarnApp, etc.).
+- Upstream is a Docker Compose wrapper around closed-source apps; no relay/worker split is supported.
+- Original upstream: `https://github.com/XternA/income-generator.git`
 
 ---
 
@@ -84,9 +87,10 @@
 - Storage: 10 GB
 - Docker + Docker Compose
 
-**SDK Integration:**
-- `CashPilotProvider.js` runs `docker compose up -d`
-- Status tracked via container health
+**Why removed from Localchimera:**
+- Requires per-service credentials on the local machine.
+- Upstream is a self-hosted credential manager for other DePIN services; no relay/worker split is supported.
+- Original upstream: `https://github.com/GeiserX/CashPilot.git`
 
 **Note**: CashPilot itself manages other services (like Grass, EarnApp, etc.) but those still require individual signups and credentials.
 
@@ -112,44 +116,50 @@
 - Docker
 - Ports: 30336, 9944, 19999, 15001 (must be open/forwarded)
 
-**SDK Integration:**
-- `CessProvider.js` runs `sudo cess start`
-- Requires `sudo` for CESS CLI installation
+**Why removed from Localchimera:**
+- Requires a local wallet/config and `sudo` for the CESS CLI.
+- The CESS node is a blockchain participant that signs storage proofs and on-chain transactions locally; no relay/worker split is supported.
+- Original upstream: `https://github.com/CESSProject/cess-nodeadm.git`
 
 ---
 
-## Summary for SDK Integration
+## Other Removed Providers (Compute / GPU)
 
-| Provider | Integrate? | Type | Earns | Needs Credentials |
-|----------|-----------|------|-------|------------------|
-| **Income Generator** | ✅ Yes | Bandwidth orchestrator | USD / crypto per app | Per-app signup |
-| **CashPilot** | ✅ Yes | DePIN manager | Varies per service | Per-service signup |
-| **CESS** | ✅ Yes | Storage mining | ZCN tokens | Wallet + stake |
-| **b1m.ai** | ❌ No | Browser extension | — | N/A |
-| **Grass** | ❌ No | Browser extension | GRASS tokens | N/A |
-| **FilBeam** | ❌ No | No valid repo | — | N/A |
+These have been removed from the Localchimera codebase because they require a wallet, API key, or account credentials on the local machine. See `docs/RELAY_COMPATIBILITY.md` for the detailed per-protocol analysis of why a relay/worker split is not supported by their upstream protocols.
+
+| Provider | Type | Why removed |
+|---|---|---|
+| **Salad** | Job queue worker | Salad account credentials required |
+| **Heurist** | GPU/LLM miner | Local identity wallet required |
+| **Lium** | GPU marketplace CLI | Bittensor wallet / API key required |
+| **Nosana** | Solana compute kit | Solana wallet / API key required |
+| **ByteLeap** | Bittensor GPU miner | Bittensor wallet required |
 
 ---
 
-## New SDK Files
+## Summary
 
-| File | Purpose |
-|------|---------|
-| `sdk/src/miners/IncomeGeneratorProvider.js` | Docker Compose orchestrator for bandwidth apps |
-| `sdk/src/miners/CashPilotProvider.js` | Docker Compose for DePIN manager UI + worker |
-| `sdk/src/miners/CessProvider.js` | CESS storage node via `cess` CLI |
-| `providers/start-all.sh` | Updated to start all 8 providers |
+| Provider | Localchimera? | Type | Needs Credentials |
+|----------|---------------|------|------------------|
+| **Income Generator** | ❌ Removed | Bandwidth orchestrator | Per-app signup |
+| **CashPilot** | ❌ Removed | DePIN manager | Per-service signup |
+| **CESS** | ❌ Removed | Storage mining | Wallet + stake |
+| **Salad** | ❌ Removed | Job queue worker | Salad account credentials |
+| **Heurist** | ❌ Removed | GPU/LLM miner | Local identity wallet |
+| **Lium** | ❌ Removed | GPU marketplace CLI | Bittensor wallet / API key |
+| **Nosana** | ❌ Removed | Solana compute kit | Solana wallet / API key |
+| **ByteLeap** | ❌ Removed | Bittensor GPU miner | Bittensor wallet |
+| **b1m.ai** | ❌ Cannot integrate | Browser extension | N/A |
+| **Grass** | ❌ Cannot integrate | Browser extension / desktop app | N/A |
+| **FilBeam** | ❌ Cannot integrate | No valid repo | N/A |
 
 ---
 
 ## Bottom Line
 
-**For everyday hardware, these three make sense:**
-1. **Income Generator** — Best bandwidth option, explicitly Raspberry Pi compatible
-2. **CashPilot** — Good for managing multiple DePIN services from a web UI
-3. **CESS** — Lightweight storage mining, Docker-based
+These bandwidth, storage, and compute providers are **not included in Localchimera** because they require credentials or a wallet on the local machine, making them unsafe for untrusted hardware. Their upstream protocols also do not support a relay/worker split that would let a trusted relay hold the key while an untrusted worker provides the resource.
 
-**Exclude from SDK:**
+**Cannot integrate:**
 - **b1m.ai** — Browser extension, not a daemon
 - **Grass** — Browser extension / desktop app, not self-hosted
 - **FilBeam** — No valid self-hosted repository found

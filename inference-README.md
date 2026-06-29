@@ -1,10 +1,10 @@
-# Chimera-Fortytwo Node
+# Chimera Swarm Inference Node
 
-A fork of Fortytwo's swarm inference protocol adapted for the Chimera (QVAC) decentralized compute marketplace testnet.
+A Chimera swarm inference node using peer-ranked consensus for the QVAC decentralized compute marketplace testnet.
 
 ## What This Is
 
-Fortytwo pioneered **swarm inference**: networked small language models collaborate via peer-ranked consensus to achieve scale beyond single frontier models. This codebase ports that architecture to run on Chimera's EVM-based compute marketplace infrastructure.
+Networked small language models collaborate via peer-ranked consensus to achieve scale beyond single frontier models. This node runs on Chimera's EVM-based compute marketplace infrastructure.
 
 ## Architecture
 
@@ -33,9 +33,9 @@ Fortytwo pioneered **swarm inference**: networked small language models collabor
                          (Bradley-Terry Aggregation)
 ```
 
-## Key Adaptations from Fortytwo
+## Key Adaptations
 
-| Fortytwo Original | Chimera Adaptation |
+| Original Concept | Chimera Adaptation |
 |-------------------|-------------------|
 | FOR token staking | ComputeRegistry ETH staking + reputation |
 | x402 micropayments | EscrowVault job-based escrow settlement |
@@ -46,7 +46,7 @@ Fortytwo pioneered **swarm inference**: networked small language models collabor
 ## Project Structure
 
 ```
-chimera-fortytwo-node/
+chimera-swarm-inference/
 ├── src/
 │   ├── node/           # Inference node runtime
 │   ├── consensus/      # Peer-ranked consensus engine

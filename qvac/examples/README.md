@@ -23,7 +23,7 @@ The AI Writer integration demonstrates session-based resource allocation for col
 ### Key Features
 
 1. **Session-Based Switching**: Automatically detects active vs idle user sessions
-2. **Parallel Miner Monitoring**: All five miners (Cortensor, Chutes, Fortytwo, Earnidle, Routstr) monitor simultaneously
+2. **Parallel Miner Monitoring**: Chutes, Routstr, Earnidle, BTT AI, Golem, Anyone Protocol, Mysterium, and Casper monitor simultaneously
 3. **Immediate Task Detection**: Task monitor notifies all miners instantly when inference tasks arrive
 4. **Resource Optimization**: Device resources allocated based on user activity
 
@@ -71,11 +71,11 @@ Edit `config.json` to customize:
          │
     ┌────┴────┐
     │         │
-┌───▼───┐ ┌──▼────┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐
-│Cortensor│ │Chutes │ │Fortytwo│ │Earnidle│ │Routstr │
-│         │ │       │ │        │ │        │ │        │
-│Monitoring│ │Monitoring│ │Monitoring│ │Monitoring│ │Monitoring│
-└─────────┘ └────────┘ └────────┘ └────────┘ └────────┘
+┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐
+│Chutes │ │Routstr│ │Earnidle│ │Casper │
+│       │ │       │ │        │ │       │
+│Mining │ │Mining │ │Mining  │ │Mining │
+└───────┘ └───────┘ └────────┘ └───────┘
 ```
 
 ### Integration with AI Writer

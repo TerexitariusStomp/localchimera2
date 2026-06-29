@@ -1,12 +1,13 @@
 {
-  "name": "chimera-fortytwo-node",
+  "name": "chimera-swarm-inference",
   "version": "0.1.0",
-  "description": "Fortytwo swarm inference fork for Chimera decentralized compute marketplace",
+  "description": "Chimera swarm inference node for the decentralized compute marketplace",
   "type": "module",
   "scripts": {
     "build": "tsc",
     "dev:node": "tsx src/node/index.ts",
     "dev:coordinator": "tsx src/coordinator/server.ts",
+    "dev:api": "cd inference-backend/api && npm run dev",
     "test": "vitest",
     "test:unit": "vitest run tests/unit",
     "lint": "eslint src tests --ext .ts",

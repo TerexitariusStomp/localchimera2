@@ -32,41 +32,12 @@
     "enabled": true,
     "parallelMode": true,
     "priority": [
-      "cortensor",
       "routstr",
       "chutes",
-      "fortytwo",
+      "btfs",
       "earnidle"
     ],
     "switchInterval": 60000,
-    "cortensor": {
-      "enabled": true,
-      "note": "Cortensor network miner. Register: https://github.com/cortensor/installer",
-      "config": {
-        "network": "arbitrum",
-        "walletAddress": "0xYOUR_EVM_WALLET_ADDRESS",
-        "protocolAddress": "",
-        "cortensorHome": "~/.cortensor",
-        "envFile": "~/.cortensor/.env",
-        "cortensordPath": "",
-        "autoFundSweep": true
-      }
-    },
-    "fortytwo": {
-      "enabled": true,
-      "config": {
-        "network": "evm",
-        "platform": "https://fortytwo.network",
-        "walletAddress": "0xYOUR_EVM_WALLET_ADDRESS",
-        "protocolAddress": "",
-        "nodeName": "Chimera-Fortytwo-Node",
-        "apiBase": "https://node.fortytwo.network/api",
-        "inferenceUrl": "https://your-node-domain.com:3002/v1",
-        "pollInterval": 120000,
-        "fortytwoHome": "~/.fortytwo",
-        "autoFundSweep": true
-      }
-    },
     "earnidle": {
       "enabled": true,
       "config": {
@@ -109,6 +80,16 @@
         "inferenceBaseUrl": "https://llm.chutes.ai/v1",
         "chutesHome": "~/.chutes",
         "endpoint": "https://your-node-domain.com:3002/v1"
+      }
+    },
+    "btfs": {
+      "enabled": true,
+      "config": {
+        "apiUrl": "http://127.0.0.1:5001",
+        "repoPath": "~/.btfs-chimera",
+        "relayUrl": "https://your-casper-relay.example.com",
+        "relayToken": "YOUR_RELAY_TOKEN",
+        "providerAccountHash": "YOUR_CASPER_PROVIDER_ACCOUNT_HASH"
       }
     },
     "casper": {

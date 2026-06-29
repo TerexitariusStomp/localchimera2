@@ -1,4 +1,6 @@
-# Storage Providers Assessment — Consumer Hardware
+# Storage Providers Assessment — Consumer Hardware (Archived)
+
+> **Archived**: The self-hosted storage providers below (BTFS, 0Chain Blobber / ZCN) have been **removed from the Localchimera codebase** because they require a local wallet or credentials on the machine and cannot safely run on untrusted hardware. This document is kept as a personal build assessment only. Sia hostd and Hippius are not integrated either.
 
 ## This Machine
 
@@ -29,10 +31,10 @@
 
 | Provider | Can Run on Everyday Hardware? | Blocker | Relaxable? |
 |----------|------------------------------|---------|------------|
-| **BTFS** | ✅ **Best candidate** | Build issue (fixable) | Yes — designed for consumers |
-| **Sia hostd** | ⚠️ Marginal | Needs 4 TB+ storage, 8 GB RAM | Partial — storage is hard requirement |
-| **Hippius** | ⚠️ Marginal | Needs 2 TB+, 16 GB RAM, ZFS | Partial — can run with relaxed Ansible vars |
-| **0Chain Blobber** | ✅ Likely yes | Need tokens for stake | Yes — blobber is lightweight |
+| **BTFS** | ❌ Removed from Localchimera | Local BTT wallet required | No — embedded wallet; no relay API |
+| **Sia hostd** | ⚠️ Not integrated | Needs 4 TB+ storage, 8 GB RAM | Partial — storage is hard requirement |
+| **Hippius** | ⚠️ Not integrated | Needs 2 TB+, 16 GB RAM, ZFS | Partial — can run with relaxed Ansible vars |
+| **0Chain Blobber** | ❌ Removed from Localchimera | Need tokens for stake | No — local ZCN wallet required |
 | **Filecoin Lotus** | ❌ No | 256 GB RAM, GPU 11 GB+, 2 TB NVME | No — sealed proofs need GPU |
 | **Arweave** | ❌ No | Stores entire weave (100 GB+ and growing) | No — storage requirement is fundamental |
 
@@ -159,12 +161,12 @@ TMPDIR=/home/user/tmp go build -o btfs ./cmd/btfs
 
 ## Summary for SDK Integration
 
-| Provider | Integrate into SDK? | Reason |
-|----------|--------------------|--------|
-| **BTFS** | ✅ Yes | Consumer-designed, fixable build |
-| **Sia hostd** | ✅ Yes | Built successfully, moderate requirements |
-| **Hippius** | ⚠️ Maybe | Complex Ansible setup, high requirements |
-| **0Chain Blobber** | ✅ Yes | Built successfully, likely lightweight |
+| Provider | Localchimera? | Reason |
+|----------|---------------|--------|
+| **BTFS** | ❌ Removed | Local BTT wallet required; no relay/worker split |
+| **Sia hostd** | ❌ Not integrated | High storage requirements; not in current scope |
+| **Hippius** | ❌ Not integrated | Complex Ansible setup, high requirements |
+| **0Chain Blobber** | ❌ Removed | Local ZCN wallet + stake required; no relay/worker split |
 | **Filecoin Lotus** | ❌ No | 256 GB RAM + GPU required |
 | **Arweave** | ❌ No | Archival storage, 100 GB+ weave |
 
@@ -172,10 +174,4 @@ TMPDIR=/home/user/tmp go build -o btfs ./cmd/btfs
 
 ## Recommended Action
 
-For **everyday hardware**, integrate these into the SDK:
-
-1. **BTFS** — Most consumer-friendly
-2. **Sia hostd** — Moderate, well-documented
-3. **0Chain Blobber** — Lightweight, built cleanly
-
-Patch BTFS build for modern GCC, then create SDK provider classes for all three.
+No storage providers are currently integrated into Localchimera because all evaluated self-hosted options require a local wallet or credentials on the machine. The build notes above are kept for reference only.

@@ -39,9 +39,7 @@ async function main() {
   }
 
   // Extract EVM address from config
-  const evmAddress = config.miners?.cortensor?.config?.walletAddress || 
-                     config.miners?.fortytwo?.config?.walletAddress ||
-                     config.evmAddress;
+  const evmAddress = config.evmAddress;
 
   if (!evmAddress) {
     logger.error('No EVM address found in config. Cannot proceed with sweep.');

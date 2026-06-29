@@ -39,7 +39,7 @@ The protocol maintains **shared multisigs** for Nostr and Bittensor. All applica
 
 - **Nostr (Routstr)** — Cashu NIP-60 P2SH protocol multisig (2-of-3)
 - **Bittensor (Chutes)** — Substrate protocol multisig (2-of-3)
-- **EVM (Cortensor/Fortytwo)** — Direct deposit to machine owner address
+- **EVM** — Direct deposit to machine owner address
 - **Solana (Earnidle)** — Direct deposit (separate wallet)
 
 ### Two-Sweep Architecture
@@ -122,7 +122,7 @@ This node integrates:
 - **QVAC** - Base inference layer for AI applications
 - **Pear** - Peer-to-peer app distribution
 - **Hypercore** - Distributed data store
-- **Multi-Miner Support** - Cortensor, Chutes, Fortytwo-Network, Earnidle, Routstr
+- **Multi-Miner Support** - Chutes, Routstr, Earnidle, BTT AI, Golem, Anyone Protocol, Mysterium, Casper
 - **Centralized Inference** - All miners route through single QVAC inference node
 
 ## Features
@@ -184,14 +184,8 @@ Edit `config.json` to customize:
 
 ## Miner Integration
 
-### Cortensor
-Decentralized AI network miner for proof-of-useful-work tasks.
-
 ### Chutes
 GPU mining system with automatic GPU validation.
-
-### Fortytwo-Network
-Decentralized AI inference node for planetary-scale intelligence.
 
 ### Earnidle
 Protocol for putting idle compute resources to work across multiple venues.

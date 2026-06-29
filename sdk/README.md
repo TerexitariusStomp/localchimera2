@@ -6,9 +6,7 @@ Integrate local AI mining into your application. Your users earn revenue from id
 
 All mining rewards flow through **Chimera protocol multisigs** — you never need a Bittensor, Solana, or Nostr wallet.
 
-1. **Mining** — user's device completes tasks on:
-   - **Untrusted-hardware-safe**: Chutes, Routstr, BTT AI, Golem, Anyone Protocol, Mysterium, Casper (relay mode)
-   - **Self-managed** (local keys required): BTFS, ZCN
+1. **Mining** — user's device completes tasks on the untrusted-hardware-safe networks: Chutes, Routstr, BTT AI, Golem, Anyone Protocol, Mysterium, Casper (relay mode), Earnidle (public wallet address only). Providers that require a local private key or self-managed config are excluded from the SDK.
 2. **Weekly sweep** — all funds are swept into the Chimera EVM collection multisig
 3. **Monthly distribution** — funds are split and sent to:
    - **Machine owner** EVM address (set on the Chimera landing page)
@@ -127,7 +125,7 @@ await sdk.start();
          │
 ┌────────▼────────┐
 │  External       │  ← BTT AI (GPU tasking), Golem (compute), Anyone Protocol,
-│  Providers      │    Mysterium (VPN), Casper (relay), BTFS, ZCN (self-managed; local keys required)
+│  Providers      │    Mysterium (VPN), Casper (relay) — all untrusted-hardware-safe
 └────────┬────────┘
          │
 ┌────────▼────────┐
@@ -149,14 +147,11 @@ await sdk.start();
 | **Anyone Protocol** | ✅ Safe | No keys required | Container name reference only | ❌ No |
 | **Mysterium** | ✅ Safe | No keys required | Container name reference only | ❌ No |
 | **Casper** | ✅ Safe (relay mode) | Provider key lives on relay; worker never sees PEM | Relay URL + token only | ❌ No |
-| **BTFS** | ❌ Self-managed | `~/.btfs` (user-managed) | Binary path only | ❌ No |
-| **ZCN** | ❌ Self-managed | `~/.zcn` (user-managed) | Config path only | ❌ No |
-
-**Removed from SDK** (incompatible with untrusted hardware): Akash, Targon, CESS, Income Generator, CashPilot, Salad, Heurist, Lium, Nosana, ByteLeap.
+| **Earnidle** | ✅ Safe | Public Solana wallet address only (no private key) | Address + API poll | ❌ No |
 
 **Apps using the SDK cannot extract funds** because they never receive the actual key material — only references to OS-level secure storage.
 
-**Self-managed providers** require local wallet setup (mnemonics, config files, or PEM keys stored on the machine). They will not function on untrusted hardware unless the machine owner has already configured the wallet.
+**Removed from the codebase** — providers that require a private key, wallet mnemonic, account credentials, or self-managed config on the local machine are not included in Localchimera because they cannot safely run on untrusted hardware and their upstream protocols do not support a relay/worker split. The old list (Cortensor, Fortytwo, CESS, Akash, Targon, ZCN, BTFS, Income Generator, CashPilot, Salad, Heurist, Lium, Nosana, ByteLeap) and the per-network analysis is archived in `docs/RELAY_COMPATIBILITY.md` for reference.
 
 ## Full example
 

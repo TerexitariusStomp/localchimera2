@@ -116,7 +116,7 @@ npx cap open android  # Android Studio → Generate Signed Bundle
 - **Standalone** — Each device is its own node. No InferenceRouter, no relay.
 - **Hardened** — Docker container runs as non-root with minimal deps.
 - **P2P** — Pear P2P swarm sync for wiki pages across devices.
-- **Mining** — Cortensor, Chutes, Fortytwo, Earnidle, Routstr miners.
+- **Mining** — Chutes, Routstr, Earnidle, BTT AI, Golem, Anyone Protocol, Mysterium, Casper miners.
 - **Fleet** — Commander/worker orchestration for distributed tasks.
 
 ### New: Enhanced Inference & Security Modules
@@ -185,7 +185,7 @@ qvac-chimera/
 │   ├── src/                  # Node.js backend
 │   │   ├── core/             # NodeManager, WalletManager, AuditLogger, ContentAddress, DeploymentLifecycle
 │   │   ├── inference/        # QVACInferenceLayer, ProofOfInference, InferenceQueue, PromptGuard, PromptBudgeter, TokenMeter, VoicePipeline, AgentLoop, DocumentChunker
-│   │   ├── miners/           # Cortensor, Chutes, etc.
+│   │   ├── miners/           # Chutes, Routstr, Casper, Earnidle (untrusted-hardware-safe)
 │   │   ├── p2p/              # Pear P2P networking + CapabilityManifest
 │   │   ├── web/              # HTTP server + API routes
 │   │   └── scheduler/        # TaskMonitor
