@@ -27,13 +27,11 @@ if (!fs.existsSync(srcDir)) {
   process.exit(1);
 }
 
-// Copy to Expo assets (used by Metro/expo-asset require)
+// Copy to Expo assets
 copyRecursive(srcDir, destDir);
 console.log('Frontend assets copied to:', destDir);
 
-// If Android native assets directory exists (after prebuild), also copy there
-// so the files are included in the APK regardless of Metro asset bundling.
-if (fs.existsSync(path.dirname(androidAssetsDir))) {
-  copyRecursive(srcDir, androidAssetsDir);
-  console.log('Frontend assets copied to Android assets:', androidAssetsDir);
-}
+// Copy to Android native assets directory (create if missing).
+// This is required for the files to be included in the APK as raw assets.
+copyRecursive(srcDir, androidAssetsDir);
+console.log('Frontend assets copied to Android assets:', androidAssetsDir);
