@@ -1,14 +1,17 @@
 /**
- * BtfsStorageProvider — Decentralized storage provider for untrusted machines.
+ * BtfsStorageProvider — Walletless decentralized storage provider for untrusted machines.
  *
  * Each provider runs a local go-btfs daemon. Files are stored on the BTFS
  * network, not on a central server. The provider only pins and serves files
  * that correspond to on-chain storage jobs it has accepted.
  *
- * Security:
- *   - The SDK does not require a BTFS wallet mnemonic.
- *   - The daemon can run in a sandboxed container and its wallet is disposable.
- *   - The provider validates on-chain job ownership before storing/serving.
+ * Security / no-local-key guarantee:
+ *   - The SDK never asks for, stores, or requires a BTT wallet mnemonic.
+ *   - The BTFS daemon's wallet is unfunded and unused; BTT storage-host mode
+ *     is disabled so the daemon never signs cheques or storage contracts.
+ *   - The only key material on the provider is the libp2p peer identity
+ *     needed to join the BTFS swarm. It does not hold funds.
+ *   - All payments and job authorization are handled on the Casper blockchain.
  */
 
 import { spawn, execSync } from 'child_process';
@@ -46,13 +49,12 @@ export class BtfsStorageProvider {
       throw new Error('Docker not available. BTFS provider requires Docker to run the go-btfs daemon.');
     }
 
-    logger.info(`BTFS provider ready (upstream: ${this.upstreamPath})`);
+    logger.info(`BTFS walletless provider ready (upstream: ${this.upstreamPath})`);
   }
 
   async start() {
     if (this.running) return { success: true, alreadyRunning: true };
 
-    // If a daemon is already listening, reuse it.
     const online = await this.client.isOnline();
     if (online) {
       this.daemonReady = true;
@@ -64,7 +66,7 @@ export class BtfsStorageProvider {
     await this._ensureRepo();
 
     return new Promise((resolve) => {
-      logger.info('Starting BTFS daemon via Docker...');
+      logger.info('Starting walletless BTFS daemon via Docker...');
       this.process = spawn('docker', [
         'run', '--rm',
         '-p', '5001:5001',
@@ -74,7 +76,7 @@ export class BtfsStorageProvider {
         '-e', 'BTFS_PATH=/data/btfs',
         'btfs:latest',
         'daemon',
-        '--enable-storage-host=true',
+        '--enable-storage-host=false',
       ], { cwd: this.upstreamPath });
 
       this.running = true;
@@ -93,7 +95,6 @@ export class BtfsStorageProvider {
         logger.warn(`BTFS daemon exited with code ${code}`);
       });
 
-      // Wait for API to come online
       const waitForApi = async () => {
         for (let i = 0; i < 30; i++) {
           try {
@@ -140,11 +141,10 @@ export class BtfsStorageProvider {
     await fs.mkdir(this.repoPath, { recursive: true });
     const initialized = await fs.access(path.join(this.repoPath, 'config')).then(() => true).catch(() => false);
     if (!initialized) {
-      logger.info('Initializing BTFS repo...');
+      logger.info('Initializing walletless BTFS repo...');
       try {
         execSync('docker run --rm -v "' + this.repoPath + ':/data/btfs" btfs:latest init', { cwd: this.upstreamPath, stdio: 'ignore' });
       } catch {
-        // If the image is not built, the init will fail; start() will also fail clearly.
         throw new Error('Failed to initialize BTFS repo. Build the image first: cd upstream/btfs && docker build -t btfs:latest .');
       }
     }

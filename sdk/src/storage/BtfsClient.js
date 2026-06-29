@@ -1,8 +1,10 @@
 /**
- * BTFS HTTP API client.
+ * BTFS HTTP API client (walletless provider mode).
+ *
  * Talks to a local go-btfs daemon at the standard API port (5001).
- * This is the same API surface as IPFS, so the client can also target
- * any IPFS/BTFS-compatible gateway.
+ * This client only performs storage/retrieval operations (add, cat, pin, unpin).
+ * It does NOT interact with the BTT wallet, storage-host contracts, or cheques.
+ * All payments and job authorization live on the Casper blockchain.
  */
 
 export class BtfsClient {
@@ -84,11 +86,6 @@ export class BtfsClient {
 
   async pinLs() {
     const res = await this._request('/pin/ls');
-    return res.json();
-  }
-
-  async rm(cid) {
-    const res = await this._request('/pin/rm', { method: 'POST', query: { arg: cid } });
     return res.json();
   }
 }

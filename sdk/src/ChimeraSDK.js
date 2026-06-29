@@ -182,7 +182,7 @@ export class ChimeraSDK {
       logger.warn(`[${this.appName}] Mysterium init failed: ${err.message}`);
     }
 
-    // Decentralized storage node (BTFS, no local wallet in SDK)
+    // Decentralized storage node (BTFS walletless mode — no private key on device)
     try {
       const btfs = new BtfsStorageProvider({
         apiUrl: this._config?.btfs?.apiUrl || null,
@@ -190,7 +190,7 @@ export class ChimeraSDK {
       });
       await btfs.init();
       this.externalProviders.push(btfs);
-      logger.info(`[${this.appName}] BTFS storage provider ready`);
+      logger.info(`[${this.appName}] BTFS walletless storage provider ready`);
     } catch (err) {
       logger.warn(`[${this.appName}] BTFS storage provider init failed: ${err.message}`);
     }
