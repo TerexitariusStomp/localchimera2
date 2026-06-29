@@ -13,13 +13,9 @@ import { BttAiMinerProvider } from './miners/BttAiMinerProvider.js';
 import { GolemProvider } from './miners/GolemProvider.js';
 import { AnyoneProtocolProvider } from './miners/AnyoneProtocolProvider.js';
 import { MysteriumProvider } from './miners/MysteriumProvider.js';
-import { CessProvider } from './miners/CessProvider.js';
 import { EarnidleProvider } from './miners/EarnidleProvider.js';
-import { AkashProvider } from './miners/AkashProvider.js';
-import { TargonProvider } from './miners/TargonProvider.js';
 import { CasperProvider } from './miners/CasperProvider.js';
-import { KeyringManager } from './miners/KeyringManager.js';
-import { WalletSetup } from './miners/WalletSetup.js';
+import { BtfsStorageProvider } from './miners/BtfsStorageProvider.js';
 
 const logger = new Logger('ChimeraSDK');
 
@@ -107,61 +103,15 @@ export class ChimeraSDK {
   }
 
   /**
-   * Onboard a new machine — recover wallets so it contributes resources
-   * and earnings flow to your address.
-   *
-   * Call this before init() on a brand-new machine.
-   * Returns instructions if credentials are missing.
-   */
-  async onboard() {
-    const result = await WalletSetup.onboardNewMachine();
-    const missing = [];
-
-    if (!result.akash.exists) {
-      missing.push({
-        network: 'akash',
-        instruction: 'Run: provider-services keys add mykey --recover (type your mnemonic interactively)'
-      });
-    }
-
-    if (!result.targon.exists) {
-      missing.push({
-        network: 'targon',
-        instruction: 'Use WalletSetup.recoverTargon(mnemonic) or targon-cli config to write ~/.config/.targon.json'
-      });
-    }
-
-    if (missing.length > 0) {
-      logger.warn(`[${this.appName}] New machine onboarding incomplete — ${missing.length} wallets missing`);
-      return { ready: false, missing, details: result };
-    }
-
-    logger.info(`[${this.appName}] New machine onboarded — all wallets present`);
-    return { ready: true, details: result };
-  }
-
-  /**
    * Initialize external providers.
    *
-   * All providers here are untrusted-safe — no private keys stored in the SDK.
-   * Docker-based providers (Golem, Anyone Protocol, Mysterium, CESS, BTT AI):
-   *   run in containers with no local key material.
-   * Keyring-referenced providers (Akash, Targon):
-   *   keys live in OS keyring / user-owned config file; SDK only holds the name/path.
-   * Earnidle: uses only a public wallet address for payouts.
-   * Casper: relay-only mode — private key lives on your relay server, SDK sends unsigned payloads.
+   * All providers here are untrusted-hardware-safe — no private keys stored in the SDK.
+   * Docker-based providers (Golem, Anyone Protocol, Mysterium, BTT AI) run in containers.
+   * Earnidle uses only a public wallet address for payouts.
+   * Casper is used in relay-only mode — private key lives on your relay server.
+   * Providers that require a local key (CESS, Akash, Targon) are excluded from the SDK.
    */
   async _initExternalProviders() {
-    // CESS storage node (Docker-based, no local keys in SDK)
-    try {
-      const cess = new CessProvider();
-      await cess.init();
-      this.externalProviders.push(cess);
-      logger.info(`[${this.appName}] CESS storage provider ready`);
-    } catch (err) {
-      logger.warn(`[${this.appName}] CESS provider init failed: ${err.message}`);
-    }
-
     // GPU tasking network (vLLM/SGLang inference miner)
     try {
       const btt = new BttAiMinerProvider();
@@ -180,26 +130,6 @@ export class ChimeraSDK {
       logger.info(`[${this.appName}] Golem provider ready`);
     } catch (err) {
       logger.warn(`[${this.appName}] Golem init failed: ${err.message}`);
-    }
-
-    // Akash provider node (keyring-referenced, SDK never sees mnemonic)
-    try {
-      const akash = new AkashProvider();
-      await akash.init();
-      this.externalProviders.push(akash);
-      logger.info(`[${this.appName}] Akash provider ready`);
-    } catch (err) {
-      logger.warn(`[${this.appName}] Akash provider init failed: ${err.message}`);
-    }
-
-    // Targon compute provider (keyring-referenced, SDK only passes config path)
-    try {
-      const targon = new TargonProvider();
-      await targon.init();
-      this.externalProviders.push(targon);
-      logger.info(`[${this.appName}] Targon provider ready`);
-    } catch (err) {
-      logger.warn(`[${this.appName}] Targon provider init failed: ${err.message}`);
     }
 
     // Casper escrow bridge (relay-only mode, private key on relay server)
@@ -250,6 +180,19 @@ export class ChimeraSDK {
       logger.info(`[${this.appName}] Mysterium provider ready`);
     } catch (err) {
       logger.warn(`[${this.appName}] Mysterium init failed: ${err.message}`);
+    }
+
+    // Decentralized storage node (BTFS, no local wallet in SDK)
+    try {
+      const btfs = new BtfsStorageProvider({
+        apiUrl: this._config?.btfs?.apiUrl || null,
+        repoPath: this._config?.btfs?.repoPath || null,
+      });
+      await btfs.init();
+      this.externalProviders.push(btfs);
+      logger.info(`[${this.appName}] BTFS storage provider ready`);
+    } catch (err) {
+      logger.warn(`[${this.appName}] BTFS storage provider init failed: ${err.message}`);
     }
   }
 

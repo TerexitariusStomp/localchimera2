@@ -3,8 +3,7 @@
  *
  * Re-exports everything a headless / backend consumer needs:
  *   - ChimeraSDK
- *   - All miner providers
- *   - KeyringManager & WalletSetup utilities
+ *   - Untrusted-hardware-safe miner providers only
  *
  * React hook: import { useChimera } from '@chimera/sdk/src/useChimera.js'
  */
@@ -15,11 +14,8 @@ export {
   GolemProvider,
   AnyoneProtocolProvider,
   MysteriumProvider,
-  CessProvider,
   EarnidleProvider,
-  AkashProvider,
-  TargonProvider,
   CasperProvider,
-  KeyringManager,
-  WalletSetup,
+  BtfsStorageProvider,
 } from './miners/index.js';
+export { BtfsClient } from './storage/index.js';

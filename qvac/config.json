@@ -211,6 +211,11 @@
       "replicate": true
     }
   },
+  "btfs": {
+    "enabled": true,
+    "apiUrl": "http://127.0.0.1:5001",
+    "repoPath": "~/.btfs-chimera"
+  },
   "storage": {
     "path": "./data",
     "encryption": true
