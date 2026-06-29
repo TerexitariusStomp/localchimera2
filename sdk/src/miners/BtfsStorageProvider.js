@@ -28,8 +28,8 @@ const logger = new Logger('BtfsStorageProvider');
 const DEFAULT_RPC_URL = 'https://node.testnet.casper.network/rpc';
 const DEFAULT_CHAIN_NAME = 'casper-test';
 
-const UPSTREAM_BTFS = path.resolve(os.homedir(), 'CascadeProjects', 'localchimera', 'upstream', 'btfs');
 const DEFAULT_REPO = path.join(os.homedir(), '.btfs-chimera');
+const BTFS_IMAGE = 'bittorrent/go-btfs:latest';
 
 const STATE = {
   PENDING: 0,
@@ -79,7 +79,6 @@ export class BtfsStorageProvider {
   constructor(opts = {}) {
     this.apiUrl = opts.apiUrl || 'http://127.0.0.1:5001';
     this.repoPath = opts.repoPath || DEFAULT_REPO;
-    this.upstreamPath = opts.upstreamPath || UPSTREAM_BTFS;
     this.client = new BtfsClient({ apiUrl: this.apiUrl });
     this.process = null;
     this.running = false;
@@ -104,10 +103,6 @@ export class BtfsStorageProvider {
   }
 
   async init() {
-    const upstreamExists = await fs.access(this.upstreamPath).then(() => true).catch(() => false);
-    if (!upstreamExists) {
-      throw new Error(`BTFS upstream not found at ${this.upstreamPath}. Run: git submodule update --init upstream/btfs`);
-    }
     try {
       execSync('docker --version', { stdio: 'ignore' });
     } catch {
@@ -195,10 +190,10 @@ export class BtfsStorageProvider {
         '-p', '4001:4001/udp',
         '-v', `${this.repoPath}:/data/btfs`,
         '-e', 'BTFS_PATH=/data/btfs',
-        'btfs:latest',
+        BTFS_IMAGE,
         'daemon',
         '--enable-storage-host=false',
-      ], { cwd: this.upstreamPath });
+      ]);
       this.running = true;
 
       const appendLog = (level, data) => {
@@ -238,9 +233,9 @@ export class BtfsStorageProvider {
     if (!initialized) {
       logger.info('Initializing walletless BTFS repo...');
       try {
-        execSync('docker run --rm -v "' + this.repoPath + ':/data/btfs" btfs:latest init', { cwd: this.upstreamPath, stdio: 'ignore' });
+        execSync(`docker run --rm -v "${this.repoPath}:/data/btfs" -e BTFS_PATH=/data/btfs ${BTFS_IMAGE} init`, { stdio: 'ignore' });
       } catch {
-        throw new Error('Failed to initialize BTFS repo. Build the image first: cd upstream/btfs && docker build -t btfs:latest .');
+        throw new Error(`Failed to initialize BTFS repo with ${BTFS_IMAGE}. Ensure Docker can pull the image.`);
       }
     }
   }

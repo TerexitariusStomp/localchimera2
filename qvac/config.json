@@ -34,8 +34,6 @@
     "priority": [
       "routstr",
       "chutes",
-      "btfs",
-      "zcn",
       "btt-ai",
       "golem",
       "anyone-protocol",
@@ -72,14 +70,6 @@
         "chutesHome": "~/.chutes",
         "endpoint": ""
       }
-    },
-    "btfs": {
-      "enabled": true,
-      "config": {}
-    },
-    "zcn": {
-      "enabled": true,
-      "config": {}
     },
     "bttAi": {
       "enabled": true,
@@ -210,15 +200,6 @@
       "storage": "./data/hypercore",
       "replicate": true
     }
-  },
-  "btfs": {
-    "enabled": true,
-    "apiUrl": "http://127.0.0.1:5001",
-    "repoPath": "~/.btfs-chimera",
-    "rpcUrl": "https://node.testnet.casper.network/rpc",
-    "relayUrl": "",
-    "relayToken": "",
-    "providerAccountHash": ""
   },
   "casper": {
     "enabled": true,
