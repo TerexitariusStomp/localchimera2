@@ -518,7 +518,7 @@ export class BrowserNode {
     const models: any[] = [];
     if (this.capabilities.hasWebGPU) {
       try {
-        const webllm = await import('@mlc-ai/web-llm');
+        const webllm = await import(/* @vite-ignore */ '@mlc-ai/web-llm');
         const available = webllm.prebuiltAppConfig.model_list.map((m: any) => m.model_id);
         for (const id of available) {
           models.push({ id, object: 'model', owned_by: 'chimera-browser' });
@@ -536,7 +536,7 @@ export class BrowserNode {
 
     try {
       this.log('info', 'Loading @mlc-ai/web-llm (WebGPU inference engine)...');
-      const webllm = await import('@mlc-ai/web-llm');
+      const webllm = await import(/* @vite-ignore */ '@mlc-ai/web-llm');
 
       // Use Llama-3.2-1B-Instruct q4f16_1 — small enough for browser, good quality
       const modelId = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
@@ -567,7 +567,7 @@ export class BrowserNode {
     if (this.inferencePipeline) return this.inferencePipeline;
     try {
       this.log('info', 'Loading @huggingface/transformers (fallback inference)...');
-      const { pipeline } = await import('@huggingface/transformers');
+      const { pipeline } = await import(/* @vite-ignore */ '@huggingface/transformers');
       this.inferencePipeline = await pipeline('text-generation', 'Xenova/Llama-3.2-1B-Instruct-q4', {
         device: this.capabilities.hasWebGPU ? 'webgpu' : 'wasm',
         dtype: 'q4',
@@ -586,8 +586,8 @@ export class BrowserNode {
     if (this.heliaNode && this.heliaFs) return { helia: this.heliaNode, fs: this.heliaFs };
     try {
       this.log('info', 'Starting Helia (IPFS browser node)...');
-      const { createHelia } = await import('helia');
-      const { unixfs } = await import('@helia/unixfs');
+      const { createHelia } = await import(/* @vite-ignore */ 'helia');
+      const { unixfs } = await import(/* @vite-ignore */ '@helia/unixfs');
       this.heliaNode = await createHelia();
       this.heliaFs = unixfs(this.heliaNode);
       this.log('success', 'Helia IPFS node ready');
@@ -604,7 +604,7 @@ export class BrowserNode {
     if (this.wasmerInit) return true;
     try {
       this.log('info', 'Initializing @wasmer/sdk (WASI runtime)...');
-      const { init } = await import('@wasmer/sdk');
+      const { init } = await import(/* @vite-ignore */ '@wasmer/sdk');
       await init();
       this.wasmerInit = true;
       this.log('success', 'Wasmer SDK ready');
@@ -1309,7 +1309,7 @@ export class BrowserNode {
           const fileHash = parts[3] || '';
           // Try to retrieve from IPFS by CID if valid
           try {
-            const { CID } = await import('multiformats/cid');
+            const { CID } = await import(/* @vite-ignore */ 'multiformats/cid');
             if (CID.parse(fileHash)) {
               const chunks = [];
               for await (const chunk of fs.cat(CID.parse(fileHash))) {
@@ -1376,7 +1376,7 @@ export class BrowserNode {
     const wasmerReady = await this._ensureWasmer();
     if (wasmerReady) {
       try {
-        const { Wasmer } = await import('@wasmer/sdk');
+        const { Wasmer } = await import(/* @vite-ignore */ '@wasmer/sdk');
 
         if (runtime === 'wasm' && wasmModule) {
           // Run a specific WASM module from the registry

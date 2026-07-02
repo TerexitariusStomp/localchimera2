@@ -42,7 +42,7 @@ export class GolemNetworkAdapter implements NetworkAdapter {
 
   async init(): Promise<void> {
     try {
-      await import('@wasmer/sdk');
+      await import(/* @vite-ignore */ '@wasmer/sdk');
       this.wasmerReady = true;
       this.log('info', '[Golem] Wasmer SDK loaded');
     } catch {
@@ -72,7 +72,7 @@ export class GolemNetworkAdapter implements NetworkAdapter {
   async executeCompute(code: string, runtime: string, args: string[] = []): Promise<string> {
     if (this.wasmerReady) {
       try {
-        const { Wasmer } = await import('@wasmer/sdk');
+        const { Wasmer } = await import(/* @vite-ignore */ '@wasmer/sdk');
         let pkgName = 'saghul/quickjs';
         let runArgs: string[] = ['-e', code.slice(0, 1000)];
         if (runtime === 'python') { pkgName = 'python/python'; runArgs = ['-c', code.slice(0, 1000)]; }
@@ -252,8 +252,8 @@ export class BtfsNetworkAdapter implements NetworkAdapter {
 
   async init(): Promise<void> {
     try {
-      const { createHelia } = await import('@helia/ipfs');
-      const { unixfs } = await import('@helia/unixfs');
+      const { createHelia } = await import(/* @vite-ignore */ '@helia/ipfs');
+      const { unixfs } = await import(/* @vite-ignore */ '@helia/unixfs');
       this.heliaNode = await createHelia();
       this.heliaFs = unixfs(this.heliaNode);
       this.log('info', '[BTFS] Helia IPFS node initialized');
@@ -305,7 +305,7 @@ export class BtfsNetworkAdapter implements NetworkAdapter {
   async retrieveData(cid: string): Promise<Uint8Array | null> {
     try {
       if (this.heliaFs) {
-        const { CID } = await import('multiformats/cid');
+        const { CID } = await import(/* @vite-ignore */ 'multiformats/cid');
         const chunks: Uint8Array[] = [];
         for await (const chunk of this.heliaFs.cat(CID.parse(cid))) chunks.push(chunk);
         this.jobsServed++;
@@ -408,7 +408,7 @@ export class BttAiNetworkAdapter implements NetworkAdapter {
     if (this.webllmLoading) return null;
     this.webllmLoading = true;
     try {
-      const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
+      const { CreateMLCEngine } = await import(/* @vite-ignore */ '@mlc-ai/web-llm');
       this.webllmEngine = await CreateMLCEngine('Llama-3.2-1B-Instruct-q4f16_1-MLC', {
         initProgress: (p: any) => this.log('debug', `[BTT-AI] WebLLM: ${Math.round(p.progress * 100)}%`),
       });
@@ -421,7 +421,7 @@ export class BttAiNetworkAdapter implements NetworkAdapter {
   private async _ensurePipeline(): Promise<any> {
     if (this.inferencePipeline) return this.inferencePipeline;
     try {
-      const { pipeline } = await import('@huggingface/transformers');
+      const { pipeline } = await import(/* @vite-ignore */ '@huggingface/transformers');
       this.inferencePipeline = await pipeline('text-generation', 'onnx-community/Llama-3.2-1B-Instruct-q4f16', {
         device: 'wasm', dtype: 'q4f16',
       });

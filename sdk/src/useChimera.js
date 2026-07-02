@@ -289,7 +289,7 @@ function useChimeraInner(opts = {}) {
     // Browser mode — launch BrowserNode for in-browser mining
     if (browserMode) {
       try {
-        const { BrowserNode } = await import('@chimera/browser-sdk');
+        const { BrowserNode } = await import('@localchimera/browser-sdk');
         // BrowserNode needs a Casper wallet provider + account hash.
         // The Privy embedded wallet signs via EVM; for Casper escrow we
         // use the relay endpoint at new.localchimera.com which signs on

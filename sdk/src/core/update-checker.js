@@ -13,7 +13,7 @@
 
 const SDK_VERSION = '1.0.0';
 const REGISTRY_URL = 'https://new.localchimera.com/api/sdk-version';
-const NPM_REGISTRY = 'https://registry.npmjs.org/@chimera/sdk/latest';
+const NPM_REGISTRY = 'https://registry.npmjs.org/@localchimera/sdk/latest';
 const CHECK_INTERVAL_MS = 1000 * 60 * 60; // 1 hour
 
 let lastCheck = 0;
