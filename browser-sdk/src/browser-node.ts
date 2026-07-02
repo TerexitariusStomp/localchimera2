@@ -41,7 +41,7 @@ const STATE = {
   DISPUTED: 7,
 };
 
-const TASK_TYPE = {
+export const TASK_TYPE = {
   INFERENCE: 0,
   STORAGE: 1,
   COMPUTE: 2,
