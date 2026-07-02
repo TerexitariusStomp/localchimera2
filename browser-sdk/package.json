@@ -1,5 +1,5 @@
 {
-  "name": "@chimera/browser-sdk",
+  "name": "@localchimera/browser-sdk",
   "version": "1.0.0",
   "description": "Chimera Browser SDK — run a tasker network node entirely in the browser. No download required.",
   "main": "dist/index.js",

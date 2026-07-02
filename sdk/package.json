@@ -1,5 +1,5 @@
 {
-  "name": "@chimera/sdk",
+  "name": "@localchimera/sdk",
   "version": "1.0.0",
   "description": "Chimera SDK — tasking network provider SDK. Integrate decentralized compute, storage, bandwidth, and inference mining into your app.",
   "main": "dist/index.js",

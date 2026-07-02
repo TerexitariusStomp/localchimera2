@@ -85,11 +85,11 @@ You don't have to use the Chimera app generator to add Chimera to a project. Bot
 Install the browser SDK and start a lightweight relay node in one line:
 
 ```bash
-npm install @chimera/browser-sdk
+npm install @localchimera/browser-sdk
 ```
 
 ```js
-import { quickStart } from '@chimera/browser-sdk';
+import { quickStart } from '@localchimera/browser-sdk';
 
 // Relay mode — no wallet required
 await quickStart();
@@ -108,11 +108,11 @@ await quickStart(provider, publicKeyHex, accountHash, {
 Install the app SDK and drop in the self-contained button:
 
 ```bash
-npm install @chimera/sdk
+npm install @localchimera/sdk
 ```
 
 ```jsx
-import { ChimeraButton } from '@chimera/sdk';
+import { ChimeraButton } from '@localchimera/sdk';
 
 function App() {
   return <ChimeraButton appDeveloperEVM="0xYourPayoutAddress" />;
