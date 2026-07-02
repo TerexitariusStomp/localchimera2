@@ -103,7 +103,7 @@ await quickStart(provider, publicKeyHex, accountHash, {
 });
 ```
 
-**Downloaded or mobile apps (React / React Native)**
+**Downloaded/device apps (React, React Native, Tauri, Electron, desktop, tablet, mobile)**
 
 Install the app SDK and drop in the self-contained button:
 
