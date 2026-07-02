@@ -44,20 +44,28 @@ if (fs.existsSync(javaFile)) {
   console.log('[patch-bare-kit] BareKitPackage.java not found');
 }
 
-// 3. Patch index.js to throw a catchable Error when NativeBareKit is null
+// 3. Overwrite index.js with a minimal stub. The real BareKit module
+// can't be loaded (TurboModule not available in release builds), so
+// we replace the entire file with stubs that throw catchable Errors
+// when @qvac/sdk tries to use them. App.js's try/catch handles this.
 const indexFile = path.join(baseDir, 'index.js');
 if (fs.existsSync(indexFile)) {
   let content = fs.readFileSync(indexFile, 'utf-8');
   if (!content.includes('__bareKitPatched')) {
-    const oldRequire = "const { default: NativeBareKit } = require('./specs/NativeBareKit')";
-    const newRequire = "const { default: NativeBareKit } = require('./specs/NativeBareKit')\n// __bareKitPatched\nif (!NativeBareKit) { throw new Error('BareKit TurboModule not available in this build'); }";
-    if (content.includes(oldRequire)) {
-      content = content.replace(oldRequire, newRequire);
-      fs.writeFileSync(indexFile, content);
-      console.log('[patch-bare-kit] Patched index.js with null guard');
-    } else {
-      console.log('[patch-bare-kit] Could not find require line in index.js');
-    }
+    const stubCode = `// __bareKitPatched: stub for release builds where TurboModule is unavailable
+console.warn('[BareKit] TurboModule not available - AI features disabled');
+class Worklet {
+  constructor() { throw new Error('BareKit not available in this build'); }
+}
+class IPC {
+  constructor() { throw new Error('BareKit not available in this build'); }
+}
+module.exports = { Worklet, IPC };
+`;
+    fs.writeFileSync(indexFile, stubCode);
+    console.log('[patch-bare-kit] Replaced index.js with stub (original backed up)');
+    // Backup original for reference
+    fs.writeFileSync(indexFile + '.orig', content);
   } else {
     console.log('[patch-bare-kit] index.js already patched');
   }
