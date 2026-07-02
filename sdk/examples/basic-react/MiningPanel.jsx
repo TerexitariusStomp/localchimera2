@@ -3,15 +3,22 @@ import { useChimera } from '../../src/useChimera.js';
 
 /**
  * MiningPanel — drop-in component for app developers.
- * Apps only show: consent prompt, start/stop buttons, miner status.
- * Wallet and earnings are managed on the Chimera landing page.
+ * Requires the app to be wrapped in <ChimeraPrivyProvider>.
+ * Shows: wallet connect, consent prompt, start/stop buttons, miner status.
  *
  * Usage:
+ *   import { ChimeraPrivyProvider } from '@chimera/sdk';
  *   import MiningPanel from './MiningPanel';
- *   <MiningPanel />
+ *
+ *   <ChimeraPrivyProvider>
+ *     <MiningPanel />
+ *   </ChimeraPrivyProvider>
  */
 export default function MiningPanel() {
-  const { status, consentGiven, giveConsent, revokeConsent, start, stop } = useChimera();
+  const {
+    walletConnected, walletAddress, connectWallet, disconnectWallet,
+    status, consentGiven, giveConsent, revokeConsent, start, stop,
+  } = useChimera();
 
   const s = {
     container: { maxWidth: 360, margin: '0 auto', padding: 24, borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', fontFamily: 'ui-sans-serif,system-ui,-apple-system,sans-serif', color: '#e8e2d8' },
@@ -35,14 +42,29 @@ export default function MiningPanel() {
       <div style={s.title}>AI Mining</div>
       <div style={s.subtitle}>Earn while your device is idle. Powered by Chimera.</div>
 
-      {!consentGiven ? (
+      {!walletConnected ? (
         <div style={s.consentBox}>
           <div style={s.consentText}>
+            Connect your wallet to start earning from AI mining tasks.
+            Social login (Google, email) or wallet — an embedded wallet is auto-created.
+          </div>
+          <button style={{ ...s.btn, ...s.btnPrimary }} onClick={connectWallet}>
+            Connect Wallet
+          </button>
+        </div>
+      ) : !consentGiven ? (
+        <div style={s.consentBox}>
+          <div style={s.consentText}>
+            Wallet: {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
+            <br /><br />
             Enable AI mining to earn revenue from inference tasks while your device is idle.
-            Manage your wallet and view earnings on the Chimera dashboard.
+            Rewards flow to the Chimera protocol multisig and are distributed monthly to your wallet.
           </div>
           <button style={{ ...s.btn, ...s.btnPrimary }} onClick={giveConsent}>
             I agree — enable mining
+          </button>
+          <button style={{ ...s.btn, ...s.btnSecondary, marginTop: 8 }} onClick={disconnectWallet}>
+            Disconnect Wallet
           </button>
         </div>
       ) : (
@@ -78,7 +100,7 @@ export default function MiningPanel() {
             </button>
           </div>
         </>
-      )}
+      )
 
       <div style={s.statusBox}>
         {Object.entries(status.miners || {}).length > 0 ? (

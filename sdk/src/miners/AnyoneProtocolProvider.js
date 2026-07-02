@@ -20,7 +20,7 @@ import path from 'path';
 import os from 'os';
 import { promises as fs } from 'fs';
 
-const ANYONE_DIR = path.join(os.homedir(), 'CascadeProjects', 'qvac-chimera', 'upstream', 'anyone-protocol');
+const ANYONE_DIR = process.env.CHIMERA_ANYONE_DIR || path.join(os.homedir(), '.chimera', 'upstream', 'anyone-protocol');
 
 export class AnyoneProtocolProvider {
   constructor(opts = {}) {

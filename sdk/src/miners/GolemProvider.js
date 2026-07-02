@@ -16,7 +16,7 @@ import path from 'path';
 import os from 'os';
 import { promises as fs } from 'fs';
 
-const GOLEM_DIR = path.join(os.homedir(), 'CascadeProjects', 'qvac-chimera', 'upstream', 'golem');
+const GOLEM_DIR = process.env.CHIMERA_GOLEM_DIR || path.join(os.homedir(), '.chimera', 'upstream', 'golem');
 
 export class GolemProvider {
   constructor(opts = {}) {

@@ -15,7 +15,8 @@
  *     machine owner and app developer Privy wallets based on revenue split.
  */
 
-import { Logger } from '../../qvac/src/core/Logger.js';
+import { Logger } from './core/Logger.js';
+import { ResourceMonitor } from './core/resource-monitor.js';
 import { PrivacyContainer } from './runtime/PrivacyContainer.js';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -72,6 +73,8 @@ export class ChimeraSDK {
     this.containerImage = opts.containerImage || process.env.CHIMERA_IMAGE || 'chimera:latest';
     this.containerPort = opts.containerPort || Number(process.env.CHIMERA_PORT) || 3002;
     this.containerConfigPath = opts.containerConfigPath || null;
+    this.resourceMonitor = new ResourceMonitor(opts.resourceThresholds || {});
+    this._providersPaused = false;
   }
 
   /**
@@ -294,6 +297,19 @@ export class ChimeraSDK {
     }
 
     logger.info(`[${this.appName}] Mining started in hardened container (${providerResults.length} providers)`);
+
+    // Start resource monitoring — pauses providers if machine is under load
+    await this.resourceMonitor.start();
+    this.resourceMonitor.onEvent((event) => {
+      if (event.type === 'throttle') {
+        logger.warn(`[${this.appName}] Resource throttle: ${event.reason}. Pausing providers.`);
+        this._pauseProviders();
+      } else {
+        logger.info(`[${this.appName}] ${event.reason}. Resuming providers.`);
+        this._resumeProviders();
+      }
+    });
+
     return { success: true, running: true, container: started, api: result, providers: providerResults };
   }
 
@@ -301,6 +317,7 @@ export class ChimeraSDK {
    * Stop the container and all providers.
    */
   async stop() {
+    await this.resourceMonitor.stop();
     for (const p of this.externalProviders) {
       try { await p.stop(); } catch (err) {}
     }
@@ -310,6 +327,33 @@ export class ChimeraSDK {
     }
     logger.info(`[${this.appName}] Mining stopped`);
     return { success: true, running: false };
+  }
+
+  /**
+   * Pause all providers without stopping the container.
+   * Called automatically by ResourceMonitor when system is under load.
+   */
+  async _pauseProviders() {
+    if (this._providersPaused) return;
+    this._providersPaused = true;
+    for (const p of this.externalProviders) {
+      try { await p.stop(); } catch (err) {}
+    }
+    logger.info(`[${this.appName}] All providers paused (resource throttle)`);
+  }
+
+  /**
+   * Resume all providers after a throttle event.
+   */
+  async _resumeProviders() {
+    if (!this._providersPaused) return;
+    this._providersPaused = false;
+    for (const p of this.externalProviders) {
+      try { await p.start(); } catch (err) {
+        logger.warn(`[${this.appName}] Failed to resume provider: ${err.message}`);
+      }
+    }
+    logger.info(`[${this.appName}] All providers resumed`);
   }
 
   /**
@@ -325,6 +369,14 @@ export class ChimeraSDK {
       containerized: true,
       ...base,
       providers: this.externalProviders.map(p => p.status()),
+      inference: {
+        available: !!this.container?.appUrl,
+        endpoint: this.container?.appUrl ? `${this.container.appUrl}/v1/chat/completions` : null,
+        compatible: 'OpenAI-compatible',
+        mode: 'hardened-container',
+      },
+      resources: this.resourceMonitor.getSnapshot(),
+      providersPaused: this._providersPaused,
       protocolMultisig: _maskAddress(this._config?.protocolMultisig),
       machineOwnerEVM: this.machineOwnerEVM,  // Privy wallet — monthly sweep target
       appDeveloperEVM: this.appDeveloperEVM,  // Privy wallet — monthly sweep target

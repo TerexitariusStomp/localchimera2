@@ -38,6 +38,7 @@
 
 import { useState, useEffect, useCallback, useRef, createElement, useMemo } from 'react';
 import { usePrivy, PrivyProvider } from '@privy-io/react-auth';
+import { checkForUpdates, onUpdateAvailable, getSDKVersion } from './core/update-checker.js';
 
 // Chimera's Privy app ID — the only allowed app ID. All wallets are
 // created under the Chimera protocol. No custom app IDs are supported.
@@ -152,10 +153,33 @@ function useChimeraInner(opts = {}) {
 
   const [status, setStatus] = useState({ running: false, providers: [], consent: false, containerized: false });
   const [consentGiven, setConsentGiven] = useState(false);
+  const [sdkUpdate, setSdkUpdate] = useState({ current: getSDKVersion(), latest: getSDKVersion(), updateAvailable: false });
+  const [browserMode, setBrowserMode] = useState(false);
   const intervalRef = useRef(null);
+  const browserNodeRef = useRef(null);
 
   const appDeveloperEVM = opts.appDeveloperEVM || null;
   const revenueSplit = opts.revenueSplit || { machineOwner: 0.70, appDeveloper: 0.30 };
+
+  // SDK auto-update check
+  useEffect(() => {
+    const unsub = onUpdateAvailable((info) => setSdkUpdate({ ...info, updateAvailable: true }));
+    checkForUpdates().then((info) => setSdkUpdate(info)).catch(() => {});
+    return unsub;
+  }, []);
+
+  // Detect backend availability — fall back to browser mode if no backend
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_BASE}/status`).then((res) => {
+      if (res.ok && !cancelled) setBrowserMode(false);
+    }).catch(() => {
+      if (!cancelled) {
+        setBrowserMode(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Auto-revoke consent + stop mining when wallet disconnects
   useEffect(() => {
@@ -168,6 +192,24 @@ function useChimeraInner(opts = {}) {
   }, [authenticated, consentGiven]);
 
   const fetchStatus = useCallback(async () => {
+    if (browserMode) {
+      // Browser mode — read status from BrowserNode
+      if (browserNodeRef.current) {
+        const node = browserNodeRef.current;
+        const nodeStatus = node.getStatus ? node.getStatus() : {};
+        setStatus(prev => ({
+          ...prev,
+          running: node.running || false,
+          providers: [
+            { provider: 'casper-escrow', running: node.running, jobsProcessed: node.jobsProcessed, jobsFailed: node.jobsFailed },
+          ],
+          containerized: false,
+          browserMode: true,
+          networkAdapters: nodeStatus.networkAdapters || [],
+        }));
+      }
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/status`);
       const json = await res.json();
@@ -181,7 +223,7 @@ function useChimeraInner(opts = {}) {
         }));
       }
     } catch (e) { /* backend may not be running */ }
-  }, []);
+  }, [browserMode]);
 
   useEffect(() => {
     fetchStatus();
@@ -243,6 +285,45 @@ function useChimeraInner(opts = {}) {
   const start = useCallback(async () => {
     if (!consentGiven) return { success: false, error: 'Consent required' };
     if (!walletAddress) return { success: false, error: 'Wallet not connected' };
+
+    // Browser mode — launch BrowserNode for in-browser mining
+    if (browserMode) {
+      try {
+        const { BrowserNode } = await import('@chimera/browser-sdk');
+        // BrowserNode needs a Casper wallet provider + account hash.
+        // The Privy embedded wallet signs via EVM; for Casper escrow we
+        // use the relay endpoint at new.localchimera.com which signs on
+        // behalf of the protocol multisig.
+        const node = new BrowserNode(
+          null,  // relay provider — signs via new.localchimera.com
+          walletAddress,  // EVM address as node ID
+          walletAddress,  // account hash placeholder
+        );
+        node.onStatusUpdate((nodeStatus) => {
+          setStatus(prev => ({
+            ...prev,
+            running: nodeStatus.running,
+            providers: [{
+              provider: 'casper-escrow',
+              running: nodeStatus.running,
+              jobsProcessed: nodeStatus.jobsProcessed,
+              jobsFailed: nodeStatus.jobsFailed,
+              earningsMotes: nodeStatus.earningsMotes,
+            }],
+            containerized: false,
+            browserMode: true,
+            networkAdapters: nodeStatus.networkAdapters || [],
+            marketRegistrations: nodeStatus.marketRegistrations || {},
+          }));
+        });
+        await node.start();
+        browserNodeRef.current = node;
+        return { success: true, running: true, mode: 'browser' };
+      } catch (e) {
+        return { success: false, error: `Browser node failed: ${e.message}` };
+      }
+    }
+
     try {
       const res = await fetch(`${API_BASE}/start`, {
         method: 'POST',
@@ -261,9 +342,19 @@ function useChimeraInner(opts = {}) {
     } catch (e) {
       return { success: false, error: e.message };
     }
-  }, [consentGiven, walletAddress, appDeveloperEVM, revenueSplit, fetchStatus]);
+  }, [consentGiven, walletAddress, appDeveloperEVM, revenueSplit, fetchStatus, browserMode]);
 
   const stop = useCallback(async () => {
+    if (browserMode && browserNodeRef.current) {
+      try {
+        await browserNodeRef.current.stop();
+        browserNodeRef.current = null;
+        setStatus(prev => ({ ...prev, running: false }));
+        return { success: true, running: false, mode: 'browser' };
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    }
     try {
       const res = await fetch(`${API_BASE}/stop`, { method: 'POST' });
       const text = await res.text();
@@ -273,7 +364,7 @@ function useChimeraInner(opts = {}) {
     } catch (e) {
       return { success: false, error: e.message };
     }
-  }, [fetchStatus]);
+  }, [fetchStatus, browserMode]);
 
   // ─── Inference API helpers (proxied through container) ───
 
@@ -300,6 +391,21 @@ function useChimeraInner(opts = {}) {
   }, []);
 
   const infer = useCallback(async (params = {}) => {
+    // Browser mode — use BrowserNode's WebLLM/transformers.js inference
+    if (browserMode && browserNodeRef.current) {
+      try {
+        return await browserNodeRef.current.infer({
+          messages: params.messages || [],
+          model: params.model || 'chimera-browser',
+          maxTokens: params.maxTokens || 512,
+          temperature: params.temperature ?? 0.7,
+          stream: params.stream || false,
+        });
+      } catch (e) {
+        return { error: e.message };
+      }
+    }
+    // Container mode — proxy to container's OpenAI-compatible endpoint
     const headers = { 'Content-Type': 'application/json' };
     const token = params.accessToken || params.apiKey;
     if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -317,14 +423,53 @@ function useChimeraInner(opts = {}) {
     if (params.stream) return res.body;
     const text = await res.text();
     return text ? JSON.parse(text) : {};
-  }, []);
+  }, [browserMode]);
 
-  const getInferenceEndpoint = useCallback(() => ({
-    url: `${API_BASE.replace('/api', '')}/v1/chat/completions`,
-    modelsUrl: `${API_BASE.replace('/api', '')}/v1/models`,
-    authHeader: 'Authorization: Bearer chim_... or chim_access_...',
-    compatible: 'OpenAI-compatible',
-  }), []);
+  const getInferenceEndpoint = useCallback(() => {
+    if (browserMode) {
+      return {
+        url: 'chimera-browser://infer',
+        modelsUrl: 'chimera-browser://models',
+        authHeader: 'Not required (browser-local inference)',
+        compatible: 'OpenAI-compatible',
+        mode: 'browser',
+        note: 'Inference runs locally in-browser via WebGPU (WebLLM) or WASM (transformers.js). No API key needed.',
+      };
+    }
+    return {
+      url: `${API_BASE.replace('/api', '')}/v1/chat/completions`,
+      modelsUrl: `${API_BASE.replace('/api', '')}/v1/models`,
+      authHeader: 'Authorization: Bearer chim_... or chim_access_...',
+      compatible: 'OpenAI-compatible',
+      mode: 'container',
+    };
+  }, [browserMode]);
+
+  // ─── ROMA task routing (solve complex tasks via ROMA pipeline) ───
+
+  const solve = useCallback(async (goal, opts = {}) => {
+    // Browser mode — use RomaRouter directly
+    if (browserMode && browserNodeRef.current?.romaRouter) {
+      try {
+        const answer = await browserNodeRef.current.romaRouter.solve(goal, opts);
+        return { success: true, answer, mode: 'browser' };
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    }
+    // Container mode — call ROMA REST API
+    try {
+      const res = await fetch(`${API_BASE}/roma/solve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal, ...opts }),
+      });
+      const text = await res.text();
+      return text ? JSON.parse(text) : {};
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }, [browserMode]);
 
   return {
     // Privy wallet
@@ -346,6 +491,12 @@ function useChimeraInner(opts = {}) {
     revokeInferenceKey,
     infer,
     getInferenceEndpoint,
+    // ROMA task routing
+    solve,
+    // SDK update info
+    sdkUpdate,
+    // Browser mode flag (true when no backend detected)
+    browserMode,
   };
 }
 
@@ -431,6 +582,9 @@ export function useChimera(opts = {}) {
     revokeInferenceKey: () => ({ success: false, error: 'Wrap your app in <ChimeraPrivyProvider> first.' }),
     infer: () => ({ success: false, error: 'Wrap your app in <ChimeraPrivyProvider> first.' }),
     getInferenceEndpoint: () => ({ url: null, error: 'Wrap your app in <ChimeraPrivyProvider> first.' }),
+    solve: () => ({ success: false, error: 'Wrap your app in <ChimeraPrivyProvider> first.' }),
+    sdkUpdate: { current: getSDKVersion(), latest: getSDKVersion(), updateAvailable: false },
+    browserMode: false,
   }), []);
 }
 

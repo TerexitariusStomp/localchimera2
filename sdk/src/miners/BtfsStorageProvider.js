@@ -21,7 +21,7 @@ import path from 'path';
 import os from 'os';
 import { promises as fs } from 'fs';
 import { BtfsClient } from '../storage/BtfsClient.js';
-import { Logger } from '../../../qvac/src/core/Logger.js';
+import { Logger } from '../core/Logger.js';
 
 const logger = new Logger('BtfsStorageProvider');
 const DEFAULT_RPC_URL = 'https://node.testnet.casper.network/rpc';

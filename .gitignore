@@ -40,6 +40,8 @@ viral_frames/
 # Python
 **/__pycache__/
 **/*.pyc
+**/.venv/
+inference-backend/concrete-ml/.artifacts/
 
 # Env & secrets
 **/.env

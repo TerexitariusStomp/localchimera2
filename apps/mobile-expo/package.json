@@ -10,20 +10,21 @@
     "build:ios": "eas build -p ios --profile preview"
   },
   "dependencies": {
+    "@qvac/sdk": "^0.13.2",
     "expo": "~52.0.0",
+    "expo-device": "~6.0.0",
+    "expo-file-system": "~18.0.0",
+    "expo-keep-awake": "~14.0.0",
     "expo-status-bar": "~2.0.0",
     "react": "18.3.1",
     "react-native": "0.76.0",
     "react-native-bare-kit": "0.14.5",
-    "@qvac/sdk": "^0.13.2",
-    "tinyld": "^1.2.0",
-    "expo-file-system": "~18.0.0",
-    "expo-keep-awake": "~14.0.0",
-    "expo-device": "~6.0.0",
-    "react-native-webview": "13.12.5"
+    "react-native-webview": "13.12.5",
+    "tinyld": "^1.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
+    "@react-native-community/cli": "^20.2.0",
     "expo-build-properties": "~0.13.0"
   },
   "private": true

@@ -34,8 +34,8 @@ if (fs.existsSync(javaFile)) {
   let content = fs.readFileSync(javaFile, 'utf-8');
   if (!content.includes('__patched_7arg')) {
     content = content.replace(
-      'new ReactModuleInfo(NAME, NAME, false, false, true, true)',
-      'new ReactModuleInfo(NAME, NAME, false, false, true, true, true) // __patched_7arg'
+      'map.put(NAME, new ReactModuleInfo(NAME, NAME, false, false, true, true));',
+      'map.put(NAME, new ReactModuleInfo(NAME, NAME, false, false, true, false, true)); // __patched_7arg'
     );
     fs.writeFileSync(javaFile, content);
     console.log('[patch-bare-kit] Patched BareKitPackage.java: 7-arg ReactModuleInfo constructor');

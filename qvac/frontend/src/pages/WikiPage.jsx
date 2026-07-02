@@ -154,7 +154,7 @@ export default function WikiPage({ onBack }) {
         const res = await fetch(`${API_BASE}/llmwiki-save`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: editorText, title, category: saveCategory })
+          body: JSON.stringify({ content: editorText, title, id: selectedDoc, category: saveCategory })
         });
         const json = await res.json();
         if (json.success) {
@@ -162,6 +162,7 @@ export default function WikiPage({ onBack }) {
           setSaveStatus('');
           setSaveTitle('');
           setLastSavedAt(Date.now());
+          if (json.data?.id) setSelectedDoc(json.data.id);
           await fetchDocs();
         } else {
           setSaveStatus('Save failed');
@@ -470,6 +471,30 @@ export default function WikiPage({ onBack }) {
     }
   };
 
+  const loadDoc = async (doc) => {
+    if (!doc?.id) return;
+    setSaveStatus('Loading...');
+    try {
+      const res = await fetch(`${API_BASE}/llmwiki-read?id=${doc.id}`);
+      const json = await res.json();
+      if (json.success && json.data?.content != null) {
+        setEditorText(json.data.content);
+        setSaveCategory(doc.category || 'concepts');
+        setSaveStatus('');
+        lastSavedRef.current = json.data.content;
+      } else {
+        setEditorText(`# ${doc.title}\n\n(No content loaded)`);
+        setSaveStatus(json.error || 'Load failed');
+        setTimeout(() => setSaveStatus(''), 2000);
+      }
+    } catch (e) {
+      console.error('Failed to load doc:', e);
+      setEditorText(`# ${doc.title}\n\n(No content loaded)`);
+      setSaveStatus('Load failed');
+      setTimeout(() => setSaveStatus(''), 2000);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!aiPrompt.trim()) return;
     setAiLoading(true);
@@ -510,12 +535,13 @@ export default function WikiPage({ onBack }) {
       const res = await fetch(`${API_BASE}/llmwiki-save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: editorText, title, category: saveCategory })
+        body: JSON.stringify({ content: editorText, title, id: selectedDoc, category: saveCategory })
       });
       const json = await res.json();
       if (json.success) {
         setSaveStatus('Saved!');
         setSaveTitle('');
+        if (json.data?.id) setSelectedDoc(json.data.id);
         await fetchDocs();
         setTimeout(() => setSaveStatus(''), 2000);
       } else {
@@ -978,7 +1004,7 @@ export default function WikiPage({ onBack }) {
                     style={isActive ? s.navItemActive : s.navItem}
                     onClick={() => {
                       setSelectedDoc(doc.id);
-                      setEditorText(doc.body || `# ${doc.title}\n\n(No content loaded)`);
+                      loadDoc(doc);
                     }}
                     onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#161410'; e.currentTarget.style.color = '#b0a898'; }}
                     onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#7a7468'; }}
@@ -1086,7 +1112,7 @@ export default function WikiPage({ onBack }) {
           />
           <div style={{ display: 'flex', gap: 4 }}>
             <button
-              style={{ flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 5, border: 'none', cursor: 'pointer', background: nodeRunning ? '#166534' : '#161410', color: nodeRunning ? '#86efac' : '#7a7468', border: '1px solid rgba(255,255,255,0.07)' }}
+              style={{ flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 5, border: '1px solid rgba(255,255,255,0.07)', cursor: 'pointer', background: nodeRunning ? '#166534' : '#161410', color: nodeRunning ? '#86efac' : '#7a7468' }}
               onClick={startNode}
               disabled={nodeRunning || !authToken}
               title={!authToken ? 'Sign in to start mining' : ''}
@@ -1094,7 +1120,7 @@ export default function WikiPage({ onBack }) {
               ▶ Start
             </button>
             <button
-              style={{ flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 5, border: 'none', cursor: 'pointer', background: !nodeRunning ? '#450a0a' : '#161410', color: !nodeRunning ? '#fca5a5' : '#7a7468', border: '1px solid rgba(255,255,255,0.07)' }}
+              style={{ flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 5, border: '1px solid rgba(255,255,255,0.07)', cursor: 'pointer', background: !nodeRunning ? '#450a0a' : '#161410', color: !nodeRunning ? '#fca5a5' : '#7a7468' }}
               onClick={stopNode}
               disabled={!nodeRunning || !authToken}
               title={!authToken ? 'Sign in to stop mining' : ''}

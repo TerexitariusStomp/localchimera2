@@ -15,7 +15,7 @@ import path from 'path';
 import os from 'os';
 import { promises as fs } from 'fs';
 
-const BTT_DIR = path.join(os.homedir(), 'CascadeProjects', 'qvac-chimera', 'upstream', 'btt-ai-miner');
+const BTT_DIR = process.env.CHIMERA_BTT_DIR || path.join(os.homedir(), '.chimera', 'upstream', 'btt-ai-miner');
 
 export class BttAiMinerProvider {
   constructor(opts = {}) {

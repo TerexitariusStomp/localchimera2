@@ -46,23 +46,27 @@ export default function App() {
   }, []);
 
   async function handleAIWrite(body) {
-    if (!modelId) throw new Error('Model not loaded');
+    if (!modelId) {
+      return { success: false, error: 'Model not loaded' };
+    }
     const { completion } = await import('@qvac/sdk');
     const history = [{ role: 'user', content: body.prompt }];
-    const result = completion({ modelId, history, stream: false });
-    let generated = '';
-    for await (const token of result.tokenStream) {
-      generated += token;
+    try {
+      const result = completion({ modelId, history, stream: false });
+      const generated = await result.text;
+      return {
+        success: true,
+        data: {
+          title: body.title || 'Generated',
+          body: generated,
+          source: 'qvac-on-device',
+          model: LLAMA_MODEL,
+        },
+      };
+    } catch (err) {
+      console.error('[App] AI completion failed:', err);
+      return { success: false, error: err.message || 'AI completion failed' };
     }
-    return {
-      success: true,
-      data: {
-        title: body.title || 'Generated',
-        body: generated,
-        source: 'qvac-on-device',
-        model: LLAMA_MODEL,
-      },
-    };
   }
 
   async function handleAIStatus() {
@@ -163,6 +167,13 @@ export default function App() {
     return { success: true, data: { id: 'local', status: 'joined' } };
   }
 
+  const sendBridgeResponse = (id, res) => {
+    webViewRef.current?.injectJavaScript(`
+      window.__bridgeResolve(${id}, ${JSON.stringify(res)});
+      true;
+    `);
+  };
+
   const handleWebViewMessage = async (event) => {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
@@ -180,38 +191,40 @@ export default function App() {
       const cleanPath = path.split('?')[0];
       let res;
 
-      if (method === 'POST' && cleanPath === '/api/ai-write') {
-        res = await handleAIWrite(body);
-      } else if (method === 'GET' && cleanPath === '/api/ai-status') {
-        res = await handleAIStatus();
-      } else if (method === 'GET' && cleanPath === '/api/ai-docs') {
-        res = await handleAIDocs();
-      } else if (method === 'GET' && cleanPath === '/api/llmwiki-docs') {
-        res = await handleWikiDocs();
-      } else if (method === 'GET' && cleanPath.startsWith('/api/llmwiki-read')) {
-        res = await handleWikiRead(body, query);
-      } else if (method === 'POST' && cleanPath === '/api/llmwiki-save') {
-        res = await handleWikiSave(body);
-      } else if (method === 'DELETE' && cleanPath.startsWith('/api/llmwiki-delete')) {
-        res = await handleWikiDelete(body, query);
-      } else if (method === 'POST' && cleanPath === '/api/start') {
-        res = await handleStart();
-      } else if (method === 'POST' && cleanPath === '/api/stop') {
-        res = await handleStop();
-      } else if (method === 'GET' && cleanPath === '/api/swarm/status') {
-        res = await handleSwarmStatus();
-      } else if (method === 'POST' && cleanPath === '/api/swarm/create') {
-        res = await handleSwarmCreate();
-      } else if (method === 'POST' && cleanPath === '/api/swarm/join') {
-        res = await handleSwarmJoin();
-      } else {
-        res = { success: false, error: 'Not found: ' + method + ' ' + cleanPath };
+      try {
+        if (method === 'POST' && cleanPath === '/api/ai-write') {
+          res = await handleAIWrite(body);
+        } else if (method === 'GET' && cleanPath === '/api/ai-status') {
+          res = await handleAIStatus();
+        } else if (method === 'GET' && cleanPath === '/api/ai-docs') {
+          res = await handleAIDocs();
+        } else if (method === 'GET' && cleanPath === '/api/llmwiki-docs') {
+          res = await handleWikiDocs();
+        } else if (method === 'GET' && cleanPath.startsWith('/api/llmwiki-read')) {
+          res = await handleWikiRead(body, query);
+        } else if (method === 'POST' && cleanPath === '/api/llmwiki-save') {
+          res = await handleWikiSave(body);
+        } else if (method === 'DELETE' && cleanPath.startsWith('/api/llmwiki-delete')) {
+          res = await handleWikiDelete(body, query);
+        } else if (method === 'POST' && cleanPath === '/api/start') {
+          res = await handleStart();
+        } else if (method === 'POST' && cleanPath === '/api/stop') {
+          res = await handleStop();
+        } else if (method === 'GET' && cleanPath === '/api/swarm/status') {
+          res = await handleSwarmStatus();
+        } else if (method === 'POST' && cleanPath === '/api/swarm/create') {
+          res = await handleSwarmCreate();
+        } else if (method === 'POST' && cleanPath === '/api/swarm/join') {
+          res = await handleSwarmJoin();
+        } else {
+          res = { success: false, error: 'Not found: ' + method + ' ' + cleanPath };
+        }
+      } catch (handlerErr) {
+        console.error('Bridge handler error:', handlerErr);
+        res = { success: false, error: handlerErr.message || 'Handler error' };
       }
 
-      webViewRef.current?.injectJavaScript(`
-        window.__bridgeResolve(${id}, ${JSON.stringify(res)});
-        true;
-      `);
+      sendBridgeResponse(id, res);
     } catch (e) {
       console.error('Bridge error:', e);
     }

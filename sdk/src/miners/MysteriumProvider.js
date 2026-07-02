@@ -16,7 +16,7 @@ import path from 'path';
 import os from 'os';
 import { promises as fs } from 'fs';
 
-const MYSTERIUM_DIR = path.join(os.homedir(), 'CascadeProjects', 'qvac-chimera', 'upstream', 'mysterium');
+const MYSTERIUM_DIR = process.env.CHIMERA_MYSTERIUM_DIR || path.join(os.homedir(), '.chimera', 'upstream', 'mysterium');
 
 export class MysteriumProvider {
   constructor(opts = {}) {

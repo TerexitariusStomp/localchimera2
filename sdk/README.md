@@ -19,6 +19,17 @@ Individual Privy wallets are **never used by providers directly** — they only 
 - **Consent prompt** — users opt in before any mining starts
 - **Start / Stop controls** — one-click mining controls
 - **Miner status** — real-time view of which miners are active
+- **Inference API** — OpenAI-compatible `/v1/chat/completions` endpoint (container mode) or in-browser WebGPU/WASM inference (browser mode)
+- **SDK auto-update** — checks for newer versions and notifies your app via `sdkUpdate` in the hook
+
+### Two runtime modes
+
+| Mode | When | How it works | Inference |
+|------|------|-------------|-----------|
+| **Container mode** | Backend / desktop app with Docker | Providers run inside a hardened Docker container with `CHIMERA_PRIVACY_MODE=true` | vLLM/SGLang via container's OpenAI-compatible API |
+| **Browser mode** | Website with no backend | `BrowserNode` runs entirely in-browser — WebGPU inference, IPFS storage, WebRTC bandwidth, WASI compute | WebLLM (WebGPU) or transformers.js (WASM) — no API key needed |
+
+The hook auto-detects which mode to use by checking if the backend API is reachable.
 
 Wallet setup, earnings tracking, and revenue distribution are handled on the **Chimera landing page**, not in your app.
 
