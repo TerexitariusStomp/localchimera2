@@ -1,0 +1,83 @@
+{
+  "name": "@chimera/browser-sdk",
+  "version": "1.0.0",
+  "description": "Chimera Browser SDK — run a tasker network node entirely in the browser. No download required.",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./browser-node": {
+      "import": "./dist/browser-node.js",
+      "default": "./dist/browser-node.js",
+      "types": "./dist/browser-node.d.ts"
+    },
+    "./casper-client": {
+      "import": "./dist/casper-client.js",
+      "default": "./dist/casper-client.js",
+      "types": "./dist/casper-client.d.ts"
+    },
+    "./network-adapters": {
+      "import": "./dist/network-adapters.js",
+      "default": "./dist/network-adapters.js",
+      "types": "./dist/network-adapters.d.ts"
+    },
+    "./roma-router": {
+      "import": "./dist/roma-router.js",
+      "default": "./dist/roma-router.js",
+      "types": "./dist/roma-router.d.ts"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "echo 'no tests yet' && exit 0"
+  },
+  "keywords": [
+    "chimera",
+    "browser",
+    "node",
+    "mining",
+    "inference",
+    "casper",
+    "webgpu",
+    "ipfs",
+    "wasi",
+    "webrtc",
+    "cortensor",
+    "chutes",
+    "fortytwo",
+    "earnidle",
+    "routstr"
+  ],
+  "author": "Chimera",
+  "license": "MIT",
+  "dependencies": {
+    "casper-js-sdk": "^5.0.12"
+  },
+  "peerDependencies": {
+    "@mlc-ai/web-llm": ">=0.2.0",
+    "@huggingface/transformers": ">=3.0.0",
+    "@helia/ipfs": ">=4.0.0",
+    "@helia/unixfs": ">=4.0.0",
+    "@wasmer/sdk": ">=0.10.0",
+    "multiformats": ">=12.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@mlc-ai/web-llm": { "optional": true },
+    "@huggingface/transformers": { "optional": true },
+    "@helia/ipfs": { "optional": true },
+    "@helia/unixfs": { "optional": true },
+    "@wasmer/sdk": { "optional": true },
+    "multiformats": { "optional": true }
+  }
+}

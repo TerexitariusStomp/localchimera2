@@ -2,49 +2,80 @@
   "name": "@chimera/sdk",
   "version": "1.0.0",
   "description": "Chimera SDK — tasking network provider SDK. Integrate decentralized compute, storage, bandwidth, and inference mining into your app.",
-  "main": "src/index.js",
-  "module": "src/index.js",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
-      "import": "./src/index.js",
-      "default": "./src/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     },
-    "./src/useChimera.js": {
-      "import": "./src/useChimera.js",
-      "default": "./src/useChimera.js"
+    "./useChimera": {
+      "import": "./dist/useChimera.js",
+      "default": "./dist/useChimera.js",
+      "types": "./dist/useChimera.d.ts"
     },
-    "./src/ChimeraSDK.js": {
-      "import": "./src/ChimeraSDK.js",
-      "default": "./src/ChimeraSDK.js"
+    "./ChimeraSDK": {
+      "import": "./dist/ChimeraSDK.js",
+      "default": "./dist/ChimeraSDK.js",
+      "types": "./dist/ChimeraSDK.d.ts"
     },
-    "./src/miners/*": {
-      "import": "./src/miners/*.js",
-      "default": "./src/miners/*.js"
+    "./miners/*": {
+      "import": "./dist/miners/*.js",
+      "default": "./dist/miners/*.js",
+      "types": "./dist/miners/*.d.ts"
     },
-    "./src/storage/*": {
-      "import": "./src/storage/*.js",
-      "default": "./src/storage/*.js"
+    "./storage/*": {
+      "import": "./dist/storage/*.js",
+      "default": "./dist/storage/*.js",
+      "types": "./dist/storage/*.d.ts"
     },
-    "./src/runtime/*": {
-      "import": "./src/runtime/*.js",
-      "default": "./src/runtime/*.js"
+    "./runtime/*": {
+      "import": "./dist/runtime/*.js",
+      "default": "./dist/runtime/*.js",
+      "types": "./dist/runtime/*.d.ts"
     }
   },
   "files": [
-    "src/",
+    "dist/",
     "README.md"
   ],
   "scripts": {
-    "test": "node --test src/**/*.test.js"
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "node --test dist/**/*.test.js"
   },
-  "keywords": ["chimera", "qvac", "mining", "inference", "ai", "p2p", "cortensor", "chutes", "fortytwo", "earnidle", "routstr", "casper"],
+  "keywords": [
+    "chimera",
+    "mining",
+    "inference",
+    "ai",
+    "p2p",
+    "depin",
+    "golem",
+    "mysterium",
+    "anyone-protocol",
+    "btfs",
+    "btt-ai",
+    "casper"
+  ],
   "author": "Chimera",
   "license": "MIT",
-  "dependencies": {},
   "peerDependencies": {
-    "@qvac/sdk": ">=1.0.0",
     "@privy-io/react-auth": ">=1.0.0",
     "react": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@chimera/browser-sdk": {
+      "optional": true
+    },
+    "system-resource-monitor": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   }
 }

@@ -76,6 +76,51 @@ npx cap open android
 
 All platforms open directly to the LLM Wiki with auto-save.
 
+## Integrate Chimera Into Your Own App or Website
+
+You don't have to use the Chimera app generator to add Chimera to a project. Both SDKs are published to npm and can be integrated directly.
+
+**Websites and browser apps**
+
+Install the browser SDK and start a lightweight relay node in one line:
+
+```bash
+npm install @chimera/browser-sdk
+```
+
+```js
+import { quickStart } from '@chimera/browser-sdk';
+
+// Relay mode — no wallet required
+await quickStart();
+```
+
+For wallet-connected modes, pass the provider, public key, and account hash:
+
+```js
+await quickStart(provider, publicKeyHex, accountHash, {
+  onStatus: (status) => console.log(status),
+});
+```
+
+**Downloaded or mobile apps (React / React Native)**
+
+Install the app SDK and drop in the self-contained button:
+
+```bash
+npm install @chimera/sdk
+```
+
+```jsx
+import { ChimeraButton } from '@chimera/sdk';
+
+function App() {
+  return <ChimeraButton appDeveloperEVM="0xYourPayoutAddress" />;
+}
+```
+
+`ChimeraButton` handles wallet connection, mining enable/disable, earnings display, and all network adapters automatically. It is self-contained and requires no external CSS or wrapping providers.
+
 ## Build from Source
 
 ### Prerequisites
