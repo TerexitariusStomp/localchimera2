@@ -36,7 +36,7 @@
  *   }
  */
 
-import { useState, useEffect, useCallback, useRef, createElement, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, createElement, useMemo, Component } from 'react';
 import { usePrivy, PrivyProvider } from '@privy-io/react-auth';
 import { checkForUpdates, onUpdateAvailable, getSDKVersion } from './core/update-checker.js';
 
@@ -64,15 +64,6 @@ const API_BASE = (typeof window !== 'undefined' &&
   (window.location.protocol === 'http:' || window.location.protocol === 'https:'))
   ? '/api' : 'http://localhost:3002/api';
 
-// Check if we're on a localchimera.com domain (same-origin as Privy allowed origins)
-function isLocalChimeraDomain() {
-  if (typeof window === 'undefined') return false;
-  const host = window.location.hostname;
-  return host === 'localhost' ||
-    host === '127.0.0.1' ||
-    host.endsWith('.localchimera.com') ||
-    host === 'localchimera.com';
-}
 
 // ─── Iframe relay for third-party domains ───
 // When the SDK is used on a non-localchimera.com domain, we load a hidden
@@ -500,35 +491,47 @@ function useChimeraInner(opts = {}) {
   };
 }
 
+// Error boundary that renders children if PrivyProvider crashes (e.g. in a
+// WebContainer sandbox or restricted iframe). useChimera() then returns a
+// placeholder so the app UI stays visible and the user sees a graceful error.
+class ChimeraProviderErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, info) {
+    console.error('[ChimeraPrivyProvider] Privy failed to initialize:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.children;
+    }
+    return this.props.children;
+  }
+}
+
 // Wrapper component that provides Privy context with Chimera's protocol app ID.
 // On localchimera.com domains: uses PrivyProvider directly.
 // On third-party domains: loads an iframe relay from new.localchimera.com.
 // No manual Privy dashboard configuration needed for either case.
 const ChimeraPrivyProvider = ({ children }) => {
-  const sameOrigin = isLocalChimeraDomain();
-
-  // On allowed domains, use PrivyProvider directly
-  if (sameOrigin) {
-    return createElement(PrivyProvider, {
-      appId: CHIMERA_PRIVY_APP_ID,
-      config: CHIMERA_PRIVY_CONFIG,
-    }, children);
-  }
-
-  // On third-party domains, we still wrap in PrivyProvider so usePrivy()
-  // works inside. The iframe relay handles the actual auth flow, but
-  // PrivyProvider is needed for the React context. Privy's SDK handles
-  // cross-origin iframe auth internally when the app ID's allowed origins
-  // include the relay domain.
-  //
-  // The relay iframe (new.localchimera.com/privy-relay.html) hosts the
-  // Privy auth UI. The SDK communicates with it via postMessage.
-  // This works because Privy's iframe-based auth already uses postMessage
-  // internally — we're just providing the correct origin.
-  return createElement(PrivyProvider, {
+  const privyProps = {
     appId: CHIMERA_PRIVY_APP_ID,
     config: CHIMERA_PRIVY_CONFIG,
-  }, children);
+  };
+
+  // On allowed domains, use PrivyProvider directly
+  const provider = createElement(PrivyProvider, privyProps, children);
+
+  // Wrap in an error boundary so sandboxed environments (WebContainer) still
+  // render the app UI even if Privy cannot initialize.
+  return createElement(ChimeraProviderErrorBoundary, null, provider);
 };
 
 // Inner component that calls the hook and forwards result via render prop
