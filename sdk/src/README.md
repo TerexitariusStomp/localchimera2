@@ -1,6 +1,6 @@
 # sdk/src
 
-Source for `@chimera/sdk`.
+Source for `@localchimera/sdk`.
 
 ## Subdirectories
 

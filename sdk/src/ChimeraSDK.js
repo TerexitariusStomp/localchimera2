@@ -45,7 +45,7 @@ function _maskAddress(addr) {
  * Runs all providers inside a hardened privacy container. Docker is required.
  *
  * Usage:
- *   import { ChimeraSDK } from '@chimera/sdk';
+ *   import { ChimeraSDK } from '@localchimera/sdk';
  *   const sdk = new ChimeraSDK({
  *     appName: 'MyApp',
  *     appDeveloperEVM: '0x...',

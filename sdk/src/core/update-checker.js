@@ -1,7 +1,7 @@
 /**
  * SDK auto-update checker.
  *
- * On load, checks the Chimera registry for the latest @chimera/sdk version.
+ * On load, checks the Chimera registry for the latest @localchimera/sdk version.
  * If a newer version is available, calls the onUpdateAvailable callback
  * so the consuming app can prompt the user or auto-update.
  *
@@ -11,7 +11,7 @@
  * The app can also subscribe to update events via onUpdateAvailable.
  */
 
-const SDK_VERSION = '1.0.0';
+const SDK_VERSION = '1.0.2';
 const REGISTRY_URL = 'https://new.localchimera.com/api/sdk-version';
 const NPM_REGISTRY = 'https://registry.npmjs.org/@localchimera/sdk/latest';
 const CHECK_INTERVAL_MS = 1000 * 60 * 60; // 1 hour

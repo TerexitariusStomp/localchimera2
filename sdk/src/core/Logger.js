@@ -1,5 +1,5 @@
 /**
- * Lightweight logger for @chimera/sdk — no external dependencies.
+ * Lightweight logger for @localchimera/sdk — no external dependencies.
  */
 
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 };

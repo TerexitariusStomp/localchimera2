@@ -1,11 +1,11 @@
 /**
- * @chimera/sdk — Main entry point
+ * @localchimera/sdk — Main entry point
  *
  * Tasking network provider SDK. Exports only the providers and orchestrator
  * needed to participate in decentralized compute, storage, bandwidth, and
  * inference networks. Self-contained — no external dependencies beyond React and Privy.
  *
- * React hook: import { useChimera } from '@chimera/sdk'
+ * React hook: import { useChimera } from '@localchimera/sdk'
  */
 
 export { ChimeraSDK } from './ChimeraSDK.js';

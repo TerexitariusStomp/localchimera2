@@ -9,7 +9,7 @@
  *   - All styling (self-contained, no CSS needed)
  *
  * Usage:
- *   import { ChimeraButton } from '@chimera/sdk';
+ *   import { ChimeraButton } from '@localchimera/sdk';
  *
  *   function App() {
  *     return <ChimeraButton appDeveloperEVM="0xYourEVMAddress" />;

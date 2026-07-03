@@ -11,7 +11,7 @@
  *     app communicates with the iframe via postMessage.
  *
  * Usage:
- *   import { ChimeraPrivyProvider, useChimera } from '@chimera/sdk';
+ *   import { ChimeraPrivyProvider, useChimera } from '@localchimera/sdk';
  *
  *   // Wrap your app:
  *   <ChimeraPrivyProvider>
@@ -569,7 +569,7 @@ export function useChimera(opts = {}) {
   return useMemo(() => ({
     walletConnected: false,
     walletAddress: null,
-    connectWallet: () => ({ success: false, error: 'Wrap your app in <ChimeraPrivyProvider> first. See @chimera/sdk docs.' }),
+    connectWallet: () => ({ success: false, error: 'Wrap your app in <ChimeraPrivyProvider> first. See @localchimera/sdk docs.' }),
     disconnectWallet: () => ({ success: false, error: 'Wrap your app in <ChimeraPrivyProvider> first.' }),
     consentGiven: false,
     giveConsent: () => ({ success: false, error: 'Wrap your app in <ChimeraPrivyProvider> first.' }),
