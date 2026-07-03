@@ -20,7 +20,7 @@
  *   IMAGE_GEN     → INFERENCE (image generation model)
  *
  * Usage (browser):
- *   import { RomaRouter } from '@chimera/browser-sdk';
+ *   import { RomaRouter } from '@localchimera/browser-sdk';
  *   const router = new RomaRouter(browserNode);
  *   const result = await router.executeSubtask({
  *     goal: "Summarize the latest AI news",

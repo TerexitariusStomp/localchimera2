@@ -1694,7 +1694,7 @@ export class BrowserNode {
  * Returns the running node instance.
  *
  * Usage:
- *   import { quickStart } from '@chimera/browser-sdk';
+ *   import { quickStart } from '@localchimera/browser-sdk';
  *   const node = await quickStart(walletProvider, publicKeyHex, accountHash, {
  *     onStatus: (status) => console.log(status),
  *   });

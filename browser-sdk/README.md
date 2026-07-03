@@ -21,13 +21,13 @@ All heavy libraries are dynamically imported — they don't bloat the initial pa
 ## Install
 
 ```bash
-npm install @chimera/browser-sdk
+npm install @localchimera/browser-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { BrowserNode } from '@chimera/browser-sdk';
+import { BrowserNode } from '@localchimera/browser-sdk';
 
 const node = new BrowserNode(
   casperWalletProvider,  // from Casper Wallet extension
@@ -51,7 +51,7 @@ await node.stop();
 
 ```tsx
 import { useEffect, useRef, useState } from 'react';
-import { BrowserNode, type BrowserNodeStatus } from '@chimera/browser-sdk';
+import { BrowserNode, type BrowserNodeStatus } from '@localchimera/browser-sdk';
 
 function BrowserNodePanel({ provider, publicKeyHex, accountHash }) {
   const [status, setStatus] = useState<BrowserNodeStatus | null>(null);

@@ -1,10 +1,10 @@
 /**
- * @chimera/browser-sdk — Main entry point
+ * @localchimera/browser-sdk — Main entry point
  *
  * Run a tasker network node entirely in the browser. No download required.
  *
  * Usage:
- *   import { BrowserNode } from '@chimera/browser-sdk';
+ *   import { BrowserNode } from '@localchimera/browser-sdk';
  *
  *   const node = new BrowserNode(casperWalletProvider, publicKeyHex, accountHash);
  *   node.onStatusUpdate(status => console.log(status));
