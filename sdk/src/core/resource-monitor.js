@@ -119,7 +119,8 @@ export class ResourceMonitor {
     }
     if (!isBrowser && this._cpuProfiling) {
       try {
-        const { stopProfilingCpu } = await import(/* @vite-ignore */ 'system-resource-monitor');
+        const moduleName = 'system-resource-monitor';
+        const { stopProfilingCpu } = await import(/* @vite-ignore */ moduleName);
         stopProfilingCpu();
         this._cpuProfiling = false;
       } catch {}
@@ -158,7 +159,8 @@ export class ResourceMonitor {
 
   async _startNode() {
     try {
-      const srm = await import(/* @vite-ignore */ 'system-resource-monitor');
+      const moduleName = 'system-resource-monitor';
+      const srm = await import(/* @vite-ignore */ moduleName);
       if (srm.startProfilingCpu) {
         await srm.startProfilingCpu();
         this._cpuProfiling = true;
