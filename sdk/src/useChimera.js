@@ -36,7 +36,7 @@
  *   }
  */
 
-import { useState, useEffect, useCallback, useRef, createElement, useMemo, Component } from 'react';
+import { useState, useEffect, useCallback, useRef, createElement, useMemo, Component, createContext, useContext } from 'react';
 import { usePrivy, PrivyProvider } from '@privy-io/react-auth';
 import { checkForUpdates, onUpdateAvailable, getSDKVersion } from './core/update-checker.js';
 
@@ -47,6 +47,11 @@ const CHIMERA_PRIVY_APP_ID = 'cmqu05m41000h0djl70k738mx';
 // The relay origin that hosts the Privy iframe for third-party domains.
 // This domain is in Privy's allowed origins list.
 const CHIMERA_RELAY_ORIGIN = 'https://new.localchimera.com';
+
+// React context that exposes the Privy state (ready, authenticated, user,
+// login, logout). On allowed domains the context is populated directly from
+// usePrivy(); on third-party domains it is populated from the iframe relay.
+const ChimeraPrivyContext = createContext(null);
 
 // Privy config: social login + embedded wallet creation
 const CHIMERA_PRIVY_CONFIG = {
@@ -64,6 +69,16 @@ const API_BASE = (typeof window !== 'undefined' &&
   (window.location.protocol === 'http:' || window.location.protocol === 'https:'))
   ? '/api' : 'http://localhost:3002/api';
 
+// Check if we're on a domain that Privy allows directly. *.localchimera.com
+// and localhost are allowed; everything else must use the iframe relay.
+function isLocalChimeraDomain() {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host.endsWith('.localchimera.com') ||
+    host === 'localchimera.com';
+}
 
 // ─── Iframe relay for third-party domains ───
 // When the SDK is used on a non-localchimera.com domain, we load a hidden
@@ -78,8 +93,9 @@ let messageIdCounter = 0;
 
 function ensureIframe() {
   if (iframeEl || typeof document === 'undefined') return;
+  const parentOrigin = encodeURIComponent(window.location.origin);
   iframeEl = document.createElement('iframe');
-  iframeEl.src = `${CHIMERA_RELAY_ORIGIN}/privy-relay.html`;
+  iframeEl.src = `${CHIMERA_RELAY_ORIGIN}/privy-relay/index.html?origin=${parentOrigin}`;
   iframeEl.style.display = 'none';
   iframeEl.setAttribute('aria-hidden', 'true');
   iframeEl.setAttribute('tabindex', '-1');
@@ -135,10 +151,88 @@ function waitForIframe() {
   });
 }
 
-// Inner hook that uses Privy context (must be called inside PrivyProvider)
+// Custom Privy replacement that runs inside the hidden iframe relay on
+// third-party domains. This lets the generated app work on any domain without
+// being in the Privy dashboard's allowed origins list.
+function useIframePrivy() {
+  const isAllowed = isLocalChimeraDomain();
+  const [state, setState] = useState({
+    ready: false,
+    authenticated: false,
+    user: null,
+  });
+
+  useEffect(() => {
+    if (isAllowed) return;
+    let cancelled = false;
+    ensureIframe();
+    waitForIframe().then(() => {
+      if (cancelled) return;
+      // Sync status once after the iframe is ready
+      sendToIframe('getStatus').then((data) => {
+        if (cancelled) return;
+        setState({
+          ready: true,
+          authenticated: data?.authenticated || false,
+          user: data?.walletAddress ? { wallet: { address: data.walletAddress } } : null,
+        });
+      }).catch(() => {});
+    }).catch(() => {});
+
+    const onMessage = (event) => {
+      if (event.origin !== CHIMERA_RELAY_ORIGIN) return;
+      const { type, data } = event.data || {};
+      if (type === 'relay-ready') {
+        sendToIframe('getStatus').then((status) => {
+          if (cancelled) return;
+          setState({
+            ready: true,
+            authenticated: status?.authenticated || false,
+            user: status?.walletAddress ? { wallet: { address: status.walletAddress } } : null,
+          });
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('message', onMessage);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('message', onMessage);
+    };
+  }, []);
+
+  const login = useCallback(async () => {
+    if (isAllowed) return { success: false, error: 'Not in iframe mode' };
+    const result = await sendToIframe('login', { loginMethods: CHIMERA_PRIVY_CONFIG.loginMethods });
+    if (result?.walletAddress) {
+      setState({
+        ready: true,
+        authenticated: true,
+        user: { wallet: { address: result.walletAddress } },
+      });
+    }
+    return result;
+  }, [isAllowed]);
+
+  const logout = useCallback(async () => {
+    if (isAllowed) return { success: false, error: 'Not in iframe mode' };
+    await sendToIframe('logout');
+    setState({ ready: true, authenticated: false, user: null });
+  }, [isAllowed]);
+
+  return {
+    ready: state.ready,
+    authenticated: state.authenticated,
+    user: state.user,
+    login,
+    logout,
+  };
+}
+
+// Inner hook that uses the ChimeraPrivyContext populated by ChimeraPrivyProvider.
 function useChimeraInner(opts = {}) {
   // ─── Privy wallet integration ───
-  const { ready, authenticated, user, login, logout } = usePrivy();
+  const { ready, authenticated, user, login, logout } = useContext(ChimeraPrivyContext);
   const walletAddress = user?.wallet?.address || null;
   const walletConnected = authenticated && !!walletAddress;
 
@@ -516,22 +610,42 @@ class ChimeraProviderErrorBoundary extends Component {
   }
 }
 
+// Populates the context from the direct usePrivy() hook (inside PrivyProvider).
+function DirectPrivyContextProvider({ children }) {
+  const privy = usePrivy();
+  return createElement(ChimeraPrivyContext.Provider, { value: privy }, children);
+}
+
+// Populates the context from the iframe relay on third-party domains.
+function IframePrivyContextProvider({ children }) {
+  const privy = useIframePrivy();
+  return createElement(ChimeraPrivyContext.Provider, { value: privy }, children);
+}
+
 // Wrapper component that provides Privy context with Chimera's protocol app ID.
 // On localchimera.com domains: uses PrivyProvider directly.
 // On third-party domains: loads an iframe relay from new.localchimera.com.
 // No manual Privy dashboard configuration needed for either case.
 const ChimeraPrivyProvider = ({ children }) => {
+  const isAllowed = isLocalChimeraDomain();
   const privyProps = {
     appId: CHIMERA_PRIVY_APP_ID,
     config: CHIMERA_PRIVY_CONFIG,
   };
 
-  // On allowed domains, use PrivyProvider directly
-  const provider = createElement(PrivyProvider, privyProps, children);
+  if (isAllowed) {
+    // On allowed domains, use PrivyProvider directly. Wrap in an error boundary
+    // so sandboxed environments (WebContainer) still render the app UI even if
+    // Privy cannot initialize.
+    const contextProvider = createElement(DirectPrivyContextProvider, null, children);
+    const provider = createElement(PrivyProvider, privyProps, contextProvider);
+    return createElement(ChimeraProviderErrorBoundary, null, provider);
+  }
 
-  // Wrap in an error boundary so sandboxed environments (WebContainer) still
-  // render the app UI even if Privy cannot initialize.
-  return createElement(ChimeraProviderErrorBoundary, null, provider);
+  // On third-party domains, the hidden iframe relay at new.localchimera.com
+  // handles Privy authentication. We render children without PrivyProvider so
+  // useChimera() can use the relay context instead of usePrivy().
+  return createElement(IframePrivyContextProvider, null, children);
 };
 
 // Inner component that calls the hook and forwards result via render prop
@@ -555,20 +669,13 @@ const ChimeraInner = ({ opts, onReady }) => {
  *   revenueSplit     — { machineOwner, appDeveloper } split (default 70/30)
  */
 export function useChimera(opts = {}) {
-  // Try to use existing Privy context first
-  let existingPrivy = null;
-  try {
-    existingPrivy = usePrivy();
-  } catch (e) {
-    // No existing PrivyProvider in tree
-  }
-
-  // If we have existing Privy context, use the inner hook directly
-  if (existingPrivy) {
+  // Detect whether ChimeraPrivyProvider is mounted by checking the context.
+  const privyContext = useContext(ChimeraPrivyContext);
+  if (privyContext) {
     return useChimeraInner(opts);
   }
 
-  // No existing PrivyProvider — return placeholder directing user to wrap app
+  // No ChimeraPrivyProvider — return placeholder directing user to wrap app
   return useMemo(() => ({
     walletConnected: false,
     walletAddress: null,
