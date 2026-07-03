@@ -1,6 +1,6 @@
 {
   "name": "@localchimera/browser-sdk",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Chimera Browser SDK — run a tasker network node entirely in the browser. No download required.",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -31,6 +31,11 @@
       "import": "./dist/roma-router.js",
       "default": "./dist/roma-router.js",
       "types": "./dist/roma-router.d.ts"
+    },
+    "./task-types": {
+      "import": "./dist/task-types.js",
+      "default": "./dist/task-types.js",
+      "types": "./dist/task-types.d.ts"
     },
     "./vite": {
       "import": "./dist/vite.js",

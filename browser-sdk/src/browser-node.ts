@@ -25,6 +25,8 @@ import { CONTRACTS, getContractNamedKeys, queryDictionary, callEntryPointWithWal
 import * as sdk from 'casper-js-sdk';
 import { NetworkAdapter, NetworkAdapterStatus, createAllAdapters } from './network-adapters';
 import { RomaRouter } from './roma-router';
+import { TASK_TYPE } from './task-types';
+export { TASK_TYPE } from './task-types';
 
 const RPC_URL = typeof window !== 'undefined' && window.location?.origin
   ? `${window.location.origin}/api/rpc`
@@ -39,13 +41,6 @@ const STATE = {
   SETTLED: 5,
   REFUNDED: 6,
   DISPUTED: 7,
-};
-
-export const TASK_TYPE = {
-  INFERENCE: 0,
-  STORAGE: 1,
-  COMPUTE: 2,
-  BANDWIDTH: 3,
 };
 
 export interface BrowserNodeStatus {

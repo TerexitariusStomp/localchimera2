@@ -33,7 +33,7 @@
  *   { "goal": "...", "task_type": "CODE_INTERPRET", "context": {...} }
  */
 
-import { TASK_TYPE } from './browser-node';
+import { TASK_TYPE } from './task-types';
 
 export type RomaTaskType =
   | 'RETRIEVE'
