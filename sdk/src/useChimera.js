@@ -69,15 +69,19 @@ const API_BASE = (typeof window !== 'undefined' &&
   (window.location.protocol === 'http:' || window.location.protocol === 'https:'))
   ? '/api' : 'http://localhost:3002/api';
 
-// Check if we're on a domain that Privy allows directly. *.localchimera.com
-// and localhost are allowed; everything else must use the iframe relay.
+// Check if we're on a domain that can safely mount PrivyProvider directly.
+// *.localchimera.com and localhost are allowed. WebContainer preview domains
+// are also treated as allowed so the error boundary can catch sandbox init
+// failures gracefully instead of relying on an external iframe that may be
+// blocked inside the WebContainer.
 function isLocalChimeraDomain() {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname;
   return host === 'localhost' ||
     host === '127.0.0.1' ||
     host.endsWith('.localchimera.com') ||
-    host === 'localchimera.com';
+    host === 'localchimera.com' ||
+    host.endsWith('.webcontainer-api.io');
 }
 
 // ─── Iframe relay for third-party domains ───
