@@ -58,19 +58,25 @@ const DEFAULT_THRESHOLDS = {
 
 const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
 
-// Node.js built-ins — only loaded in Node, not browser
-let _os, _path;
-if (!isBrowser) {
-  // Use createRequire for ESM compatibility, fallback to global require
-  try {
-    const { createRequire } = await import('module');
-    const require = createRequire(import.meta.url);
-    _os = require('os');
-    _path = require('path');
-  } catch {
-    _os = globalThis.require?.('os');
-    _path = globalThis.require?.('path');
+// Node.js built-ins — only loaded in Node, not browser. Lazily loaded so
+// this module never contains top-level await, which bundlers reject in
+// browser-target builds.
+let _nodeModules = null;
+async function _getNodeModules() {
+  if (_nodeModules) return _nodeModules;
+  if (!isBrowser) {
+    try {
+      const { createRequire } = await import('module');
+      const require = createRequire(import.meta.url);
+      _nodeModules = { os: require('os'), path: require('path') };
+    } catch {
+      _nodeModules = {
+        os: globalThis.require?.('os'),
+        path: globalThis.require?.('path'),
+      };
+    }
   }
+  return _nodeModules || { os: null, path: null };
 }
 
 export class ResourceMonitor {
@@ -229,7 +235,8 @@ export class ResourceMonitor {
 
   async _pollDiskNode() {
     // Use fs.statfs (Node 18+) to check disk usage of the data directory
-    const checkDir = this._dataDir || (_path ? _path.join(_os?.homedir?.() || '/tmp', '.chimera') : '/tmp/.chimera');
+    const { os, path } = await _getNodeModules();
+    const checkDir = this._dataDir || (path ? path.join(os?.homedir?.() || '/tmp', '.chimera') : '/tmp/.chimera');
     try {
       const fs = await import('fs');
       if (fs.statfs) {

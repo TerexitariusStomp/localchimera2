@@ -11,7 +11,7 @@
 export { ChimeraSDK } from './ChimeraSDK.js';
 export { PrivacyContainer } from './runtime/PrivacyContainer.js';
 export { useChimera, ChimeraPrivyProvider } from './useChimera.js';
-export { ChimeraButton } from './ChimeraButton.jsx';
+export { ChimeraButton } from './ChimeraButton.js';
 export { checkForUpdates, onUpdateAvailable, getSDKVersion } from './core/update-checker.js';
 export { ResourceMonitor } from './core/resource-monitor.js';
 export {
