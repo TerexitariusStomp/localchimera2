@@ -18,7 +18,7 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64
 # Install torch from the CUDA 11.8 index first, then concrete-ml and other deps
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
-    --index-url http://download.pytorch.org/whl/cu118 \
+    --index-url https://download.pytorch.org/whl/cu118 \
     torch==2.3.1+cu118 && \
     pip install --no-cache-dir \
     concrete-ml==1.9.0 \
@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip uninstall -y concrete-python && \
     pip install --no-cache-dir --force-reinstall \
     --trusted-host pypi.zama.ai \
-    --extra-index-url http://pypi.zama.ai/gpu \
+    --extra-index-url https://pypi.zama.ai/gpu \
     concrete-python==2.10.0
 
 # Copy FHE model server artifacts. server.py supports either a single server.zip or
