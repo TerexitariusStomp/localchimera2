@@ -34,10 +34,45 @@ fi
 
 # Ensure wallet exists
 if ! akash keys show "${AKASH_KEY_NAME}" >/dev/null 2>&1; then
-    echo "Wallet '${AKASH_KEY_NAME}' not found. Create or import it first:"
-    echo "  akash keys add ${AKASH_KEY_NAME}          # create new wallet"
-    echo "  akash keys add ${AKASH_KEY_NAME} --recover # restore from mnemonic"
-    exit 1
+    if [ -n "${AKASH_PRIVATE_KEY:-}" ]; then
+        echo "Importing key '${AKASH_KEY_NAME}' from AKASH_PRIVATE_KEY..."
+        python3 - <<PY
+import hashlib
+import json
+import os
+import base64
+from ecdsa import SigningKey, SECP256k1
+import bech32
+
+priv_bytes = bytes.fromhex(os.environ['AKASH_PRIVATE_KEY'])
+sk = SigningKey.from_string(priv_bytes, curve=SECP256k1)
+vk = sk.get_verifying_key()
+pub_bytes = vk.to_string("compressed")
+sha = hashlib.sha256(pub_bytes).digest()
+ripe = hashlib.new("ripemd160", sha).digest()
+address = bech32.bech32_encode("akash", bech32.convertbits(ripe, 8, 5))
+keyring = {
+    "name": os.environ['AKASH_KEY_NAME'],
+    "type": "local",
+    "address": address,
+    "pubkey": {"type": "tendermint/PubKeySecp256k1", "value": base64.b64encode(pub_bytes).decode()},
+    "privkey": {"type": "tendermint/PrivKeySecp256k1", "value": base64.b64encode(priv_bytes).decode()},
+}
+keyring_dir = os.path.expanduser("~/.akash/keyring-test")
+os.makedirs(keyring_dir, exist_ok=True)
+keyring_path = os.path.join(keyring_dir, f"{os.environ['AKASH_KEY_NAME']}.json")
+with open(keyring_path, "w") as f:
+    json.dump(keyring, f)
+os.chmod(keyring_path, 0o600)
+print(f"Imported {os.environ['AKASH_KEY_NAME']} -> {address}")
+PY
+    else
+        echo "Wallet '${AKASH_KEY_NAME}' not found. Create or import it first:"
+        echo "  akash keys add ${AKASH_KEY_NAME}          # create new wallet"
+        echo "  akash keys add ${AKASH_KEY_NAME} --recover # restore from mnemonic"
+        echo "  AKASH_PRIVATE_KEY=... ./deploy-cli.sh     # import raw hex private key"
+        exit 1
+    fi
 fi
 
 OWNER=$(akash keys show "${AKASH_KEY_NAME}" -a)
