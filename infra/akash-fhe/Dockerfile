@@ -18,7 +18,7 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64
 # Install torch from the CUDA 11.8 index first, then concrete-ml and other deps
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
-    --index-url https://download.pytorch.org/whl/cu118 \
+    --index-url http://download.pytorch.org/whl/cu118 \
     torch==2.3.1+cu118 && \
     pip install --no-cache-dir \
     concrete-ml==1.9.0 \
