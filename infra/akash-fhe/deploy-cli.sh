@@ -110,22 +110,33 @@ BIDS=$(akash query market bid list \
     --node "${AKASH_NODE}" \
     --output json)
 
-echo "${BIDS}" | python3 -m json.tool
+# Pretty-print bids sorted by price (cheapest first)
+SORTED_BIDS=$(echo "${BIDS}" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+bids = d.get('bids', [])
+bids.sort(key=lambda x: int(x['bid']['price']['amount']))
+d['bids'] = bids
+print(json.dumps(d, indent=2))
+")
 
-BID_COUNT=$(echo "${BIDS}" | python3 -c "import sys, json; print(len(json.load(sys.stdin).get('bids',[])))")
+echo "${SORTED_BIDS}"
+
+BID_COUNT=$(echo "${SORTED_BIDS}" | python3 -c "import sys, json; print(len(json.load(sys.stdin).get('bids',[])))")
 if [ "${BID_COUNT}" -eq 0 ]; then
     echo "ERROR: no bids received. You may need to raise pricing or check provider availability."
     exit 1
 fi
 
 echo ""
-echo "Accepting the first bid..."
-FIRST_BID=$(echo "${BIDS}" | python3 -c "import sys, json; d=json.load(sys.stdin); print(json.dumps(d['bids'][0]['bid']['bid_id']))")
-GSEQ=$(echo "${FIRST_BID}" | python3 -c "import sys, json; print(json.load(sys.stdin)['gseq'])")
-OSEQ=$(echo "${FIRST_BID}" | python3 -c "import sys, json; print(json.load(sys.stdin)['oseq'])")
-PROVIDER=$(echo "${FIRST_BID}" | python3 -c "import sys, json; print(json.load(sys.stdin)['provider'])")
+echo "Accepting the cheapest bid..."
+CHEAPEST_BID=$(echo "${SORTED_BIDS}" | python3 -c "import sys, json; d=json.load(sys.stdin); print(json.dumps(d['bids'][0]['bid']['bid_id']))")
+GSEQ=$(echo "${CHEAPEST_BID}" | python3 -c "import sys, json; print(json.load(sys.stdin)['gseq'])")
+OSEQ=$(echo "${CHEAPEST_BID}" | python3 -c "import sys, json; print(json.load(sys.stdin)['oseq'])")
+PROVIDER=$(echo "${CHEAPEST_BID}" | python3 -c "import sys, json; print(json.load(sys.stdin)['provider'])")
+PRICE=$(echo "${SORTED_BIDS}" | python3 -c "import sys, json; d=json.load(sys.stdin); print(d['bids'][0]['bid']['price']['amount'] + d['bids'][0]['bid']['price']['denom'])")
 
-echo "Provider: ${PROVIDER} gseq=${GSEQ} oseq=${OSEQ}"
+echo "Provider: ${PROVIDER} gseq=${GSEQ} oseq=${OSEQ} price=${PRICE}"
 
 akash tx market lease create \
     --dseq "${DSEQ}" \
