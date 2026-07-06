@@ -73,3 +73,6 @@
 [submodule "website/inference-frontend/third-party/requestnetwork"]
 	path = website/inference-frontend/third-party/requestnetwork
 	url = https://github.com/RequestNetwork/requestNetwork
+[submodule "upstream/vitepress"]
+	path = upstream/vitepress
+	url = https://github.com/vuejs/vitepress.git
