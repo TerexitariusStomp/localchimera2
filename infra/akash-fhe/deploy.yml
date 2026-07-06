@@ -1,0 +1,100 @@
+---
+version: "2.0"
+
+# Multi-tier FHE inference deployment on Akash
+# Choose the GPU tier by setting the CHIMERA_FHE_TIER env var
+# before deploying: h100 (7B+), a100 (1-7B), rtx4090 (small models).
+
+services:
+  fhe-inference:
+    image: ghcr.io/localchimera/fhe-inference:gpu
+    credentials:
+      host: ghcr.io
+      username: localchimera
+      password: ${GHCR_TOKEN}
+    expose:
+      - port: 8080
+        as: 80
+        to:
+          - global: true
+    env:
+      - CUDA_VISIBLE_DEVICES=0
+      - SDFG_MAX_BATCH_SIZE=256
+      - FHE_SERVER_DIR=/app/server_files
+      - FHE_MODEL_NAME=${FHE_MODEL_NAME:-lfm2.5-230m}
+
+profiles:
+  compute:
+    fhe-h100:
+      resources:
+        cpu:
+          units: 32
+        memory:
+          size: 128Gi
+        storage:
+          size: 100Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: h100
+    fhe-a100:
+      resources:
+        cpu:
+          units: 16
+        memory:
+          size: 64Gi
+        storage:
+          size: 100Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: a100
+    fhe-rtx4090:
+      resources:
+        cpu:
+          units: 8
+        memory:
+          size: 32Gi
+        storage:
+          size: 50Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: rtx4090
+    fhe-cpu:
+      resources:
+        cpu:
+          units: 4
+        memory:
+          size: 16Gi
+        storage:
+          size: 50Gi
+  placement:
+    akash:
+      attributes:
+        host: akash
+      pricing:
+        fhe-h100:
+          denom: uakt
+          amount: 10000000
+        fhe-a100:
+          denom: uakt
+          amount: 4000000
+        fhe-rtx4090:
+          denom: uakt
+          amount: 1500000
+        fhe-cpu:
+          denom: uakt
+          amount: 500000
+
+deployment:
+  fhe-inference:
+    akash:
+      profile: fhe-h100
+      count: 1

@@ -1,0 +1,81 @@
+name: Build and push FHE inference image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - infra/akash-fhe/Dockerfile
+      - infra/akash-fhe/server.py
+      - infra/akash-fhe/build.sh
+      - .github/workflows/build-fhe-inference-image.yml
+  pull_request:
+    paths:
+      - infra/akash-fhe/Dockerfile
+      - infra/akash-fhe/server.py
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: localchimera/fhe-inference
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af
+          df -h
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=gpu
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: infra/akash-fhe
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Generate artifact attestation
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
