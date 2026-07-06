@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends binutils && rm 
 # Copy CUDA 11.8 runtime libraries from the official NVIDIA image
 COPY --from=cuda-runtime /usr/local/cuda /usr/local/cuda
 ENV PATH=/usr/local/cuda/bin:$PATH
-ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64
 
 # Install torch from the CUDA 11.8 index first, then concrete-ml and other deps
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip uninstall -y concrete-python && \
     pip install --no-cache-dir --force-reinstall \
     --trusted-host pypi.zama.ai \
-    --extra-index-url https://pypi.zama.ai/gpu \
+    --extra-index-url http://pypi.zama.ai/gpu \
     concrete-python==2.10.0
 
 # Copy FHE model server artifacts. server.py supports either a single server.zip or
