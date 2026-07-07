@@ -266,6 +266,18 @@ akash tx market lease create \
 echo ""
 echo "Sending manifest to provider..."
 if ! command -v provider-services >/dev/null 2>&1; then
+    # Search common locations
+    for ps_path in /tmp/provider-services /usr/local/bin /opt/provider-services; do
+        if [ -x "${ps_path}/provider-services" ]; then
+            export PATH="${ps_path}:${PATH}"
+            break
+        elif [ -x "${ps_path}" ] && [ "$(basename "${ps_path}")" = "provider-services" ]; then
+            export PATH="$(dirname "${ps_path}"):${PATH}"
+            break
+        fi
+    done
+fi
+if ! command -v provider-services >/dev/null 2>&1; then
     echo "ERROR: provider-services binary not found. Install it from https://github.com/akash-network/provider/releases"
     echo "Example: curl -L -o provider-services.zip https://github.com/akash-network/provider/releases/download/v0.14.2/provider-services_linux_amd64.zip"
     exit 1
