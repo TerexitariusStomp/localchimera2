@@ -117,7 +117,7 @@ export default function StorageMarketTab({ provider, publicKeyHex, contractHash,
           {({ submit }) => {
             const [capacity, setCapacity] = useState('10240');
             return <form onSubmit={(e) => { e.preventDefault(); submit('update_provider_capacity', {
-              total_capacity_mb: sdk.CLValue.newCLUInt64(capacity),
+              total_capacity_mb: sdk.CLValue.newCLUint64(capacity),
             }); }} className="space-y-2">
               <div className="text-xs text-muted-foreground">Update your total storage capacity.</div>
               <Input label="New Capacity (MB)" value={capacity} onChange={setCapacity} />
@@ -144,10 +144,10 @@ export default function StorageMarketTab({ provider, publicKeyHex, contractHash,
             const shards = shardConfig[redundancy] || shardConfig.standard;
             const amountMotes = Math.floor(parseFloat(amount || '0') * 1e9).toString();
             return <form onSubmit={(e) => { e.preventDefault(); submit('create_allocation', {
-              data_shards: sdk.CLValue.newCLUInt64(shards.data),
-              parity_shards: sdk.CLValue.newCLUInt64(shards.parity),
-              size_mb: sdk.CLValue.newCLUInt64(sizeMb),
-              expiry_ms: sdk.CLValue.newCLUInt64(expiryMs),
+              data_shards: sdk.CLValue.newCLUint64(shards.data),
+              parity_shards: sdk.CLValue.newCLUint64(shards.parity),
+              size_mb: sdk.CLValue.newCLUint64(sizeMb),
+              expiry_ms: sdk.CLValue.newCLUint64(expiryMs),
               amount: sdk.CLValue.newCLUInt512(amountMotes),
             }); }} className="space-y-2">
               <div className="text-xs text-muted-foreground">Reserve decentralized storage space. Files are split into encrypted shards and distributed across multiple providers.</div>
@@ -197,7 +197,7 @@ export default function StorageMarketTab({ provider, publicKeyHex, contractHash,
             return <form onSubmit={(e) => { e.preventDefault(); submit('store_file', {
               alloc_id: sdk.CLValue.newCLString(allocId),
               file_hash: sdk.CLValue.newCLString(fileHash),
-              size_mb: sdk.CLValue.newCLUInt64(sizeMb),
+              size_mb: sdk.CLValue.newCLUint64(sizeMb),
               amount: sdk.CLValue.newCLUInt512(amountMotes),
             }); }} className="space-y-2">
               <div className="text-xs text-muted-foreground">Upload a file to your storage allocation. The system automatically assigns suitable providers and handles shard distribution.</div>
@@ -325,7 +325,7 @@ export default function StorageMarketTab({ provider, publicKeyHex, contractHash,
               const [passed, setPassed] = useState(true);
               return <form onSubmit={(e) => { e.preventDefault(); submit('verify_challenge', {
                 challenge_id: sdk.CLValue.newCLString(challengeId),
-                passed: sdk.CLValue.newCLBool(passed),
+                passed: sdk.CLValue.newCLValueBool(passed),
               }); }} className="space-y-2">
                 <div className="text-xs text-muted-foreground flex items-center gap-1"><Shield className="h-3 w-3 text-[#00e5ff]" />Verify a challenge response (admin only).</div>
                 <Input label="Challenge ID" value={challengeId} onChange={setChallengeId} />

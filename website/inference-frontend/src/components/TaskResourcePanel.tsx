@@ -50,16 +50,17 @@ export default function TaskResourcePanel({
     if (!accountHash) return;
     setLoading(true);
     try {
-      const imKeys = await getContractNamedKeys(CONTRACTS.inferenceMarket);
-      const jobsUref = imKeys['jobs_dict'] || '';
+      const evKeys = await getContractNamedKeys(CONTRACTS.escrowVault);
+      const jobsUref = evKeys['jobs_dict'] || '';
       const loaded: Job[] = [];
       if (jobsUref) {
         const ahStr = accountHash.replace('account-hash-', '');
-        const pendingUref = imKeys['pending_jobs'] || '';
+        const pendingUref = evKeys['pending_jobs'] || '';
         let jobIds: string[] = [];
         if (pendingUref) {
           const pendingList = await queryDictionary(pendingUref, 'list');
           if (Array.isArray(pendingList)) jobIds = pendingList as string[];
+          else if (typeof pendingList === 'string' && pendingList.length > 0) jobIds = pendingList.split(',').filter(Boolean);
         }
         for (const jobId of jobIds) {
           if (!jobId.includes(ahStr)) continue;
@@ -166,33 +167,70 @@ export default function TaskResourcePanel({
               setAiLoading(true);
               setAiProgress('Submitting to Casper testnet...');
               await submitJob(CONTRACTS.escrowVault, 'EscrowVault', promptText.trim(), amount);
-              setAiProgress('Loading in-browser AI model (WebLLM)...');
-              try {
-                const webllm = await import('@mlc-ai/web-llm');
-                const modelId = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
-                setAiProgress('Loading model (first run downloads ~1GB)...');
-                const engine = await webllm.CreateMLCEngine(modelId, {
-                  initProgressCallback: (p: any) => {
-                    if (p.progress !== undefined) {
-                      setAiProgress(`Model loading: ${Math.round(p.progress * 100)}%`);
-                    }
-                  },
-                });
-                setAiProgress('Running inference...');
-                const completion = await engine.chat.completions.create({
-                  messages: [{ role: 'user', content: promptText.trim().slice(0, 500) }],
-                  max_tokens: 256,
-                  temperature: 0.7,
-                  stream: false,
-                });
-                const output = completion.choices?.[0]?.message?.content || 'No response generated';
-                setAiResult(output);
-              } catch (aiErr: any) {
-                setAiResult(`AI inference failed: ${aiErr.message}. Job was submitted to testnet.`);
-              } finally {
-                setAiLoading(false);
-                setAiProgress('');
+              setAiProgress('Loading in-browser AI model...');
+              let inferenceDone = false;
+
+              // Helper: check WebGPU is actually usable (not just exposed by the browser)
+              const webgpuUsable = await (async () => {
+                try {
+                  if (typeof navigator === 'undefined' || !(navigator as any).gpu) return false;
+                  const adapter = await (navigator as any).gpu.requestAdapter({ powerPreference: 'high-performance' });
+                  return !!adapter;
+                } catch {
+                  return false;
+                }
+              })();
+
+              // Try WebLLM (WebGPU) first only when an adapter is available
+              if (webgpuUsable) {
+                try {
+                  const webllm = await import('@mlc-ai/web-llm');
+                  const modelId = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
+                  setAiProgress('Loading WebLLM model (first run downloads ~1GB)...');
+                  const engine = await webllm.CreateMLCEngine(modelId, {
+                    initProgressCallback: (p: any) => {
+                      if (p.progress !== undefined) {
+                        setAiProgress(`Model loading: ${Math.round(p.progress * 100)}%`);
+                      }
+                    },
+                  });
+                  setAiProgress('Running inference (WebGPU)...');
+                  const completion = await engine.chat.completions.create({
+                    messages: [{ role: 'user', content: promptText.trim().slice(0, 500) }],
+                    max_tokens: 256,
+                    temperature: 0.7,
+                    stream: false,
+                  });
+                  const output = completion.choices?.[0]?.message?.content || 'No response generated';
+                  setAiResult(output);
+                  inferenceDone = true;
+                } catch (webllmErr: any) {
+                  console.warn('WebLLM failed, falling back to transformers.js:', webllmErr.message);
+                }
               }
+              // Fallback: transformers.js (WASM, works without WebGPU)
+              if (!inferenceDone) {
+                try {
+                  setAiProgress('Loading transformers.js model (WASM, first run downloads ~500MB)...');
+                  const { pipeline } = await import('@huggingface/transformers');
+                  const pipe = await pipeline('text-generation', 'Xenova/Llama-3.2-1B-Instruct-q4', {
+                    device: 'wasm',
+                    dtype: 'q4',
+                  });
+                  setAiProgress('Running inference (WASM)...');
+                  const output = await pipe(promptText.trim().slice(0, 500), { max_new_tokens: 256, temperature: 0.7 });
+                  const text = Array.isArray(output) ? output[0]?.generated_text || '' : (output as any)?.generated_text || '';
+                  setAiResult(text || 'No response generated');
+                  inferenceDone = true;
+                } catch (transformersErr: any) {
+                  console.warn('Transformers.js failed:', transformersErr.message);
+                }
+              }
+              if (!inferenceDone) {
+                setAiResult('Inference could not run in-browser (neither WebGPU nor WASM available). Job was still submitted to Casper testnet.');
+              }
+              setAiLoading(false);
+              setAiProgress('');
               setPromptText('');
             };
             const completed = filteredJobs('').filter(j => j.state >= 3 && j.responseHash && !j.requestHash?.startsWith('STORAGE:') && !j.requestHash?.startsWith('COMPUTE:') && !j.requestHash?.startsWith('BANDWIDTH:'));
@@ -200,7 +238,7 @@ export default function TaskResourcePanel({
             return (
               <div className="space-y-4">
                 <form onSubmit={handleSubmit} className="space-y-3">
-                  <div className="text-xs text-muted-foreground">Submit a prompt — it creates an EscrowVault job on Casper testnet and runs AI inference in your browser via WebLLM.</div>
+                  <div className="text-xs text-muted-foreground">Submit a prompt — it creates an EscrowVault job on Casper testnet and runs AI inference in your browser. WebGPU is used when available; otherwise it falls back to a WASM model.</div>
                   <TextArea label="Prompt" value={promptText} onChange={setPromptText} placeholder="Enter your inference prompt..." rows={4} />
                   <div className="grid grid-cols-2 gap-3">
                     <Input label="Funds (CSPR)" value={amount} onChange={setAmount} />

@@ -152,9 +152,9 @@ export default function ComputeMarketTab({ provider, publicKeyHex, contractHash,
               task_type: sdk.CLValue.newCLString(taskType),
               runtime: sdk.CLValue.newCLString(runtime),
               max_cost: sdk.CLValue.newCLUInt512(maxCostMotes),
-              duration_sec: sdk.CLValue.newCLUInt64(duration),
-              requires_gpu: sdk.CLValue.newCLBool(requiresGpu),
-              min_vram_mb: sdk.CLValue.newCLUInt64(minVram),
+              duration_sec: sdk.CLValue.newCLUint64(duration),
+              requires_gpu: sdk.CLValue.newCLValueBool(requiresGpu),
+              min_vram_mb: sdk.CLValue.newCLUint64(minVram),
             }); }} className="space-y-2">
               <div className="text-xs text-muted-foreground">Request compute resources. The router automatically matches you with a provider, generates an agreement, and pays out after completion if no dispute is raised.</div>
               <Input label="Task Type" value={taskType} onChange={setTaskType} />

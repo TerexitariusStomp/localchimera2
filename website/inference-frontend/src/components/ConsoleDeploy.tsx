@@ -220,7 +220,7 @@ export default function ConsoleDeploy({
 
     // Ensure sufficient deposit balance
     const depositBalance = await getDepositBalance(contractHash, accountHash);
-    if (sdk.U512.fromString(depositBalance).lt(sdk.U512.fromString(amountMotes))) {
+    if (BigInt(depositBalance || '0') < BigInt(amountMotes || '0')) {
       const depositResult = await callEntryPointWithWallet(provider, publicKeyHex, contractHash, 'deposit', {
         amount: sdk.CLValue.newCLUInt512(amountMotes),
       });

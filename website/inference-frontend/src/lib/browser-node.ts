@@ -309,7 +309,7 @@ export class BrowserNode {
       this.log('info', 'Loading @huggingface/transformers (fallback inference)...');
       const { pipeline } = await import('@huggingface/transformers');
       this.inferencePipeline = await pipeline('text-generation', 'Xenova/Llama-3.2-1B-Instruct-q4', {
-        device: this.capabilities.hasWebGPU ? 'webgpu' : 'wasm',
+        device: 'wasm',
         dtype: 'q4',
       });
       this.log('success', 'Transformers.js pipeline ready');
@@ -446,11 +446,11 @@ export class BrowserNode {
           peer_id: sdk.CLValue.newCLString('browser-' + this.accountHashHex.slice(0, 8)),
           name: sdk.CLValue.newCLString('Browser Inference Provider'),
           has_gpu: sdk.CLValue.newCLValueBool(this.capabilities.hasGpu),
-          vram_mb: sdk.CLValue.newCLUInt64(String(this.capabilities.vramMb || 0)),
+          vram_mb: sdk.CLValue.newCLUint64(String(this.capabilities.vramMb || 0)),
           supported_models: sdk.CLValue.newCLString('llama-3.2-1b-instruct'),
           stake_amount: sdk.CLValue.newCLUInt512('1000000000'),
           device_fingerprint: sdk.CLValue.newCLString(this.fingerprint || 'unknown'),
-          device_trust_score: sdk.CLValue.newCLUInt64(String(Math.round((this.deviceTrustScore || 0) * 100))),
+          device_trust_score: sdk.CLValue.newCLUint64(String(Math.round((this.deviceTrustScore || 0) * 100))),
         },
       },
       {
@@ -461,13 +461,13 @@ export class BrowserNode {
           evm_address: sdk.CLValue.newCLString('0x0000000000000000000000000000000000000000'),
           peer_id: sdk.CLValue.newCLString('browser-' + this.accountHashHex.slice(0, 8)),
           name: sdk.CLValue.newCLString('Browser Storage Provider'),
-          total_capacity_mb: sdk.CLValue.newCLUInt64(String(this.capabilities.storageQuotaMb || 1024)),
+          total_capacity_mb: sdk.CLValue.newCLUint64(String(this.capabilities.storageQuotaMb || 1024)),
           price_per_mb_month: sdk.CLValue.newCLUInt512('1000000'),
-          min_storage_mb: sdk.CLValue.newCLUInt64('1'),
-          max_storage_mb: sdk.CLValue.newCLUInt64(String(this.capabilities.storageQuotaMb || 1024)),
+          min_storage_mb: sdk.CLValue.newCLUint64('1'),
+          max_storage_mb: sdk.CLValue.newCLUint64(String(this.capabilities.storageQuotaMb || 1024)),
           stake_amount: sdk.CLValue.newCLUInt512('1000000000'),
           device_fingerprint: sdk.CLValue.newCLString(this.fingerprint || 'unknown'),
-          device_trust_score: sdk.CLValue.newCLUInt64(String(Math.round((this.deviceTrustScore || 0) * 100))),
+          device_trust_score: sdk.CLValue.newCLUint64(String(Math.round((this.deviceTrustScore || 0) * 100))),
         },
       },
       {
@@ -479,15 +479,15 @@ export class BrowserNode {
           peer_id: sdk.CLValue.newCLString('browser-' + this.accountHashHex.slice(0, 8)),
           name: sdk.CLValue.newCLString('Browser Compute Provider'),
           runtime_types: sdk.CLValue.newCLString('wasm'),
-          cpu_cores: sdk.CLValue.newCLUInt64(String(this.capabilities.cpuCores || 2)),
-          ram_mb: sdk.CLValue.newCLUInt64(String(this.capabilities.ramGb * 1024 || 2048)),
+          cpu_cores: sdk.CLValue.newCLUint64(String(this.capabilities.cpuCores || 2)),
+          ram_mb: sdk.CLValue.newCLUint64(String(this.capabilities.ramGb * 1024 || 2048)),
           has_gpu: sdk.CLValue.newCLValueBool(this.capabilities.hasGpu),
-          vram_mb: sdk.CLValue.newCLUInt64(String(this.capabilities.vramMb || 0)),
+          vram_mb: sdk.CLValue.newCLUint64(String(this.capabilities.vramMb || 0)),
           price_per_cpu_sec: sdk.CLValue.newCLUInt512('100000'),
           price_per_gpu_sec: sdk.CLValue.newCLUInt512('500000'),
           stake_amount: sdk.CLValue.newCLUInt512('1000000000'),
           device_fingerprint: sdk.CLValue.newCLString(this.fingerprint || 'unknown'),
-          device_trust_score: sdk.CLValue.newCLUInt64(String(Math.round((this.deviceTrustScore || 0) * 100))),
+          device_trust_score: sdk.CLValue.newCLUint64(String(Math.round((this.deviceTrustScore || 0) * 100))),
         },
       },
       {
@@ -499,15 +499,15 @@ export class BrowserNode {
           peer_id: sdk.CLValue.newCLString('browser-' + this.accountHashHex.slice(0, 8)),
           name: sdk.CLValue.newCLString('Browser Bandwidth Provider'),
           service_type: sdk.CLValue.newCLString('proxy'),
-          bandwidth_mbps: sdk.CLValue.newCLUInt64(String(this.capabilities.bandwidthMbps || 10)),
+          bandwidth_mbps: sdk.CLValue.newCLUint64(String(this.capabilities.bandwidthMbps || 10)),
           is_relay: sdk.CLValue.newCLValueBool(false),
-          or_port: sdk.CLValue.newCLUInt64('9001'),
-          dir_port: sdk.CLValue.newCLUInt64('9030'),
+          or_port: sdk.CLValue.newCLUint64('9001'),
+          dir_port: sdk.CLValue.newCLUint64('9030'),
           price_per_hour: sdk.CLValue.newCLUInt512('100000000'),
           price_per_gib: sdk.CLValue.newCLUInt512('50000000'),
           stake_amount: sdk.CLValue.newCLUInt512('1000000000'),
           device_fingerprint: sdk.CLValue.newCLString(this.fingerprint || 'unknown'),
-          device_trust_score: sdk.CLValue.newCLUInt64(String(Math.round((this.deviceTrustScore || 0) * 100))),
+          device_trust_score: sdk.CLValue.newCLUint64(String(Math.round((this.deviceTrustScore || 0) * 100))),
         },
       },
     ];
@@ -820,7 +820,7 @@ export class BrowserNode {
     this.log('info', `Processing inference job: "${orderId.slice(0, 60)}..."`);
 
     // Try @mlc-ai/web-llm first (WebGPU-accelerated, best performance)
-    if (this.capabilities.hasWebGPU) {
+    if (this.capabilities.hasGpu) {
       const engine = await this._ensureWebLLM();
       if (engine) {
         try {
@@ -840,12 +840,12 @@ export class BrowserNode {
       }
     }
 
-    // Fallback: @huggingface/transformers (WASM or WebGPU)
+    // Fallback: @huggingface/transformers (WASM, works without WebGPU)
     const pipe = await this._ensureTransformersPipeline();
     if (pipe) {
       try {
         const output = await pipe(orderId.slice(0, 500), { max_new_tokens: 256, temperature: 0.7 });
-        const text = Array.isArray(output) ? output[0]?.generated_text || '' : output.generated_text || '';
+        const text = Array.isArray(output) ? output[0]?.generated_text || '' : (output as any)?.generated_text || '';
         const proof = await this._sha256(`inference:${orderId}:${text}:${this.accountHashHex}`);
         this.log('success', `Inference completed via transformers.js (${text.length} chars)`);
         return `BROWSER_INFERENCE:${proof.slice(0, 64)}`;

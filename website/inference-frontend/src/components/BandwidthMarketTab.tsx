@@ -119,7 +119,7 @@ export default function BandwidthMarketTab({ provider, publicKeyHex, contractHas
                 consumer_pubkey: sdk.CLValue.newCLString(publicKeyHex),
                 max_duration_sec: sdk.CLValue.newCLUint64(maxDuration),
                 max_data_mb: sdk.CLValue.newCLUint64(maxData),
-                amount: sdk.CLValue.newCLUint512(amountMotes),
+                amount: sdk.CLValue.newCLUInt512(amountMotes),
               });
               if (result.deployHash) {
                 onTx({ id: Date.now().toString(), deployHash: result.deployHash, entryPoint: 'create_session', contract: 'BandwidthMarket', status: result.error ? 'error' : 'pending', error: result.error });
@@ -226,7 +226,7 @@ export default function BandwidthMarketTab({ provider, publicKeyHex, contractHas
               const [consumerPct, setConsumerPct] = useState('50');
               return <form onSubmit={(e) => { e.preventDefault(); submit('resolve_dispute', {
                 session_id: sdk.CLValue.newCLString(sessionId),
-                consumer_pct: sdk.CLValue.newCLUInt64(consumerPct),
+                consumer_pct: sdk.CLValue.newCLUint64(consumerPct),
               }); }} className="space-y-2">
                 <div className="text-xs text-muted-foreground flex items-center gap-1"><Shield className="h-3 w-3 text-[#00e5ff]" />Resolve a dispute with consumer payout percentage (admin only).</div>
                 <Input label="Session ID" value={sessionId} onChange={setSessionId} />
@@ -237,6 +237,29 @@ export default function BandwidthMarketTab({ provider, publicKeyHex, contractHas
           </EntryPointCard>
         )}
       </div>
+
+      {sessions.length > 0 && (
+        <div className="space-y-2 pt-3 border-t border-border">
+          <h3 className="text-sm font-bold text-[#e8e2d8]">Sessions</h3>
+          {sessions.map(s => (
+            <div key={s.id} className="flex items-center justify-between text-xs bg-white/5 rounded-lg p-3 border border-white/5">
+              <div className="flex-1 min-w-0">
+                <div className="font-mono text-[10px] text-[#7a7468]">{s.id}</div>
+                <div className="text-[10px] text-[#7a7468] mt-0.5">
+                  Duration: {s.maxDuration}s | Data: {s.maxData}MB | Amount: {s.amount} motes
+                </div>
+              </div>
+              <span className={`text-[10px] px-2 py-1 rounded shrink-0 ml-2 ${
+                s.status === 'pending' ? 'bg-yellow-400/10 text-yellow-400' :
+                s.status === 'confirmed' ? 'bg-[#00e5ff]/10 text-[#00e5ff]' :
+                s.status === 'closed' ? 'bg-emerald-400/10 text-emerald-400' :
+                s.status === 'disputed' ? 'bg-red-400/10 text-red-400' :
+                'bg-white/5 text-[#7a7468]'
+              }`}>{s.status}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -11,6 +11,9 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  optimizeDeps: {
+    include: ['casper-js-sdk'],
+  },
   server: {
     port: 3000,
     proxy: {

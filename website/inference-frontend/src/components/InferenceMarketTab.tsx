@@ -173,7 +173,7 @@ export default function InferenceMarketTab({ provider, publicKeyHex, contractHas
               if (!canSign || !promptText.trim()) return;
               const result = await callEntryPointWithWallet(provider, publicKeyHex, contractHash, 'create_job', {
                 prompt: sdk.CLValue.newCLString(promptText),
-                min_tokens: sdk.CLValue.newCLUInt64(minTokens || '0'),
+                min_tokens: sdk.CLValue.newCLUint64(minTokens || '0'),
                 amount: sdk.CLValue.newCLUInt512(amountMotes),
               });
               if (result.deployHash) {
