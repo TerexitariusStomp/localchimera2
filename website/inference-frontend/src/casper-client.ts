@@ -182,7 +182,7 @@ export async function callEntryPoint(
   contractHash: string,
   entryPoint: string,
   argsMap: Record<string, any>,
-  payment = '10000000000'
+  payment = '50000000000'
 ): Promise<{ deployHash: string; error?: string }> {
   try {
     const client = getClient();
@@ -201,7 +201,7 @@ export async function callEntryPointWithWallet(
   contractHash: string,
   entryPoint: string,
   argsMap: Record<string, any>,
-  payment = '10000000000'
+  payment = '50000000000'
 ): Promise<{ deployHash: string; error?: string }> {
   try {
     const client = getClient();
