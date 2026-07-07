@@ -152,14 +152,47 @@ export default function TaskResourcePanel({
       )}
 
       {selected === 'inference' && (
-        <EntryPointCard title="Request Inference" contract="InferenceMarket" contractHash={CONTRACTS.inferenceMarket} provider={provider} publicKeyHex={publicKeyHex} onTx={onTx}>
+        <EntryPointCard title="Request Inference" contract="EscrowVault" contractHash={CONTRACTS.escrowVault} provider={provider} publicKeyHex={publicKeyHex} onTx={onTx}>
           {() => {
             const [amount, setAmount] = useState('10');
             const [promptText, setPromptText] = useState('');
+            const [aiResult, setAiResult] = useState<string | null>(null);
+            const [aiLoading, setAiLoading] = useState(false);
+            const [aiProgress, setAiProgress] = useState('');
             const handleSubmit = async (e: any) => {
               e.preventDefault();
               if (!canSign || !promptText.trim()) return;
-              await submitJob(CONTRACTS.inferenceMarket, 'InferenceMarket', promptText.trim(), amount);
+              setAiResult(null);
+              setAiLoading(true);
+              setAiProgress('Submitting to Casper testnet...');
+              await submitJob(CONTRACTS.escrowVault, 'EscrowVault', promptText.trim(), amount);
+              setAiProgress('Loading in-browser AI model (WebLLM)...');
+              try {
+                const webllm = await import('@mlc-ai/web-llm');
+                const modelId = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
+                setAiProgress('Loading model (first run downloads ~1GB)...');
+                const engine = await webllm.CreateMLCEngine(modelId, {
+                  initProgressCallback: (p: any) => {
+                    if (p.progress !== undefined) {
+                      setAiProgress(`Model loading: ${Math.round(p.progress * 100)}%`);
+                    }
+                  },
+                });
+                setAiProgress('Running inference...');
+                const completion = await engine.chat.completions.create({
+                  messages: [{ role: 'user', content: promptText.trim().slice(0, 500) }],
+                  max_tokens: 256,
+                  temperature: 0.7,
+                  stream: false,
+                });
+                const output = completion.choices?.[0]?.message?.content || 'No response generated';
+                setAiResult(output);
+              } catch (aiErr: any) {
+                setAiResult(`AI inference failed: ${aiErr.message}. Job was submitted to testnet.`);
+              } finally {
+                setAiLoading(false);
+                setAiProgress('');
+              }
               setPromptText('');
             };
             const completed = filteredJobs('').filter(j => j.state >= 3 && j.responseHash && !j.requestHash?.startsWith('STORAGE:') && !j.requestHash?.startsWith('COMPUTE:') && !j.requestHash?.startsWith('BANDWIDTH:'));
@@ -167,26 +200,24 @@ export default function TaskResourcePanel({
             return (
               <div className="space-y-4">
                 <form onSubmit={handleSubmit} className="space-y-3">
-                  <div className="text-xs text-muted-foreground">Submit a prompt to the inference router. The network auto-assigns a provider and model.</div>
+                  <div className="text-xs text-muted-foreground">Submit a prompt — it creates an EscrowVault job on Casper testnet and runs AI inference in your browser via WebLLM.</div>
                   <TextArea label="Prompt" value={promptText} onChange={setPromptText} placeholder="Enter your inference prompt..." rows={4} />
                   <div className="grid grid-cols-2 gap-3">
                     <Input label="Funds (CSPR)" value={amount} onChange={setAmount} />
                     <div className="flex items-end">
-                      <Button type="submit" disabled={!canSign || !promptText.trim()} className="w-full"><Send className="h-4 w-4 mr-1.5" />Request</Button>
+                      <Button type="submit" disabled={!canSign || !promptText.trim() || aiLoading} className="w-full"><Send className="h-4 w-4 mr-1.5" />{aiLoading ? 'Processing...' : 'Request'}</Button>
                     </div>
                   </div>
                 </form>
-                {completed.length > 0 && (
-                  <div className="space-y-2 pt-3 border-t border-border">
-                    <div className="text-xs font-semibold text-primary flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Recent Results</div>
-                    {completed.slice(-3).reverse().map(j => (
-                      <div key={j.id} className="bg-muted rounded-lg p-3 space-y-1">
-                        <div className="text-[10px] text-muted-foreground">Prompt</div>
-                        <div className="text-xs text-foreground break-words">{j.requestHash}</div>
-                        <div className="text-[10px] text-primary pt-1">Response</div>
-                        <div className="text-xs text-foreground break-words">{j.responseHash}</div>
-                      </div>
-                    ))}
+                {aiLoading && (
+                  <div className="flex items-center gap-2 text-xs text-primary bg-primary/5 border border-primary/10 rounded-lg p-3">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> {aiProgress || 'Loading...'}
+                  </div>
+                )}
+                {aiResult && (
+                  <div className="bg-muted rounded-lg p-4 space-y-2 border border-primary/20">
+                    <div className="text-xs font-semibold text-primary flex items-center gap-1"><Brain className="h-3 w-3" /> In-Browser AI Response</div>
+                    <div className="text-sm text-foreground break-words whitespace-pre-wrap">{aiResult}</div>
                   </div>
                 )}
                 {pending.length > 0 && (
