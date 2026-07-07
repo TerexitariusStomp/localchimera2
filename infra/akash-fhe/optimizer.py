@@ -1,7 +1,14 @@
-"""Compile FHE circuits with multiple precision configs on GPU.
+"""
+FHE LLM Low-Rank Optimization — maximize speed while maintaining quality.
 
-Runs inside the Akash H100 deployment container. Outputs results as JSON
-and saves the best artifacts to /app/server_files/ and /app/client_files/.
+Strategy: SVD-decompose the merged weight matrix W (8192×1024) as W ≈ U @ V
+where U is (8192×k) and V is (k×1024). FHE only computes V@x → k outputs.
+Client multiplies by U in plaintext → full 8192 outputs.
+
+This reduces the FHE circuit output from 8192 to k (e.g. 256-512),
+potentially 10-30x faster inference while preserving quality via SVD.
+
+Also tests composed single-pass with low-rank for maximum speed.
 """
 import os
 import time
@@ -22,22 +29,16 @@ from concrete.ml.deployment import FHEModelDev, FHEModelClient, FHEModelServer
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-app = FastAPI(title="FHE Precision Optimizer", version="0.1.0")
+app = FastAPI(title="FHE Low-Rank Optimizer", version="0.1.0")
 
 MODEL_ID = "LiquidAI/LFM2.5-230M"
-OUT_DIR = Path("/app/precision_opt")
+OUT_DIR = Path("/app/lowrank_opt")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-PRECISION_CONFIGS = [
-    {"n_bits": 5, "p_error": 0.03, "label": "n5_pe03"},
-    {"n_bits": 5, "p_error": 0.05, "label": "n5_pe05"},
-    {"n_bits": 4, "p_error": 0.02, "label": "n4_pe02"},
-    {"n_bits": 4, "p_error": 0.05, "label": "n4_pe05"},
-    {"n_bits": 4, "p_error": 0.08, "label": "n4_pe08"},
-    {"n_bits": 3, "p_error": 0.05, "label": "n3_pe05"},
-]
-
-QUALITY_THRESHOLD = 0.80
+RANK_CONFIGS = [128, 256, 384, 512, 768, 1024]
+N_BITS = 5
+P_ERROR = 0.03
+QUALITY_THRESHOLD = 0.90
 
 _weights = None
 _config = None
@@ -63,6 +64,13 @@ def _load():
         "w3": "feed_forward.w3.weight",
     }.items()}
     return _weights, _config
+
+
+def _svd_decompose(weight_matrix, k):
+    U, S, Vh = torch.linalg.svd(weight_matrix, full_matrices=False)
+    U_k = U[:, :k] @ torch.diag(S[:k])
+    V_k = Vh[:k, :]
+    return U_k, V_k
 
 
 def _compile_and_test(module, name, input_shape, ref, test_input, out_dir,
@@ -121,7 +129,6 @@ async def health():
 
 @app.get("/optimize")
 async def optimize():
-    """Compile and benchmark all precision configs. Returns results JSON."""
     w, config = _load()
     hidden = config["hidden_size"]
     inter = config["intermediate_size"]
@@ -134,91 +141,173 @@ async def optimize():
     x_np = np.random.randn(1, hidden).astype(np.float32)
     x_t = torch.from_numpy(x_np)
 
-    # Balanced two-phase modules
-    composed_mlp = w["w2"] @ w["w3"]
-    phase1_merged = torch.cat([
-        w["q"], w["k"], w["v"], w["w1"], w["w3"], composed_mlp
-    ], dim=0)
-    mod_p1 = nn.Linear(hidden, phase1_merged.shape[0], bias=False)
-    mod_p1.weight.data = phase1_merged
-    ref_p1 = (x_t @ phase1_merged.T).numpy()
-
-    mod_p2 = nn.Linear(hidden, hidden, bias=False)
-    mod_p2.weight.data = w["o"]
-    attn_intermediate = np.random.randn(1, hidden).astype(np.float32)
-    attn_t = torch.from_numpy(attn_intermediate)
-    ref_p2 = (attn_t @ w["o"].T).numpy()
-
-    # Composed single-pass
     composed_all = torch.cat([
         w["q"], w["k"], w["v"], w["o"], w["w1"], w["w3"]
     ], dim=0)
-    mod_composed = nn.Linear(hidden, composed_all.shape[0], bias=False)
-    mod_composed.weight.data = composed_all
-    ref_composed = (x_t @ composed_all.T).numpy()
+    ref_full = (x_t @ composed_all.T).numpy()
+
+    attn_merged = torch.cat([w["q"], w["k"], w["v"], w["o"]], dim=0)
+    ref_attn = (x_t @ attn_merged.T).numpy()
+
+    mlp_merged = torch.cat([w["w1"], w["w3"]], dim=0)
+    ref_mlp = (x_t @ mlp_merged.T).numpy()
 
     results = []
 
-    # Composed single-pass
-    print("\n=== COMPOSED SINGLE-PASS ===")
-    for cfg in PRECISION_CONFIGS:
-        label = f"composed_{cfg['label']}"
+    # Baseline: full composed
+    print("\n=== BASELINE: Full composed (8192x1024) ===")
+    mod_full = nn.Linear(hidden, composed_all.shape[0], bias=False)
+    mod_full.weight.data = composed_all
+    r = _compile_and_test(mod_full, "full_composed", (1, hidden), ref_full, x_np,
+                          OUT_DIR / "full_composed", N_BITS, P_ERROR)
+    r["label"] = "full_composed"
+    r["strategy"] = "baseline"
+    r["rank"] = hidden
+    r["tokens_per_min"] = 60 / r["inference_time"]
+    results.append(r)
+    print(f"  {r['tokens_per_min']:.1f} tok/min, quality={r['cosine']:.4f}")
+
+    # Low-rank composed
+    print("\n=== LOW-RANK COMPOSED (single FHE call + plaintext U) ===")
+    for k in RANK_CONFIGS:
+        label = f"lowrank_{k}"
+        U_k, V_k = _svd_decompose(composed_all, k)
+
+        mod_lr = nn.Linear(hidden, k, bias=False)
+        mod_lr.weight.data = V_k
+
+        ref_lr = (x_t @ V_k.T).numpy()
         out_dir = OUT_DIR / label
-        r = _compile_and_test(mod_composed, label, (1, hidden), ref_composed, x_np,
-                              out_dir, cfg["n_bits"], cfg["p_error"])
-        r["config"] = cfg
-        r["strategy"] = "composed"
+        r = _compile_and_test(mod_lr, label, (1, hidden), ref_lr, x_np,
+                              out_dir, N_BITS, P_ERROR)
+
+        # Full quality reconstruction
+        client = FHEModelClient(out_dir)
+        eval_keys = client.get_serialized_evaluation_keys()
+        encrypted = client.quantize_encrypt_serialize(x_np)
+        server = FHEModelServer(out_dir)
+        enc_out = server.run(encrypted, eval_keys)
+        fhe_small = client.deserialize_decrypt_dequantize(enc_out)
+
+        U_np = U_k.numpy()
+        reconstructed = fhe_small @ U_np.T
+        full_cos = np.dot(reconstructed.flatten(), ref_full.flatten()) / (
+            np.linalg.norm(reconstructed) * np.linalg.norm(ref_full) + 1e-10
+        )
+
         r["label"] = label
+        r["strategy"] = "lowrank_composed"
+        r["rank"] = k
+        r["fhe_output_size"] = k
+        r["full_cosine"] = float(full_cos)
         r["tokens_per_min"] = 60 / r["inference_time"]
         results.append(r)
+        print(f"  k={k}: {r['tokens_per_min']:.1f} tok/min, fhe_cos={r['cosine']:.4f}, full_cos={full_cos:.4f}")
 
-    # Balanced two-phase
-    print("\n=== BALANCED TWO-PHASE ===")
-    for cfg in PRECISION_CONFIGS:
-        label = f"twophase_{cfg['label']}"
-        p1_dir = OUT_DIR / f"{label}_phase1"
-        p2_dir = OUT_DIR / f"{label}_phase2"
+    # Low-rank split: attention + MLP separately
+    print("\n=== LOW-RANK SPLIT (attn + mlp, parallel) ===")
+    for k_attn in [128, 256, 512]:
+        for k_mlp in [256, 512, 1024]:
+            label = f"split_attn{k_attn}_mlp{k_mlp}"
 
-        r1 = _compile_and_test(mod_p1, f"{label}_p1", (1, hidden), ref_p1, x_np,
-                              p1_dir, cfg["n_bits"], cfg["p_error"])
-        r2 = _compile_and_test(mod_p2, f"{label}_p2", (1, hidden), ref_p2, attn_intermediate,
-                              p2_dir, cfg["n_bits"], cfg["p_error"])
+            U_a, V_a = _svd_decompose(attn_merged, k_attn)
+            U_m, V_m = _svd_decompose(mlp_merged, k_mlp)
 
-        total = r1["inference_time"] + r2["inference_time"]
-        quality = min(r1["cosine"], r2["cosine"])
-        r = {
-            "inference_time": total,
-            "cosine": quality,
-            "phase1_time": r1["inference_time"],
-            "phase2_time": r2["inference_time"],
-            "config": cfg,
-            "strategy": "twophase",
-            "label": label,
-            "tokens_per_min": 60 / total,
-        }
-        results.append(r)
+            mod_a = nn.Linear(hidden, k_attn, bias=False)
+            mod_a.weight.data = V_a
+            mod_m = nn.Linear(hidden, k_mlp, bias=False)
+            mod_m.weight.data = V_m
+
+            ref_a = (x_t @ V_a.T).numpy()
+            ref_m = (x_t @ V_m.T).numpy()
+
+            dir_a = OUT_DIR / f"{label}_attn"
+            dir_m = OUT_DIR / f"{label}_mlp"
+
+            r_a = _compile_and_test(mod_a, f"{label}_attn", (1, hidden), ref_a, x_np,
+                                    dir_a, N_BITS, P_ERROR)
+            r_m = _compile_and_test(mod_m, f"{label}_mlp", (1, hidden), ref_m, x_np,
+                                    dir_m, N_BITS, P_ERROR)
+
+            # Quality reconstruction
+            client_a = FHEModelClient(dir_a)
+            client_m = FHEModelClient(dir_m)
+            ek_a = client_a.get_serialized_evaluation_keys()
+            ek_m = client_m.get_serialized_evaluation_keys()
+            enc_a = client_a.quantize_encrypt_serialize(x_np)
+            enc_m = client_m.quantize_encrypt_serialize(x_np)
+            server_a = FHEModelServer(dir_a)
+            server_m = FHEModelServer(dir_m)
+
+            out_a = client_a.deserialize_decrypt_dequantize(server_a.run(enc_a, ek_a))
+            out_m = client_m.deserialize_decrypt_dequantize(server_m.run(enc_m, ek_m))
+
+            recon_attn = out_a @ U_a.numpy().T
+            recon_mlp = out_m @ U_m.numpy().T
+            recon_full = np.concatenate([recon_attn, recon_mlp], axis=1)
+
+            full_cos = np.dot(recon_full.flatten(), ref_full.flatten()) / (
+                np.linalg.norm(recon_full) * np.linalg.norm(ref_full) + 1e-10
+            )
+
+            parallel_time = max(r_a["inference_time"], r_m["inference_time"])
+            sequential_time = r_a["inference_time"] + r_m["inference_time"]
+
+            r = {
+                "label": label,
+                "strategy": "lowrank_split",
+                "k_attn": k_attn,
+                "k_mlp": k_mlp,
+                "attn_time": r_a["inference_time"],
+                "mlp_time": r_m["inference_time"],
+                "parallel_time": parallel_time,
+                "sequential_time": sequential_time,
+                "inference_time": parallel_time,
+                "full_cosine": float(full_cos),
+                "tokens_per_min": 60 / parallel_time,
+            }
+            results.append(r)
+            print(f"  attn={k_attn}, mlp={k_mlp}: {r['tokens_per_min']:.1f} tok/min (parallel), "
+                  f"full_cos={full_cos:.4f}")
 
     # Pick best
     best = None
     for r in results:
-        if r["cosine"] >= QUALITY_THRESHOLD:
+        cos_key = "full_cosine" if "full_cosine" in r else "cosine"
+        if r.get(cos_key, 0) >= QUALITY_THRESHOLD:
             if best is None or r["tokens_per_min"] > best["tokens_per_min"]:
                 best = r
 
     if best is None:
         best = max(results, key=lambda r: r["tokens_per_min"])
+        print(f"\n  WARNING: No config met quality threshold {QUALITY_THRESHOLD}")
 
-    # Save results
+    print("\n" + "=" * 70)
+    print("ALL RESULTS (sorted by speed)")
+    print("=" * 70)
+    for r in sorted(results, key=lambda x: x["tokens_per_min"], reverse=True):
+        cos_key = "full_cosine" if "full_cosine" in r else "cosine"
+        marker = " *** BEST" if r is best else ""
+        print(f"  {r['label']:>30s}: {r['tokens_per_min']:6.1f} tok/min, "
+              f"quality={r.get(cos_key, 0):.4f}, time={r['inference_time']:.3f}s{marker}")
+    print("=" * 70)
+    cos_key = "full_cosine" if "full_cosine" in best else "cosine"
+    print(f"BEST: {best['label']}, {best['tokens_per_min']:.1f} tok/min, "
+          f"quality={best.get(cos_key, 0):.4f}")
+    print("=" * 70)
+
     output = {
         "gpu": gpu_name,
+        "n_bits": N_BITS,
+        "p_error": P_ERROR,
         "quality_threshold": QUALITY_THRESHOLD,
         "best": best,
         "all_results": results,
     }
     with open(OUT_DIR / "results.json", "w") as f:
-        json.dump(output, f, indent=2)
+        json.dump(output, f, indent=2, default=str)
 
-    return JSONResponse(content=output)
+    return JSONResponse(content=json.loads(json.dumps(output, default=str)))
 
 
 if __name__ == "__main__":
