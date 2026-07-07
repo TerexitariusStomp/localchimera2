@@ -19,6 +19,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     torch==2.3.1+cu118 && \
     pip install --no-cache-dir \
     concrete-ml==1.9.0 \
+    onnxscript \
     transformers \
     safetensors \
     huggingface-hub \
