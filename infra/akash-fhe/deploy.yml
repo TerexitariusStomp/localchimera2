@@ -7,10 +7,10 @@ version: "2.0"
 
 services:
   fhe-inference:
-    image: ghcr.io/${IMAGE_OWNER:-localchimera}/fhe-inference:gpu
+    image: ghcr.io/${IMAGE_OWNER}/fhe-inference:gpu
     credentials:
       host: ghcr.io
-      username: ${IMAGE_OWNER:-localchimera}
+      username: ${IMAGE_OWNER}
       password: ${GHCR_TOKEN}
     expose:
       - port: 8080

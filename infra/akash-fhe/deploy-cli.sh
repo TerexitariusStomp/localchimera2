@@ -157,6 +157,7 @@ sdl_file = os.environ['SDL_FILE']
 fhe_tier = os.environ['FHE_TIER']
 ghcr_token = os.environ.get('GHCR_TOKEN', '')
 ghcr_username = os.environ.get('GHCR_USERNAME', 'localchimera')
+image_owner = os.environ.get('IMAGE_OWNER', ghcr_username)
 fhe_model_name = os.environ.get('FHE_MODEL_NAME', 'lfm2.5-230m')
 tmp_sdl = os.environ['TMP_SDL']
 
@@ -168,6 +169,7 @@ sdl = re.sub(
 )
 if ghcr_token:
     sdl = sdl.replace('${GHCR_USERNAME}', ghcr_username)
+    sdl = sdl.replace('${IMAGE_OWNER}', image_owner)
     sdl = sdl.replace('${GHCR_TOKEN}', ghcr_token)
 else:
     # Remove credentials block if no token provided (public image)
@@ -239,7 +241,7 @@ fi
 
 echo ""
 echo "Accepting the cheapest bid..."
-CHEAPEST_BID=$(echo "${SORTED_BIDS}" | python3 -c "import sys, json; d=json.load(sys.stdin); print(json.dumps(d['bids'][0]['bid']['bid_id']))")
+CHEAPEST_BID=$(echo "${SORTED_BIDS}" | python3 -c "import sys, json; d=json.load(sys.stdin); print(json.dumps(d['bids'][0]['bid']['id']))")
 GSEQ=$(echo "${CHEAPEST_BID}" | python3 -c "import sys, json; print(json.load(sys.stdin)['gseq'])")
 OSEQ=$(echo "${CHEAPEST_BID}" | python3 -c "import sys, json; print(json.load(sys.stdin)['oseq'])")
 PROVIDER=$(echo "${CHEAPEST_BID}" | python3 -c "import sys, json; print(json.load(sys.stdin)['provider'])")
