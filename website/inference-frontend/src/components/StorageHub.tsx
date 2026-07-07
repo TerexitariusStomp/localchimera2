@@ -23,8 +23,18 @@ type StoredFile = {
   timestamp: number;
 };
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3002';
 const ANONYMOUS_HASH = new Uint8Array(32).fill(0);
+
+let _helia: any = null;
+let _heliaFs: any = null;
+async function ensureHelia(): Promise<{ helia: any; fs: any }> {
+  if (_helia && _heliaFs) return { helia: _helia, fs: _heliaFs };
+  const { createHelia } = await import('helia');
+  const { unixfs } = await import('@helia/unixfs');
+  _helia = await createHelia();
+  _heliaFs = unixfs(_helia);
+  return { helia: _helia, fs: _heliaFs };
+}
 
 export default function StorageHub({ provider, publicKeyHex, accountHash, onTx }: {
   provider: any; publicKeyHex: string; accountHash: string; onTx: (tx: TxRecord) => void;
@@ -62,18 +72,10 @@ export default function StorageHub({ provider, publicKeyHex, accountHash, onTx }
   }, []);
 
   const uploadFile = async (encryptedBlob: Blob, meta: { spaceName: string; fileHash: string; fileName: string; sizeMb: number; mode: StorageMode; anonymous: boolean; tags: string; description: string; encrypted: boolean }) => {
-    const form = new FormData();
-    form.append('file', encryptedBlob, meta.fileName);
-    form.append('space_name', meta.spaceName);
-    form.append('file_hash', meta.fileHash);
-    form.append('mode', meta.mode);
-    form.append('anonymous', String(meta.anonymous));
-    form.append('encrypted', String(meta.encrypted));
-    form.append('tags', meta.tags);
-    form.append('description', meta.description);
-    const res = await fetch(`${API_BASE}/api/storage/upload`, { method: 'POST', body: form });
-    if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-    return await res.json();
+    const { fs } = await ensureHelia();
+    const bytes = new Uint8Array(await encryptedBlob.arrayBuffer());
+    const cid = await fs.addBytes(bytes);
+    return { cid: cid.toString(), fileName: meta.fileName };
   };
 
   const submitStorageJob = async (meta: { spaceName: string; fileHash: string; sizeMb: number; mode: StorageMode; anonymous: boolean; tags: string; description: string; encrypted: boolean }) => {
@@ -156,7 +158,8 @@ export default function StorageHub({ provider, publicKeyHex, accountHash, onTx }
       };
 
       setUploadStep('uploading');
-      await uploadFile(blob, meta);
+      const uploadResult = await uploadFile(blob, meta);
+      meta.fileHash = uploadResult.cid;
       setUploadStep('submitting');
       await submitStorageJob(meta);
       setShowUpload(false);
@@ -186,9 +189,19 @@ export default function StorageHub({ provider, publicKeyHex, accountHash, onTx }
       pw = window.prompt('Enter decryption key:') || '';
       if (!pw) return;
     }
-    const res = await fetch(`${API_BASE}/api/storage/download/${encodeURIComponent(file.spaceName)}/${file.fileHash}`);
-    if (!res.ok) throw new Error('Download failed');
-    let blob = await res.blob();
+    const { fs } = await ensureHelia();
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of fs.cat(file.fileHash)) {
+      chunks.push(chunk);
+    }
+    const totalLen = chunks.reduce((sum, c) => sum + c.length, 0);
+    const merged = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    let blob: Blob = new Blob([merged]);
     if (file.encrypted) {
       blob = await decryptFile(blob, pw);
     }
