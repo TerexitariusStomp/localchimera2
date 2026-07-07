@@ -9,5 +9,3 @@ Cashu ecash integration for Localchimera.
 ## Purpose
 
 Cashu is used for walletless, privacy-preserving payments in the inference marketplace.
-
-See `../routstr/` for the Nostr/Cashu inference routing layer.

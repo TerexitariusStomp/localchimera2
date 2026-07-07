@@ -12,7 +12,7 @@
  *   - The only key material on the provider is the libp2p peer identity
  *     needed to join the BTFS swarm. It does not hold funds.
  *   - On-chain proof submission is done via a trusted relay OR a signer
- *     callback supplied by the app (e.g. a Privy wallet bridge). The provider
+ *     callback supplied by the app (e.g. a Web3Auth wallet bridge). The provider
  *     never holds the blockchain private key.
  */
 

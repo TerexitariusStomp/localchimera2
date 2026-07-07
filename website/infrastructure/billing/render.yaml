@@ -1,0 +1,94 @@
+# Render Blueprint: deploy the Chimera billing backend on managed containers.
+# The frontend stays on Cloudflare Pages.  Update VITE_* env vars in the
+# frontend to point at these services once Render gives you the URLs.
+#
+# Deploy:
+#   1. Push this repo to GitHub.
+#   2. In Render, create a new Blueprint and select this render.yaml.
+#   3. Render builds and hosts FOSSBilling, RefRef, and SHKeeper.
+
+services:
+  - type: web
+    name: chimera-fossbilling
+    runtime: docker
+    plan: standard
+    repo: https://github.com/FOSSBilling/FOSSBilling
+    branch: main
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fossbilling-db
+          property: connectionString
+    disk:
+      name: fossbilling-data
+      mountPath: /var/www/html
+      sizeGB: 10
+
+  - type: web
+    name: chimera-refref
+    runtime: docker
+    plan: standard
+    repo: https://github.com/amicalhq/refref
+    branch: main
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: refref-db
+          property: connectionString
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: BETTER_AUTH_URL
+        value: https://chimera-refref.onrender.com
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://chimera-refref.onrender.com
+    disk:
+      name: refref-data
+      mountPath: /app
+      sizeGB: 5
+
+  - type: web
+    name: chimera-shkeeper
+    runtime: docker
+    plan: standard
+    repo: https://github.com/vsys-host/shkeeper.io
+    branch: main
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SQLALCHEMY_DATABASE_URI
+        value: sqlite:////shkeeper.io/data/shkeeper.db
+    disk:
+      name: shkeeper-data
+      mountPath: /shkeeper.io/data
+      sizeGB: 10
+
+  - type: web
+    name: chimera-bitcart
+    runtime: docker
+    plan: standard
+    repo: https://github.com/bitcart/bitcart
+    branch: main
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: BITCART_HOST
+        value: chimera-bitcart.onrender.com
+      - key: BITCART_REVERSEPROXY
+        value: none
+    disk:
+      name: bitcart-data
+      mountPath: /app
+      sizeGB: 10
+
+databases:
+  - name: fossbilling-db
+    databaseName: fossbilling
+    user: fossbilling
+    plan: standard
+
+  - name: refref-db
+    databaseName: refref
+    user: refref
+    plan: standard

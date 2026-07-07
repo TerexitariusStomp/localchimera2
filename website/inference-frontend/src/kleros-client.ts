@@ -82,7 +82,7 @@ export async function getArbitrationCost(
   return ethers.formatEther(cost);
 }
 
-// Create a Kleros dispute using the user's Ethereum wallet (via Privy or window.ethereum)
+// Create a Kleros dispute using the user's Ethereum wallet (via Web3Auth or window.ethereum)
 export async function createKlerosDispute(
   subcourtID: number = SUBCOURT_IDS.TECHNICAL,
   noOfVotes: number = 3,
@@ -96,7 +96,7 @@ export async function createKlerosDispute(
   } else if (typeof (window as any).ethereum !== 'undefined') {
     ethProvider = new ethers.BrowserProvider((window as any).ethereum);
   } else {
-    throw new Error('No Ethereum wallet found. Please connect your Privy wallet.');
+    throw new Error('No Ethereum wallet found. Please connect your Web3Auth wallet.');
   }
 
   const signer = await ethProvider.getSigner();
@@ -181,12 +181,12 @@ export async function getKlerosRuling(
   return null;
 }
 
-// Check if Ethereum wallet is available (via Privy or window.ethereum)
+// Check if Ethereum wallet is available (via Web3Auth or window.ethereum)
 export function hasEthereumWallet(evmProvider?: any): boolean {
   return !!evmProvider || typeof (window as any).ethereum !== 'undefined';
 }
 
-// Request Ethereum account access (via Privy or window.ethereum)
+// Request Ethereum account access (via Web3Auth or window.ethereum)
 export async function connectEthereumWallet(evmProvider?: any): Promise<string> {
   if (evmProvider) {
     const ethProvider = new ethers.BrowserProvider(evmProvider);

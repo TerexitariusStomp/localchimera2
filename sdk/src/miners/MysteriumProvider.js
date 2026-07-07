@@ -15,6 +15,7 @@ import { spawn, execSync } from 'child_process';
 import path from 'path';
 import os from 'os';
 import { promises as fs } from 'fs';
+import { getProtocolPayoutAddress } from './protocol-address.js';
 
 const MYSTERIUM_DIR = process.env.CHIMERA_MYSTERIUM_DIR || path.join(os.homedir(), '.chimera', 'upstream', 'mysterium');
 
@@ -25,6 +26,7 @@ export class MysteriumProvider {
     this.logs = [];
     this.dataDir = opts.dataDir || path.join(os.homedir(), '.mysterium');
     this.agreedTerms = opts.agreedTerms || true;
+    this.payoutAddress = getProtocolPayoutAddress(opts); // Protocol address for MYST rewards
   }
 
   async init() {
@@ -56,7 +58,10 @@ export class MysteriumProvider {
     if (this.running) return { success: true, alreadyRunning: true };
 
     return new Promise((resolve) => {
-      const env = { ...process.env };
+      const env = {
+        ...process.env,
+        MYSTERIUM_PAYOUT_ADDRESS: this.payoutAddress,
+      };
 
       if (this.inContainer) {
         this.process = spawn('myst', [
@@ -70,6 +75,7 @@ export class MysteriumProvider {
           '--restart', 'unless-stopped',
           '--cap-add', 'NET_ADMIN',
           '-p', '5252:5252',
+          '-e', `MYSTERIUM_PAYOUT_ADDRESS=${this.payoutAddress}`,
           '-v', `${this.dataDir}:/var/lib/mysterium-node`,
           'mysteriumnetwork/myst:latest',
           'service', '--agreed-terms-and-conditions'
@@ -123,6 +129,7 @@ export class MysteriumProvider {
       running: this.running,
       pid: this.process?.pid || null,
       dataDir: this.dataDir,
+      payoutAddress: this.payoutAddress,
       resources: this.inContainer ? 'Inline (container), bandwidth (VPN relay)' : 'Docker-based, bandwidth (VPN relay)',
       recentLogs: this.logs.slice(-10)
     };

@@ -68,9 +68,38 @@ async function deploy() {
   }
 
   console.log('Deploy submitted! Hash:', res.result.deploy_hash);
-  console.log('Contract will be at:', 'contract-' + res.result.deploy_hash);
+  console.log('Waiting for deploy to land and named keys to be written...');
+
+  const contractName = 'escrow_vault';
+  const hashKey = `${contractName}_hash`;
+  let packageHash = null;
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    const stateRes = await fetch(RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'state_get_account_info',
+        params: { public_key: publicKey.toHex() },
+      }),
+    }).then(r => r.json());
+    const namedKeys = stateRes.result?.account?.named_keys || [];
+    const found = namedKeys.find(k => k.name === hashKey);
+    if (found) {
+      packageHash = found.key.replace('hash-', '');
+      break;
+    }
+  }
+
+  if (packageHash) {
+    console.log('Contract package hash (use this in the frontend):', packageHash);
+  } else {
+    console.log('Could not retrieve contract package hash automatically. Check the account named keys for', hashKey);
+  }
   console.log('');
-  console.log('Update frontend and bridge with this new contract hash.');
+  console.log('Update casper-client.ts escrowVault with this new package hash.');
 }
 
 deploy().catch(e => {

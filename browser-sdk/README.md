@@ -4,7 +4,7 @@ Run a tasker network node entirely in the browser. No download required.
 
 ## What it does
 
-The user connects their Casper wallet, presses Start, and the browser:
+The user connects their Casper or Web3Auth (EVM) wallet, presses Start, and the browser:
 
 1. **Registers** as a provider on all 4 Casper escrow market contracts (Inference, Storage, Compute, Bandwidth)
 2. **Polls** for pending/auto-assigned jobs
@@ -17,6 +17,22 @@ The user connects their Casper wallet, presses Start, and the browser:
 5. **Monitors** settlement and claims payment
 
 All heavy libraries are dynamically imported — they don't bloat the initial page load.
+
+## Push dispatch (volunteer coordinator)
+
+Instead of polling the blockchain for jobs, the browser node can connect to the protocol's volunteer coordinator. The coordinator pushes matching jobs to the node via WebSocket; the node executes them and returns the result, and the orchestrator submits the on-chain result.
+
+Set the environment or window variable before starting:
+
+```typescript
+// Via build-time env or runtime window object
+process.env.COORDINATOR_URL = 'wss://coordinator.localchimera.com';
+process.env.COORDINATOR_TOKEN = 'your-coordinator-token';
+
+await node.start();
+```
+
+When `COORDINATOR_URL` is set, `BrowserNode` automatically connects to the coordinator after registering and starting its network adapters. The node still falls back to blockchain polling if the coordinator is not configured.
 
 ## Install
 
@@ -46,6 +62,26 @@ await node.start();
 // ...later
 await node.stop();
 ```
+
+### Web3Auth (EVM / Botchain)
+
+```typescript
+import { BrowserNode, connectWeb3Auth } from '@localchimera/browser-sdk';
+
+const { provider, address } = await connectWeb3Auth({
+  clientId: process.env.WEB3AUTH_CLIENT_ID,
+});
+
+const node = new BrowserNode({
+  evmProvider: provider,
+  evmAddress: address,
+  coordinatorContract: process.env.BOTCHAIN_COORDINATOR_ADDRESS,
+});
+node.onStatusUpdate((status) => console.log(status));
+await node.start();
+```
+
+Both modes register the provider on-chain, poll for jobs, execute them in the browser, and submit results. EVM mode targets the Botchain escrow vault / compute registry.
 
 ## React Example
 
@@ -84,7 +120,11 @@ function BrowserNodePanel({ provider, publicKeyHex, accountHash }) {
 
 ```typescript
 new BrowserNode(provider: any, publicKeyHex: string, accountHash: string)
+// or
+new BrowserNode({ evmProvider, evmAddress }: BrowserNodeOptions)
 ```
+
+Casper mode requires `casperProvider`, `publicKeyHex`, and `accountHash`. EVM/Web3Auth mode requires `evmProvider` and `evmAddress`. Full job processing is implemented for both Casper and Botchain.
 
 | Method | Returns | Description |
 |--------|---------|-------------|
@@ -112,6 +152,8 @@ new BrowserNode(provider: any, publicKeyHex: string, accountHash: string)
 | `marketRegistrations` | `Record<string, string>` | Per-market registration status |
 | `fingerprint` | `string \| null` | Device fingerprint |
 | `deviceTrustScore` | `number` | Trust score (0-1) |
+| `walletMode` | `'casper' \| 'evm' \| null` | Active wallet mode |
+| `evmAddress` | `string \| null` | EVM address when in EVM mode |
 
 ## RPC Proxy
 

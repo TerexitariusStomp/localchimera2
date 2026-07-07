@@ -56,7 +56,7 @@ export const ROUTES = [
   ['POST', '/api/attest-device',      'handleAttestDevice'],
   // Remote Fingerprinting — loads code from new.localchimera.com, runs in VM sandbox
   ['POST', '/api/fingerprint',        'handleFingerprint'],
-  // OpenAI-compatible proxy (for Routstr upstream)
+  // OpenAI-compatible proxy
   ['POST', '/v1/chat/completions',          'handleOpenAIChat'],
   ['GET',  '/v1/models',                   'handleOpenAIModels'],
 
@@ -256,6 +256,21 @@ export const ROUTES = [
   ['POST', '/api/payout/confirm',            'handlePayoutConfirm'],
   ['POST', '/api/payout/execute',            'handlePayoutExecute'],
   ['GET',  '/api/payout/stats',            'handlePayoutStats'],
+
+  // Domain Registrar — Njalla + Nicenic
+  ['POST', '/api/domains/search',           'handleDomainSearch'],
+  ['POST', '/api/domains/register',         'handleDomainRegister'],
+  ['POST', '/api/domains/renew',            'handleDomainRenew'],
+  ['GET',  '/api/domains/orders',          'handleDomainOrders'],
+  ['POST', '/api/domains/contact',          'handleDomainSaveContact'],
+  ['GET',  '/api/domains/contact',          'handleDomainGetContact'],
+  ['POST', '/api/domains/ns',               'handleDomainUpdateNs'],
+  ['GET',  '/api/domains/records',          'handleDomainListRecords'],
+  ['POST', '/api/domains/records',          'handleDomainAddRecord'],
+  ['POST', '/api/domains/records/edit',     'handleDomainEditRecord'],
+  ['POST', '/api/domains/records/delete',   'handleDomainDeleteRecord'],
+  ['GET',  '/api/domains/providers',        'handleDomainProviders'],
+  ['GET',  '/api/domains/balance',          'handleDomainBalance'],
 
   // Market API — programmatic resource requests
   ['POST', '/api/market/inference',         'handleMarketInference'],

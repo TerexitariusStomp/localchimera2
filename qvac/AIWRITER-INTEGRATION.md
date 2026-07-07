@@ -8,7 +8,7 @@ This guide explains how the QVAC-Pear Miner Node integrates with the **AI Writer
 
 AI Writer is a distributed wiki-generation and content-creation application:
 - **Purpose**: Generate wiki pages, documentation, and creative writing via local LLM inference
-- **Technology**: On-device AI using QVAC SDK (Llama models, speech-to-text, translation)
+- **Technology**: On-device AI using Chimera SDK (Llama models, speech-to-text, translation)
 - **Rewards**: Contributors earn for high-quality generated content
 - **Platform**: Web PWA + mobile companion, works across all supported devices
 - **QVAC Integration**: Uses QVAC Inference Layer for local LLM routing and generation
@@ -22,11 +22,11 @@ Active Writing (User Input)     Idle / Background (Mining)
 ┌─────────────────┐          ┌─────────────────┐
 │  AI Writer App  │          │  Multi-Protocol │
 │  - Prompt Entry │          │  Mining         │
-│  - LLM Gen      │          │  - Chutes       │
-│  - Wiki Save    │          │  - Routstr      │
-│  - Peer Sync    │          │  - Earnidle     │
-│                 │          │  - Casper       │
-│                 │          │  - BTT AI       │
+│  - LLM Gen      │          │  - Casper       │
+│  - Wiki Save    │          │  - Botchain     │
+│  - Peer Sync    │          │  - BTT AI       │
+│                 │          │  - Golem        │
+│                 │          │  - Anyone       │
 └─────────────────┘          └─────────────────┘
         │                            │
         └──────────┬─────────────────┘
@@ -39,8 +39,8 @@ Active Writing (User Input)     Idle / Background (Mining)
         ┌──────────┼──────────┐
         │          │          │
     ┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐
-    │Chutes   │ │Routstr│ │Earnidle│ │Casper  │ │BTT AI  │
-    │Monitor  │ │Monitor│ │Monitor │ │Monitor │ │Monitor │
+    │Casper   │ │Botchain│ │BTT AI  │ │Golem   │ │Anyone  │
+    │Monitor  │ │Monitor │ │Monitor │ │Monitor │ │Monitor │
     └─────────┘ └───────┘ └───────┘ └───────┘ └───────┘
 ```
 
@@ -48,11 +48,11 @@ Active Writing (User Input)     Idle / Background (Mining)
 
 The following untrusted-hardware-safe miners run simultaneously in monitoring mode:
 
-1. **ChutesMiner**: Monitors for GPU compute tasks
-2. **RoutstrMiner**: Monitors for Nostr protocol tasks
-3. **EarnidleMiner**: Monitors for idle compute opportunities
-4. **CasperEscrowBridge**: Monitors for Casper relay tasks
-5. **BttAiMinerProvider**: Monitors for BTT AI GPU tasks
+1. **CasperEscrowBridge**: Monitors for Casper relay tasks
+2. **BttAiMinerProvider**: Monitors for BTT AI GPU tasks
+3. **GolemProvider**: Monitors for Golem compute tasks
+4. **AnyoneProtocolProvider**: Monitors for Anyone Protocol bandwidth tasks
+5. **MysteriumProvider**: Monitors for Mysterium bandwidth tasks
 
 When a writing task arrives:
 - TaskMonitor immediately notifies all miners
@@ -71,7 +71,7 @@ Edit `config.json`:
   "miners": {
     "enabled": true,
     "parallelMode": true,
-    "priority": ["chutes", "routstr", "earnidle", "casper"]
+    "priority": ["btfs", "btt-ai", "golem", "anyone-protocol", "mysterium", "casper"]
   },
   "inference": {
     "enabled": true,

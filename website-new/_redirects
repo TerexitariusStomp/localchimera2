@@ -1,0 +1,20 @@
+# VitePress docs rewrite
+/docs /docs/.vitepress/dist/ 200
+/docs/* /docs/.vitepress/dist/:splat 200
+
+/wiki /demo-wiki 301
+/wiki.html /demo-wiki 301
+/inference /console 301
+/inference.html /console 301
+/console.html /console 301
+/console-static.html /console 301
+/deploy.html /console 301
+/deployments.html /console 301
+/rental.html /console 301
+/templates.html /console 301
+/sdl-builder.html /console 301
+/providers.html /console 301
+/earnings.html /console 301
+/domains.html /console 301
+/console/console /console 301
+/console/console/* /console 301

@@ -74,8 +74,7 @@ export class SwarmManager extends EventEmitter {
   // ─── Dual-Role: Inference ─────────────────────────────────────────────────
 
   /**
-   * Run local inference on the request.
-   * This is the "generator" role in Fortytwo's dual-role architecture.
+   * Run local inference on the request (generator role).
    */
   async runInference(request: InferenceRequest): Promise<InferenceResult> {
     logger.info({ jobId: request.jobId, modelId: request.modelId }, 'Running local inference');
@@ -102,8 +101,7 @@ export class SwarmManager extends EventEmitter {
   // ─── Dual-Role: Judging ───────────────────────────────────────────────────
 
   /**
-   * Judge a pairwise comparison between two peer responses.
-   * This is the "judge" role in Fortytwo's dual-role architecture.
+   * Judge a pairwise comparison between two peer responses (judge role).
    */
   async judgePair(
     query: string,

@@ -4,7 +4,7 @@
 - **QVAC**: Local AI inference layer
 - **Hypercore**: Distributed data store
 - **Pear**: P2P app distribution network
-- **Miners**: Chutes, Routstr, Earnidle, BTT AI, Golem, Anyone Protocol, Mysterium, Casper
+- **Miners**: BTT AI, Golem, Anyone Protocol, Mysterium, Casper, Botchain
 
 ## Container Compatibility Assessment
 
@@ -35,7 +35,6 @@
 - Complex setup and maintenance
 - Resource overhead
 - May conflict with P2P network discovery
-- Chutes requires k8s, but we run in compatibility mode
 
 ## Recommendation: Docker
 
@@ -43,7 +42,7 @@
 1. **Decentralized Architecture**: The QVAC/Hypercore/Pear stack is designed for decentralized deployment, which aligns better with Docker's containerization approach
 2. **P2P Network Compatibility**: Pear P2P network discovery works more reliably in Docker containers
 3. **Resource Efficiency**: Docker is more lightweight and suitable for edge computing scenarios
-4. **Chutes Compatibility**: Chutes requires k8s, but we run in compatibility mode without k8s GPU validation
+4. **Resource Provider Compatibility**: SDK-based resource providers (BTFS, BTT AI, Golem, Anyone Protocol, Mysterium) run in standard Docker containers without k8s requirements
 5. **Simplicity**: Easier to deploy, maintain, and debug
 6. **Development Workflow**: Better for local development and testing
 

@@ -1,0 +1,43 @@
+---
+version: "2.0"
+
+services:
+  fhe-inference:
+    image: ghcr.io/localchimera/fhe-inference:v2
+    credentials:
+      host: ghcr.io
+      username: localchimera
+      password: ${GHCR_TOKEN}
+    expose:
+      - port: 8080
+        as: 80
+        to:
+          - global: true
+    env:
+      - FHE_SERVER_DIR=/app/server_files
+      - FHE_MODEL_NAME=${FHE_MODEL_NAME:-lfm2.5-230m}
+
+profiles:
+  compute:
+    fhe-cpu:
+      resources:
+        cpu:
+          units: 4
+        memory:
+          size: 16Gi
+        storage:
+          size: 50Gi
+  placement:
+    akash:
+      attributes:
+        host: akash
+      pricing:
+        fhe-cpu:
+          denom: uakt
+          amount: 500000
+
+deployment:
+  fhe-inference:
+    akash:
+      profile: fhe-cpu
+      count: 1

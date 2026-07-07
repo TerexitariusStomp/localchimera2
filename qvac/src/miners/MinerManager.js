@@ -1,14 +1,12 @@
 import { Logger } from '../core/Logger.js';
-import { ChutesMiner } from './ChutesMiner.js';
-import { RoutstrMiner } from './RoutstrMiner.js';
 import { CasperEscrowBridge } from './CasperEscrowBridge.js';
-import { EarnidleMiner } from './EarnidleMiner.js';
+import { BotchainEscrowBridge } from './BotchainEscrowBridge.js';
 import { SdkProviderMiner } from './SdkProviderMiner.js';
-import { GolemProvider } from '../../sdk/src/miners/GolemProvider.js';
-import { MysteriumProvider } from '../../sdk/src/miners/MysteriumProvider.js';
-import { AnyoneProtocolProvider } from '../../sdk/src/miners/AnyoneProtocolProvider.js';
-import { BttAiMinerProvider } from '../../sdk/src/miners/BttAiMinerProvider.js';
-import { BtfsStorageProvider } from '../../sdk/src/miners/BtfsStorageProvider.js';
+import { GolemProvider } from '../../../sdk/src/miners/GolemProvider.js';
+import { MysteriumProvider } from '../../../sdk/src/miners/MysteriumProvider.js';
+import { AnyoneProtocolProvider } from '../../../sdk/src/miners/AnyoneProtocolProvider.js';
+import { BttAiMinerProvider } from '../../../sdk/src/miners/BttAiMinerProvider.js';
+import { BtfsStorageProvider } from '../../../sdk/src/miners/BtfsStorageProvider.js';
 
 export class MinerManager {
   constructor(config, dataStore, taskMonitor = null, inferenceLayer = null) {
@@ -32,18 +30,6 @@ export class MinerManager {
     }
 
     // Initialize miners based on config
-    if (this.config.chutes.enabled) {
-      const miner = new ChutesMiner(this.config.chutes.config, this.inferenceLayer, this.evmAddress);
-      await miner.initialize();
-      this.miners.set('chutes', miner);
-    }
-
-    if (this.config.routstr.enabled) {
-      const miner = new RoutstrMiner(this.config.routstr.config, this.inferenceLayer, this.evmAddress);
-      await miner.initialize();
-      this.miners.set('routstr', miner);
-    }
-
     if (this.config.casper?.enabled) {
       const miner = new CasperEscrowBridge(this.config.casper.config, this.inferenceLayer);
       await miner.initialize();
@@ -60,6 +46,12 @@ export class MinerManager {
       const miner = new CasperUnifiedBridge(this.config.casperUnified.config, layers);
       await miner.initialize();
       this.miners.set('casperUnified', miner);
+    }
+
+    if (this.config.botchain?.enabled) {
+      const miner = new BotchainEscrowBridge(this.config.botchain.config || {}, this.inferenceLayer);
+      await miner.initialize();
+      this.miners.set('botchain', miner);
     }
 
     // ─── Tasker Network Providers (via SdkProviderMiner wrapper) ───
@@ -98,12 +90,6 @@ export class MinerManager {
       const miner = new SdkProviderMiner('btfs', BtfsStorageProvider, btfsConfig, this.inferenceLayer, this.evmAddress);
       await miner.initialize();
       this.miners.set('btfs', miner);
-    }
-
-    if (this.config.earnidle?.enabled) {
-      const miner = new EarnidleMiner(this.config.earnidle.config || {}, this.inferenceLayer);
-      await miner.initialize();
-      this.miners.set('earnidle', miner);
     }
 
     this.logger.info(`Initialized ${this.miners.size} miners`);

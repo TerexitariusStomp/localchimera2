@@ -67,11 +67,7 @@ export class WalletManager {
       case 'evm':
         // EVM address validation
         return /^0x[a-fA-F0-9]{40}$/.test(address);
-      
-      case 'solana':
-        // Solana addresses are base58 encoded, typically 32-44 characters
-        return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
-      
+
       case 'bitcoin-lightning':
         // Lightning network addresses (BOLT11 invoice format or node ID)
         // This is a basic check - real validation would be more complex

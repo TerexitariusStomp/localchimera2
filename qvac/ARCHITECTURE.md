@@ -17,7 +17,7 @@ The QVAC-Pear Miner Node is a distributed system that combines AI inference with
 
 ### Inference Layer
 
-- **QVACInferenceLayer**: Integration with QVAC SDK for local AI inference
+- **QVACInferenceLayer**: Integration with Chimera SDK for local AI inference
   - Handles LLM requests, speech-to-text, translation
   - Monitors activity to detect idle periods
   - Manages concurrent request limits
@@ -45,11 +45,8 @@ The QVAC-Pear Miner Node is a distributed system that combines AI inference with
 
 #### Supported Miners
 
-1. **CortensorMiner**: Decentralized AI network for proof-of-useful-work
-2. **ChutesMiner**: GPU mining with automatic validation
-3. **FortytwoMiner**: Decentralized AI inference network
-4. **EarnidleMiner**: Idle compute protocol for multiple venues (Solana)
-5. **RoutstrMiner**: Nostr protocol mining via Cashu NIP-60 P2SH
+1. **CasperEscrowBridge**: On-chain escrow markets for inference, storage, compute, and bandwidth on Casper Network
+2. **SdkProviderMiner**: Wrapper for BTFS, BTT AI, Golem, Anyone Protocol, and Mysterium resource providers
 
 ### Authentication Layer
 
@@ -133,7 +130,7 @@ npm start
 
 ### QVAC Integration
 
-The node integrates with QVAC SDK for:
+The node integrates with Chimera SDK for:
 - Local LLM inference
 - Speech-to-text
 - Translation

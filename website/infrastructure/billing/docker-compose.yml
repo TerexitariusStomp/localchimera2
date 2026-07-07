@@ -1,0 +1,104 @@
+# Production billing stack for Chimera
+# Uses upstream codebases as much as possible:
+#   - FOSSBilling (official image) for invoices/subscriptions
+#   - RefRef (submodule build) for referrals
+#   - SHKeeper (submodule build) for cryptocurrency payments
+#   - Caddy reverse proxy with automatic HTTPS
+#
+# Deploy on a VPS with Docker, point subdomains at the server, and run:
+#   docker compose up -d
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - fossbilling
+      - refref
+      - shkeeper
+
+  fossbilling:
+    image: fossbilling/fossbilling:latest
+    restart: unless-stopped
+    environment:
+      - FOSSBILLING_DB_HOST=mariadb
+      - FOSSBILLING_DB_NAME=fossbilling
+      - FOSSBILLING_DB_USER=fossbilling
+      - FOSSBILLING_DB_PASSWORD=${FOSSBILLING_DB_PASSWORD:?set FOSSBILLING_DB_PASSWORD}
+    volumes:
+      - fossbilling_data:/var/www/html
+    depends_on:
+      - mariadb
+
+  mariadb:
+    image: mariadb:lts
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: fossbilling
+      MARIADB_USER: fossbilling
+      MARIADB_PASSWORD: ${FOSSBILLING_DB_PASSWORD:?set FOSSBILLING_DB_PASSWORD}
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  refref:
+    build:
+      context: ../../inference-frontend/third-party/refref
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@refref-db:5432/refref
+      BETTER_AUTH_SECRET: ${REFREF_AUTH_SECRET:?set REFREF_AUTH_SECRET}
+      BETTER_AUTH_URL: https://${REFREF_HOST}
+      NEXT_PUBLIC_APP_URL: https://${REFREF_HOST}
+    depends_on:
+      - refref-db
+    command: >
+      sh -c "
+        cd /app &&
+        pnpm -F @refref/coredb db:push &&
+        pnpm -F @refref/coredb db:seed &&
+        cd /app/apps/webapp &&
+        pnpm start
+      "
+
+  refref-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: refref
+    volumes:
+      - refref_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  shkeeper:
+    build:
+      context: ../../inference-frontend/third-party/shkeeper
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - SECRET_KEY=${SHKEEPER_SECRET:?set SHKEEPER_SECRET}
+      - SQLALCHEMY_DATABASE_URI=sqlite:////shkeeper.io/data/shkeeper.db
+    volumes:
+      - shkeeper_data:/shkeeper.io/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  fossbilling_data:
+  mariadb_data:
+  refref_db_data:
+  shkeeper_data:

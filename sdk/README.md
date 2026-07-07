@@ -8,11 +8,11 @@ All tasking network providers mine directly into the **Chimera protocol multisig
 
 1. **Mining** — user's device completes tasks on tasking networks (Golem, Mysterium, Anyone Protocol, BTFS, BTT AI, Casper). All rewards flow to the protocol multisig.
 2. **Monthly sweep** — the protocol multisig distributes funds to:
-   - **Machine owner** Privy wallet (user's embedded wallet via Privy)
-   - **App developer** Privy wallet (your address, set in SDK options)
+   - **Machine owner** Web3Auth wallet (user's embedded wallet via Web3Auth)
+   - **App developer** Web3Auth wallet (your address, set in SDK options)
    - Split based on `revenueSplit` config (default 70/30)
 
-Individual Privy wallets are **never used by providers directly** — they only receive funds via the monthly sweep from the protocol multisig.
+Individual Web3Auth wallets are **never used by providers directly** — they only receive funds via the monthly sweep from the protocol multisig.
 
 ## What the SDK gives your app
 
@@ -36,26 +36,26 @@ Wallet setup, earnings tracking, and revenue distribution are handled on the **C
 ## Install
 
 ```bash
-npm install @chimera/sdk
+npm install @localchimera/sdk
 ```
 
 Or copy the `sdk/` folder into your project.
 
 ## Quick Start
 
-### React — with Privy wallet integration
+### React — with Web3Auth wallet integration
 
-The SDK ships with `ChimeraPrivyProvider` — a pre-configured Privy provider using Chimera's app ID (`cmqu05m41000h0djl70k738mx`). It enables social login (Google, email) and auto-generates embedded wallets on login. Wrap your app and call the hook:
+The SDK ships with `ChimeraWeb3AuthProvider` — a pre-configured Web3Auth provider. It enables social login (Google, email, guest) and auto-generates embedded wallets on login. Wrap your app and call the hook:
 
 ```jsx
-import { ChimeraPrivyProvider, useChimera } from '@chimera/sdk';
+import { ChimeraWeb3AuthProvider, useChimera } from '@localchimera/sdk';
 
-// App root — ChimeraPrivyProvider handles Privy config automatically
+// App root — ChimeraWeb3AuthProvider handles Web3Auth config automatically
 function Root() {
   return (
-    <ChimeraPrivyProvider>
+    <ChimeraWeb3AuthProvider>
       <App />
-    </ChimeraPrivyProvider>
+    </ChimeraWeb3AuthProvider>
   );
 }
 
@@ -86,18 +86,18 @@ function App() {
 }
 ```
 
-**Social login:** `connectWallet()` triggers Privy's login flow with Google, email, and wallet options. An embedded wallet is auto-created on first login — no browser extension required.
+**Social login:** `connectWallet()` triggers Web3Auth's free PnP modal with Google, email, and guest options. An embedded wallet is auto-created on first login — no browser extension required.
 
-**Protocol app ID:** The SDK uses Chimera's Privy app ID (`cmqu05m41000h0djl70k738mx`) exclusively. All wallets are created under the Chimera protocol.
+**Protocol keys:** The SDK uses a shared Web3Auth Client ID. You can override it with the `VITE_WEB3AUTH_CLIENT_ID` environment variable.
 
-**Third-party domains:** No Privy dashboard configuration needed. The SDK loads a hidden iframe from `new.localchimera.com/privy-relay.html` that runs the Privy auth flow. Privy sees the allowed origin (`new.localchimera.com`), and the parent app communicates with the iframe via `postMessage`. This works on any domain automatically.
+**Third-party domains:** Web3Auth works on any domain automatically via the configured Client ID.
 
 That's it. Your app does **not** collect wallet addresses, show earnings, or handle revenue splits — the Chimera dashboard handles all of that.
 
 ### Backend (optional, for server-side control)
 
 ```javascript
-import { ChimeraSDK } from '@chimera/sdk';
+import { ChimeraSDK } from '@localchimera/sdk';
 
 const sdk = new ChimeraSDK({
   appName: 'MyApp',
@@ -124,6 +124,60 @@ await sdk.start();
 |--------|------|---------|-------------|
 | `appDeveloperEVM` | string | `null` | Your EVM payout address |
 | `revenueSplit` | object | `{ machineOwner: 0.70, appDeveloper: 0.30 }` | Override split (protocol-level) |
+
+## Task dispatch policy
+
+`useChimera().sendTask(task)` creates an on-chain job through the `ChimeraCoordinator` contract and lets you choose who can execute it:
+
+| Policy | Constant | Default | Escrow / dispute | Fallback |
+|--------|----------|---------|------------------|----------|
+| Hybrid | `TASK_POLICY.HYBRID` | Yes | Chimera volunteers first; tasking networks if no volunteer | Enabled |
+| First-party only | `TASK_POLICY.FIRST_PARTY_ONLY` | No | Full escrow and dispute features | Disabled — no tasking network fallback |
+| Second-party only | `TASK_POLICY.SECOND_PARTY_ONLY` | No | Not available | Directly routed to tasking networks |
+
+```jsx
+import { useChimera, TASK_POLICY, TASK_TYPE_BOTCHAIN } from '@localchimera/sdk';
+
+const chimera = useChimera();
+
+const result = await chimera.sendTask({
+  taskType: TASK_TYPE_BOTCHAIN.INFERENCE, // 4
+  escrow: '0.1', // BOT
+  policy: TASK_POLICY.HYBRID, // default
+  payload: { messages: [{ role: 'user', content: 'Hello' }] },
+});
+```
+
+Set the coordinator address with the `VITE_CHIMERA_COORDINATOR_ADDRESS` environment variable or the `coordinator` option.
+
+### On-chain fallback via Li.Fi
+
+For **hybrid** and **second-party-only** tasks, the coordinator can execute the fallback bridge on-chain through `ChimeraBridgeDispatcher`:
+
+- Second-party-only tasks are bridged automatically during `sendTask`.
+- Hybrid tasks hold the full amount in the coordinator. If no volunteer completes within `fallbackTimeout`, the held amount is bridged to the tasking network by the automated fallback keeper.
+- Set the bridge dispatcher with `VITE_CHIMERA_BRIDGE_DISPATCHER_ADDRESS` and configure the bridge route per task type via `coordinator.setBridgeData()`.
+- Configure the refund bridge via `coordinator.setRefundBridgeData()` so that unfulfilled tasking-network jobs can be refunded to the origin chain. The default `refundTimeout` is 1 hour.
+- Automation is handled by **Reactive Network**: a `ChimeraReactive` contract on Reactive Network periodically calls `coordinator.processExpiredJobs()` on the origin chain. This triggers both fallback for unpaid hybrid jobs and refunds for bridged jobs that exceed `refundTimeout` without `markFallbackComplete()` being called. The coordinator also exposes `checkUpkeep`/`performUpkeep` for Chainlink Automation or Gelato as a fallback.
+
+### External miners
+
+The SDK can run external DePIN miners as volunteer providers (`sdk/src/miners/index.js`). All reward-bearing providers default to the protocol payout address (`CHIMERA_PROTOCOL_PAYOUT_ADDRESS`, default `0x7eB4A545F875FC1Da252661d31a3e28e67bf723f`) and never ask for or store a private key:
+
+- `BttAiMinerProvider` — BTT AI Labs inference miner (payout address in status)
+- `GolemProvider` — Golem compute provider (yagna wallet managed separately; earnings should be swept to the protocol address)
+- `MysteriumProvider` — Mysterium bandwidth provider (`MYSTERIUM_PAYOUT_ADDRESS` env)
+- `BtfsStorageProvider` — BTFS storage provider (walletless by design; no on-chain private key in the SDK)
+- `StorjProvider` — Storj storage node provider (`--operator.wallet` set to the protocol address)
+- `AnyoneProtocolProvider` — Anyone Protocol onion-routing relay provider (`--reward-address` set to the protocol address)
+- `CasperProvider` — Casper node provider (relay-only; rejects any PEM private key)
+
+Run them via the SDK's miner runner or import the provider classes directly. The fallback router can also use the optional providers. GPU tasks are routed to Akash because Golem is CPU-only:
+
+- Inference: BTT AI (default) or Akash (`INFERENCE_PROVIDER=akash`); GPU tasks default to Akash (`requiresGpu` / `FALLBACK_REQUIRES_GPU`)
+- Storage: Storj (default) or BTFS (`STORAGE_PROVIDER=btfs`)
+- Compute: Golem (default, CPU-only) or Akash (`COMPUTE_PROVIDER=akash`); GPU tasks default to Akash (`requiresGpu` / `FALLBACK_REQUIRES_GPU`)
+- Bandwidth: Mysterium (default) or Anyone Protocol (`BANDWIDTH_PROVIDER=anyone`)
 
 ## `ChimeraSDK` options (backend)
 
@@ -249,7 +303,7 @@ await sdk.revokeAccessSession(sessionId);  // revoke early
          │ useChimera()
 ┌────────▼────────┐
 │  Chimera SDK    │  ← manages consent, forwards EVM address
-│  (@chimera/sdk) │    requires hardened container (Docker)
+│  (@localchimera/sdk) │    requires hardened container (Docker)
 └────────┬────────┘
          │
 ┌────────▼────────┐
@@ -265,7 +319,7 @@ await sdk.revokeAccessSession(sessionId);  // revoke early
          │
 ┌────────▼────────┐
 │  Protocol       │  ← monthly sweep → machine owner + app developer
-│  Multisig       │    Privy wallets (EVM only)
+│  Multisig       │    Web3Auth wallets (EVM only)
 └─────────────────┘
 ```
 

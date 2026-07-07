@@ -155,6 +155,25 @@ export class ResourceMonitor {
     return this.paused;
   }
 
+  /**
+   * Get disk usage info for a specific directory. Reuses the same polling logic
+   * as the monitor, but can be called on-demand by providers (e.g. Storj) that
+   * need to size their allocation based on available free space.
+   */
+  async getDiskInfo(dataDir) {
+    const prev = this._dataDir;
+    this._dataDir = dataDir;
+    try {
+      const info = await this._pollDiskNode();
+      return {
+        ...info,
+        diskFreeGB: info.diskTotalGB - info.diskUsedGB,
+      };
+    } finally {
+      this._dataDir = prev;
+    }
+  }
+
   // ─── Node.js monitoring via system-resource-monitor ───
 
   async _startNode() {

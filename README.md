@@ -1,6 +1,6 @@
 # Chimera — Local AI That Earns When Idle
 
-A standalone QVAC inference node running `@chimera/sdk` inside a hardened Docker container. Each device (desktop, mobile) is its own autonomous node — no centralized router, no relay server.
+A standalone QVAC inference node running `@localchimera/sdk` inside a hardened Docker container. Each device (desktop, mobile) is its own autonomous node — no centralized router, no relay server.
 
 ## Architecture
 
@@ -60,7 +60,7 @@ sudo dpkg -i apps/desktop/src-tauri/target/release/bundle/deb/Chimera_1.0.0_amd6
 
 ## Quick Start (Mobile — iOS/Android)
 
-The mobile app is a Capacitor-wrapped web app that runs `@chimera/sdk` natively on device. Each phone is a standalone node — no relay, no desktop dependency.
+The mobile app is a Capacitor-wrapped web app that runs `@localchimera/sdk` natively on device. Each phone is a standalone node — no relay, no desktop dependency.
 
 ```bash
 cd qvac/frontend
@@ -157,11 +157,11 @@ npx cap open android  # Android Studio → Generate Signed Bundle
 
 - **LLM Wiki** — Opens directly, no landing page. Auto-saves every 2s.
 - **Time-ago indicator** — "Last saved 12s ago" beside Delete button.
-- **QVAC SDK** — `@chimera/sdk` powers all inference (QVAK).
+- **Chimera SDK** — `@localchimera/sdk` powers all inference (QVAK).
 - **Standalone** — Each device is its own node. No InferenceRouter, no relay.
 - **Hardened** — Docker container runs as non-root with minimal deps.
 - **P2P** — Pear P2P swarm sync for wiki pages across devices.
-- **Mining** — Chutes, Routstr, Earnidle, BTT AI, Golem, Anyone Protocol, Mysterium, BTFS (walletless storage), Casper miners.
+- **Mining** — BTT AI, Golem, Anyone Protocol, Mysterium, BTFS (walletless storage), Casper miners. Resources are paid for via the frontend using Web3Auth + Request Network; the protocol auto-converts payments to the resource's native token.
 - **Fleet** — Commander/worker orchestration for distributed tasks.
 
 ### New: Enhanced Inference & Security Modules
@@ -229,14 +229,14 @@ localchimera/
 │   │   ├── core/             # NodeManager, WalletManager, AuditLogger, ContentAddress, DeploymentLifecycle
 │   │   ├── inference/        # QVACInferenceLayer, ProofOfInference, InferenceQueue, PromptGuard, etc.
 │   │   ├── llmwiki/          # Upstream bridges (OtterWiki, OpenViking, LLMwiki)
-│   │   ├── miners/           # Chutes, Routstr, Casper, Earnidle, BTT AI, Golem, Anyone, Mysterium, BTFS
+│   │   ├── miners/           # Casper, BTT AI, Golem, Anyone, Mysterium, BTFS
 │   │   ├── p2p/              # Pear P2P networking + CapabilityManifest
 │   │   ├── web/              # HTTP server + API routes
 │   │   └── scheduler/        # TaskMonitor
 │   ├── frontend/             # React app (LLM Wiki)
 │   ├── Dockerfile            # Hardened container
 │   └── docker-compose.yml    # One-command deploy
-├── sdk/                      # @chimera/sdk — build your own app
+├── sdk/                      # @localchimera/sdk — build your own app
 │   ├── src/                  # Provider implementations
 │   └── examples/             # Integration examples
 ├── inference-backend/        # Encrypted inference backend (FHE/SEAL experiments)
@@ -247,10 +247,11 @@ localchimera/
 ├── scripts/                  # Automation, deployment, and utility scripts
 ├── docs/                     # Documentation (UPSTREAM.md, RELAY_COMPATIBILITY.md, etc.)
 ├── cashu/                    # Cashu ecash integration
-├── routstr/                  # Nostr/Cashu inference routing
 ├── brand-assets/             # Logos and brand assets
 ├── releases/                 # Release notes and artifacts
 ├── upstream/                 # Git submodules for upstream forks and dependencies
+├── workers/                  # Background workers and cron jobs
+│   └── resource-provisioner/ # Request Network → CoW → Golem/BTFS/Mysterium/Anyone/BTT/Casper
 ├── lib/                      # Foundry libraries (fhevm, forge-std, etc.)
 └── README.md
 ```
@@ -258,7 +259,7 @@ localchimera/
 ## Upstream Projects
 
 Chimera builds on several open-source projects. See [docs/UPSTREAM.md](docs/UPSTREAM.md) for:
-- Full catalog of upstream dependencies (QVAC SDK, Pear, Tauri, Capacitor, LLMwiki, Openviking, OtterWiki)
+- Full catalog of upstream dependencies (Chimera SDK, Pear, Tauri, Capacitor, LLMwiki, Openviking, OtterWiki)
 - How to check for and apply updates
 - Version tracking matrix
 
@@ -266,6 +267,21 @@ Quick check:
 ```bash
 ./scripts/update-upstream.sh check
 ```
+
+## Production Architecture
+
+The decentralized application platform is built on the tasking networks and supporting infrastructure:
+
+- **Golem** — compute, deployments, rentals, and AI inference.
+- **BTFS** — decentralized file storage.
+- **Mysterium** — ingress tunnels to Golem activities.
+- **Edge Network** — CDN for static assets and media; `@edge/link` for control-plane messaging.
+- **Streamr** — real-time telemetry, scaling events, and deployment state events.
+- **Namesilo** — domain registration and DNS for user-owned domains.
+- **Casper** — on-chain escrow, payments, and identity.
+- **Request Network + CoW Protocol** — payment requests and token conversion.
+
+See `docs/PRODUCTION_TASKING_ARCHITECTURE.md` for the full design and deployment instructions.
 
 ## New API Endpoints
 
@@ -557,4 +573,8 @@ Quick check:
 | `GET` | `/api/extract/status` | Extractor stats |
 | `POST` | `/api/extract/run` | Extract entities/relations/facts from text |
 | `POST` | `/api/extract/batch` | Extract from multiple texts (merged) |
+
+## License
+
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (or later).
 

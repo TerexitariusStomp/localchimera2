@@ -8,3 +8,5 @@ test-*.mjs
 *.log
 nohup.out
 *.bak
+third-party
+

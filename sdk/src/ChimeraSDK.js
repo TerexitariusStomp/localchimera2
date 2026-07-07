@@ -10,9 +10,9 @@
  *
  * Payout model:
  *   - All tasking network providers mine into the Chimera protocol multisig.
- *   - Individual Privy wallet addresses are NOT used by providers directly.
+ *   - Individual Web3Auth wallet addresses are NOT used by providers directly.
  *   - A monthly sweep from the protocol multisig distributes funds to
- *     machine owner and app developer Privy wallets based on revenue split.
+ *     machine owner and app developer Web3Auth wallets based on revenue split.
  */
 
 import { Logger } from './core/Logger.js';
@@ -27,11 +27,12 @@ import { AnyoneProtocolProvider } from './miners/AnyoneProtocolProvider.js';
 import { MysteriumProvider } from './miners/MysteriumProvider.js';
 import { CasperProvider } from './miners/CasperProvider.js';
 import { BtfsStorageProvider } from './miners/BtfsStorageProvider.js';
+import { StorjProvider } from './miners/StorjProvider.js';
 
 const logger = new Logger('ChimeraSDK');
 
 // Chimera protocol EVM multisig — all tasking network rewards flow here.
-// Individual Privy wallets receive funds only via the monthly sweep.
+// Individual Web3Auth wallets receive funds only via the monthly sweep.
 const PROTOCOL_MULTISIG = '0x7eB4A545F875FC1Da252661d31a3e28e67bf723f';
 
 function _maskAddress(addr) {
@@ -60,8 +61,8 @@ function _maskAddress(addr) {
 export class ChimeraSDK {
   constructor(opts = {}) {
     this.appName = opts.appName || 'unknown-app';
-    this.machineOwnerEVM = opts.machineOwnerEVM || null;  // Privy wallet — receives monthly sweep
-    this.appDeveloperEVM = opts.appDeveloperEVM || null;    // Privy wallet — receives monthly sweep
+    this.machineOwnerEVM = opts.machineOwnerEVM || null;  // Web3Auth wallet — receives monthly sweep
+    this.appDeveloperEVM = opts.appDeveloperEVM || null;    // Web3Auth wallet — receives monthly sweep
     this.revenueSplit = opts.revenueSplit || { machineOwner: 0.70, appDeveloper: 0.30 };
     this.protocolMultisig = opts.protocolMultisig || null;  // EVM multisig — all mining rewards go here
     this.configPath = opts.configPath || path.join(process.cwd(), 'config.json');
@@ -73,6 +74,7 @@ export class ChimeraSDK {
     this.containerImage = opts.containerImage || process.env.CHIMERA_IMAGE || 'chimera:latest';
     this.containerPort = opts.containerPort || Number(process.env.CHIMERA_PORT) || 3002;
     this.containerConfigPath = opts.containerConfigPath || null;
+    this.storj = opts.storj || null; // Storj storage node provider config
     this.resourceMonitor = new ResourceMonitor(opts.resourceThresholds || {});
     this._providersPaused = false;
   }
@@ -92,22 +94,22 @@ export class ChimeraSDK {
     if (this.machineOwnerEVM) {
       this._config.multisig = this._config.multisig || {};
       this._config.multisig.machineOwnerAddress = this.machineOwnerEVM;
-      logger.info(`[${this.appName}] Machine owner Privy wallet (monthly sweep target): ${_maskAddress(this.machineOwnerEVM)}`);
+      logger.info(`[${this.appName}] Machine owner Web3Auth wallet (monthly sweep target): ${_maskAddress(this.machineOwnerEVM)}`);
     }
     if (this.appDeveloperEVM) {
       this._config.multisig = this._config.multisig || {};
       this._config.multisig.appDeveloperAddress = this.appDeveloperEVM;
       this._config.multisig.revenueSplit = this.revenueSplit;
-      logger.info(`[${this.appName}] App developer Privy wallet (monthly sweep target): ${_maskAddress(this.appDeveloperEVM)}`);
+      logger.info(`[${this.appName}] App developer Web3Auth wallet (monthly sweep target): ${_maskAddress(this.appDeveloperEVM)}`);
       logger.info(`[${this.appName}] Revenue split — machine owner: ${(this.revenueSplit.machineOwner * 100).toFixed(0)}%, app developer: ${(this.revenueSplit.appDeveloper * 100).toFixed(0)}%`);
     }
 
     // Set the protocol multisig — all providers mine into this address.
-    // Individual Privy wallets are NOT passed to providers.
+    // Individual Web3Auth wallets are NOT passed to providers.
     const multisig = this.protocolMultisig || this._config?.multisig?.protocolAddress || PROTOCOL_MULTISIG;
     this._config.protocolMultisig = multisig;
     logger.info(`[${this.appName}] Protocol multisig (all mining rewards): ${_maskAddress(multisig)}`);
-    logger.info(`[${this.appName}] Monthly sweep: multisig → machine owner + app developer Privy wallets`);
+    logger.info(`[${this.appName}] Monthly sweep: multisig → machine owner + app developer Web3Auth wallets`);
 
     // Disable local auth so the SDK can drive the container API without tokens.
     this._config.auth = this._config.auth || {};
@@ -125,6 +127,7 @@ export class ChimeraSDK {
       image: this.containerImage,
       hostPort: this.containerPort,
       containerPort: this.containerPort,
+      enableDocker: !!this.storj, // Docker-managed providers need the host socket
     });
     await this.container.prepare();
 
@@ -264,6 +267,26 @@ export class ChimeraSDK {
     } catch (err) {
       logger.warn(`[${this.appName}] Mysterium init failed: ${err.message}`);
     }
+
+    // Storj decentralized storage node
+    if (this.storj) {
+      try {
+        const storj = new StorjProvider({
+          ...this.storj,
+          wallet: this.storj.wallet || this._config?.storj?.wallet || this._config?.protocolMultisig || PROTOCOL_MULTISIG,
+          dataDir: this.storj.dataDir || this._config?.storj?.dataDir || null,
+          email: this.storj.email || this._config?.storj?.email || null,
+          externalAddress: this.storj.externalAddress || this._config?.storj?.externalAddress || null,
+          storage: this.storj.storage || this._config?.storj?.storage || null,
+        });
+        await storj.init();
+        this.externalProviders.push(storj);
+        logger.info(`[${this.appName}] Storj storage node provider ready`);
+      } catch (err) {
+        logger.warn(`[${this.appName}] Storj init failed: ${err.message}`);
+      }
+    }
+
   }
 
   /**
@@ -378,8 +401,8 @@ export class ChimeraSDK {
       resources: this.resourceMonitor.getSnapshot(),
       providersPaused: this._providersPaused,
       protocolMultisig: _maskAddress(this._config?.protocolMultisig),
-      machineOwnerEVM: this.machineOwnerEVM,  // Privy wallet — monthly sweep target
-      appDeveloperEVM: this.appDeveloperEVM,  // Privy wallet — monthly sweep target
+      machineOwnerEVM: this.machineOwnerEVM,  // Web3Auth wallet — monthly sweep target
+      appDeveloperEVM: this.appDeveloperEVM,  // Web3Auth wallet — monthly sweep target
       revenueSplit: this.revenueSplit,
       payoutModel: 'protocol-multisig-monthly-sweep',
     };

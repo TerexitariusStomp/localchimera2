@@ -23,9 +23,6 @@ Only tasking networks that are **safe on untrusted hardware** are integrated. Th
 
 | Project | Upstream Repo | Submodule Path | How We Consume | Included in SDK? | Notes |
 |---|---|---|---|---|---|
-| **Chutes** | `github.com/chutesai/chutes-miner` | `upstream/chutes-miner` | Protocol integration (`qvac/src/miners/ChutesMiner.js`) | ✅ | Untrusted-hardware-safe (relay holds keys) |
-| **Routstr** | `github.com/routstr/routstr-core` | `upstream/routstr-core` | Protocol integration (`qvac/src/miners/RoutstrMiner.js`) | ✅ | Nostr/Cashu, no local keys |
-| **Earnidle** | `earnidle.com` (no public repo) | n/a | Protocol integration (`sdk/src/miners/EarnidleProvider.js` + `qvac/src/miners/EarnidleMiner.js`) | ✅ | Public wallet address only |
 | **BTT AI** | `github.com/BTT-AI-labs/miner-cli` | `upstream/btt-ai-miner` | Docker / GPU miner (`sdk/src/miners/BttAiMinerProvider.js`) | ✅ | Proxy mode, no local wallet |
 | **Golem** | `github.com/golemfactory/yagna` | `upstream/golem` | Docker provider (`sdk/src/miners/GolemProvider.js`) | ✅ | Payout address only |
 | **Anyone Protocol** | `github.com/anyone-protocol/ator-protocol` | `upstream/anyone-protocol` | Docker relay (`sdk/src/miners/AnyoneProtocolProvider.js`) | ✅ | No keys required |
@@ -108,8 +105,6 @@ Tasking-network submodules are listed in `.gitmodules` and forked into the Local
 ```bash
 # Update all forked tasking submodules to the latest upstream commits
 git submodule update --remote --merge \
-  upstream/chutes-miner \
-  upstream/routstr-core \
   upstream/btt-ai-miner \
   upstream/golem \
   upstream/anyone-protocol \
@@ -192,14 +187,6 @@ Each mining network is vendored as a forked Git submodule. The protocol integrat
 3. **Check protocol changes**: review upstream releases and diffs before updating the submodule pointer.
 4. **Test the miner**: run the relevant Localchimera miner in isolation after bumping a submodule.
 5. **Commit**: include the upstream release/change reference in the commit message.
-
-### Example: bump Chutes
-
-```bash
-git submodule update --remote --merge upstream/chutes-miner
-cd qvac
-npm test -- --grep ChutesMiner
-```
 
 ## Updating Wiki / Knowledge Base
 

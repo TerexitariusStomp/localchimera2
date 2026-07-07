@@ -3,7 +3,7 @@ version: "2.0"
 
 services:
   fhe-optimizer:
-    image: ghcr.io/${IMAGE_OWNER}/fhe-optimizer:gpu
+    image: ghcr.io/${IMAGE_OWNER}/fhe-optimizer:sha-d7eec7e
     credentials:
       host: ghcr.io
       username: ${IMAGE_OWNER}
@@ -42,7 +42,7 @@ profiles:
       pricing:
         fhe-h100:
           denom: uact
-          amount: 10000000
+          amount: 3000000
 
 deployment:
   fhe-optimizer:

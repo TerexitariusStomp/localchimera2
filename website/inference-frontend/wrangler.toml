@@ -1,8 +1,10 @@
 name = "new-localchimera"
 compatibility_date = "2024-12-01"
 
-[site]
-bucket = "./dist"
+# Cloudflare Pages configuration
+pages_build_output_dir = "dist"
 
-[build]
-command = "npm run build"
+# Cloudflare KV namespace for domain registrar orders and contacts.
+[[kv_namespaces]]
+binding = "DOMAIN_KV"
+id = "682d080c6e514539b724e3702e9786fa"

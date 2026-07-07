@@ -1,0 +1,15 @@
+[Unit]
+Description=NameSilo Proxy
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/namesilo-proxy
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+Environment="NAMESILO_KEY=REPLACE_WITH_YOUR_KEY"
+Environment="PORT=3000"
+
+[Install]
+WantedBy=multi-user.target

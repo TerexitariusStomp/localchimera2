@@ -1,0 +1,40 @@
+{
+  "name": "@localchimera/resource-provisioner",
+  "version": "1.0.0",
+  "description": "Worker that converts Request Network payments into tasking-network resources",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js",
+    "start": "node src/index.js",
+    "sync-providers": "NODE_NO_WARNINGS=1 node scripts/sync-providers.js",
+    "test": "echo 'no tests yet' && exit 0"
+  },
+  "dependencies": {
+    "@requestnetwork/request-client.js": "^0.58.0",
+    "@requestnetwork/payment-detection": "^0.53.0",
+    "@requestnetwork/epk-signature": "^0.9.9",
+    "@golem-sdk/golem-js": "^3.0.0",
+    "ethers": "^5.7.2",
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.4.0",
+    "ws": "^8.18.0"
+  },
+  "optionalDependencies": {
+    "casper-js-sdk": "^5.0.0"
+  },
+  "keywords": [
+    "chimera",
+    "resource-provisioner",
+    "request-network",
+    "lifi",
+    "golem",
+    "btfs",
+    "mysterium",
+    "edge-network",
+    "streamr",
+    "ceramic",
+    "namesilo"
+  ],
+  "license": "MIT"
+}

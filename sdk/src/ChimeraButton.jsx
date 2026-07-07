@@ -2,7 +2,9 @@
  * ChimeraButton — One-line integration for Chimera SDK.
  *
  * Just drop <ChimeraButton /> anywhere in your app. It handles:
- *   - Privy wallet connection (Google, email, wallet)
+ *   - Wallet connection (EVM via ConnectKit, Solana via Solana Wallet Adapter, Casper via Casper Wallet)
+ *   - Message signing and backend JWT verification for EVM/Solana
+ *   - Web3Auth MPC wallet creation for EVM/Solana
  *   - User consent flow
  *   - Start/stop mining (container or browser mode)
  *   - Live status display (jobs, earnings, network adapters)
@@ -20,7 +22,7 @@
  */
 
 import { useState, useEffect, useRef, createElement, Fragment } from 'react';
-import { useChimera, ChimeraPrivyProvider } from './useChimera.js';
+import { useChimera, ChimeraWeb3AuthProvider } from './useChimera.js';
 
 // ─── Styles (inline, no external CSS needed) ───────────────────────
 
@@ -97,10 +99,10 @@ const STYLES = {
   dotGray: { background: '#d1d5db' },
 };
 
-// ─── Inner component (uses useChimera inside PrivyProvider) ────────
+// ─── Inner component (uses useChimera inside ChimeraWeb3AuthProvider) ────────
 
-function ChimeraButtonInner({ appDeveloperEVM, revenueSplit, onStatusChange }) {
-  const chimera = useChimera({ appDeveloperEVM, revenueSplit });
+function ChimeraButtonInner({ appDeveloperEVM, revenueSplit, onStatusChange, chain = 'evm', mpcBaseUrl }) {
+  const chimera = useChimera({ appDeveloperEVM, revenueSplit, mpcBaseUrl });
   const [hover, setHover] = useState(false);
   const prevStatusRef = useRef(null);
 
@@ -123,7 +125,7 @@ function ChimeraButtonInner({ appDeveloperEVM, revenueSplit, onStatusChange }) {
   if (!chimera.walletConnected) {
     btnStyle = { ...STYLES.button, ...STYLES.primary, ...(hover ? STYLES.primaryHover : {}) };
     btnText = 'Connect Wallet';
-    onClick = chimera.connectWallet;
+    onClick = () => chimera.connectWallet(chain);
   } else if (!chimera.consentGiven) {
     btnStyle = { ...STYLES.button, ...STYLES.neutral, ...(hover ? STYLES.neutralHover : {}) };
     btnText = 'Enable Mining';
@@ -198,18 +200,20 @@ function ChimeraButtonInner({ appDeveloperEVM, revenueSplit, onStatusChange }) {
  *   revenueSplit    — { machineOwner, appDeveloper } (default 70/30)
  *   onStatusChange  — callback(status) fired on every status update
  *
- * Self-contained: wraps itself in ChimeraPrivyProvider if needed.
+ * Self-contained: wraps itself in ChimeraWeb3AuthProvider if needed.
  * No external CSS, no wrapping, no hooks required.
  */
-export function ChimeraButton({ appDeveloperEVM, revenueSplit, onStatusChange, children }) {
-  // Check if we're already inside a PrivyProvider by trying useChimera
-  // If not, wrap ourselves in ChimeraPrivyProvider
+export function ChimeraButton({ appDeveloperEVM, revenueSplit, onStatusChange, chain = 'evm', mpcBaseUrl, children }) {
+  // Check if we're already inside a Web3Auth provider by trying useChimera
+  // If not, wrap ourselves in ChimeraWeb3AuthProvider
 
-  return createElement(ChimeraPrivyProvider, null,
+  return createElement(ChimeraWeb3AuthProvider, null,
     createElement(ChimeraButtonInner, {
       appDeveloperEVM,
       revenueSplit,
       onStatusChange,
+      chain,
+      mpcBaseUrl,
     }),
     children || null,
   );

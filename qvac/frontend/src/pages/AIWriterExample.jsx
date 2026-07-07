@@ -4,11 +4,15 @@ import {
   FileText, ChevronRight, Lock, Network, Download, Book
 } from 'lucide-react';
 
-const API_BASE = (typeof window !== 'undefined' && (window.Capacitor || window.__TAURI__))
-  ? 'http://localhost:3002/api'
+const isNative = typeof window !== 'undefined' && (window.Capacitor || window.__TAURI__);
+const NATIVE_API_BASE = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE
+  ? import.meta.env.VITE_API_BASE
+  : 'http://localhost:3002/api';
+const API_BASE = isNative
+  ? NATIVE_API_BASE
   : (window.location.protocol === 'http:' || window.location.protocol === 'https:')
     ? '/api'
-    : 'http://localhost:3002/api';
+    : NATIVE_API_BASE;
 
 export default function AIWriterExample({ onNavigateBack, onNavigateToDashboard }) {
   const [activeScreen, setActiveScreen] = useState('write');

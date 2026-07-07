@@ -1,5 +1,5 @@
 {
   "version": 1,
   "include": ["/*"],
-  "exclude": ["/privy-relay/*"]
+  "exclude": ["/example/*", "/browser-sdk-dist/*"]
 }

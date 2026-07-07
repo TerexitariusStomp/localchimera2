@@ -3,16 +3,16 @@ import { useChimera } from '../../src/useChimera.js';
 
 /**
  * MiningPanel — drop-in component for app developers.
- * Requires the app to be wrapped in <ChimeraPrivyProvider>.
+ * Requires the app to be wrapped in <ChimeraWeb3AuthProvider>.
  * Shows: wallet connect, consent prompt, start/stop buttons, miner status.
  *
  * Usage:
- *   import { ChimeraPrivyProvider } from '@chimera/sdk';
+ *   import { ChimeraWeb3AuthProvider } from '@chimera/sdk';
  *   import MiningPanel from './MiningPanel';
  *
- *   <ChimeraPrivyProvider>
+ *   <ChimeraWeb3AuthProvider>
  *     <MiningPanel />
- *   </ChimeraPrivyProvider>
+ *   </ChimeraWeb3AuthProvider>
  */
 export default function MiningPanel() {
   const {

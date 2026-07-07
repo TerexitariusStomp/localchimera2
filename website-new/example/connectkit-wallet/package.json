@@ -1,0 +1,21 @@
+{
+  "name": "connectkit-wallet",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.69.0",
+    "connectkit": "^1.8.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "viem": "^2.23.15",
+    "wagmi": "^2.14.16"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.14",
+    "vite-plugin-singlefile": "^2.2.0"
+  }
+}

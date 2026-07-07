@@ -11,6 +11,7 @@ import { ok, accepted, badRequest, serverError, serviceUnavailable, parseBody } 
 import { extractBoundary, readBody, parseMultipart } from './multipart.js';
 import { repoToMarkdown } from './repoDigest.js';
 import { PayoutRouter } from '../payout/PayoutRouter.js';
+import { DomainRouter } from '../domain/DomainRouter.js';
 import { marketApi } from '../api/marketApi.js';
 import { DeviceFingerprinter } from '../auth/DeviceFingerprinter.js';
 import { RemoteFingerprinter } from '../auth/RemoteFingerprinter.js';
@@ -34,6 +35,7 @@ export class WebServer {
     this.remoteFingerprinter = new RemoteFingerprinter();
     this.orchestrator = new NodeOrchestrator({ deviceFingerprinter: this.deviceFingerprinter });
     this.payoutRouter = new PayoutRouter(config?.multisig || {});
+    this.domainRouter = new DomainRouter(config?.domains || {});
   }
 
   async initialize() {
@@ -47,6 +49,7 @@ export class WebServer {
     await this.ensureDefaultWelcomePage();
     this.logger.info('Web server initialized');
     await this.payoutRouter.store._ensureDir();
+    await this.domainRouter.store._ensureDir();
   }
 
   async ensureDefaultWelcomePage() {
@@ -1130,12 +1133,7 @@ Copy the topic hex and invite others to join.
       this.nodeManager.minerManager.evmAddress = machineOwner;
       this.logger.info(`[miner] Machine owner EVM: ${this._isPrivacyMode() ? this._maskEVM(machineOwner) : machineOwner}`);
 
-      // Propagate to already-constructed miners so they start with the correct address
       const miners = this.nodeManager.minerManager.miners;
-      for (const name of ['chutes', 'routstr']) {
-        const m = miners.get(name);
-        if (m) m.evmAddress = machineOwner;
-      }
 
       // Propagate device fingerprint to CasperEscrowBridge for on-chain result verification
       const casperMiner = miners.get('casper');
@@ -1383,7 +1381,157 @@ Copy the topic hex and invite others to join.
     ok(res, await this.payoutRouter.getStats());
   }
 
-  // ─── OpenAI-compatible proxy (for Routstr upstream) ───
+  // ─── Domain Registrar ───
+
+  async handleDomainProviders(req, res) {
+    ok(res, {
+      providers: [
+        {
+          id: 'namesilo',
+          name: 'NameSilo',
+          anonymous: false,
+          crypto: true,
+          ownership: 'customer',
+          note: 'Customer contact info is submitted to the registrar. Customer is the legal registrant. Bitcoin accepted.',
+        },
+      ],
+    });
+  }
+
+  async handleDomainBalance(req, res) {
+    const result = await this.domainRouter.nameSiloBalance();
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handleDomainSearch(req, res) {
+    const body = await parseBody(req);
+    const { provider, query } = body;
+    if (!provider || !query) { badRequest(res, 'provider and query required'); return; }
+    if (provider !== 'namesilo') { badRequest(res, 'unknown provider'); return; }
+    const result = await this.domainRouter.nameSiloCheck(query);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handleDomainRegister(req, res) {
+    const body = await parseBody(req);
+    const { userId, provider, domain, years, contact, contactId, nameservers } = body;
+    if (!provider || !domain) { badRequest(res, 'provider and domain required'); return; }
+
+    let contactData = contact;
+    if (!contactData && contactId) {
+      const saved = await this.domainRouter.store.getContact(contactId);
+      if (!saved) { badRequest(res, 'contact not found'); return; }
+      contactData = saved;
+    }
+
+    if (provider !== 'namesilo') { badRequest(res, 'unknown provider'); return; }
+    if (!contactData) { badRequest(res, 'contact required for NameSilo'); return; }
+    const result = await this.domainRouter.nameSiloRegister(domain, years || 1, contactData, nameservers || {});
+
+    if (result.success) {
+      await this.domainRouter.recordOrder({
+        userId: userId || null,
+        provider,
+        domain,
+        years: years || 1,
+        contact: contactData,
+        registrarResult: result.result,
+        cost: null,
+        status: result.result?.task || result.result?.operation ? 'pending' : 'registered',
+      });
+    }
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handleDomainRenew(req, res) {
+    const body = await parseBody(req);
+    const { provider, domain, years } = body;
+    if (!provider || !domain) { badRequest(res, 'provider and domain required'); return; }
+    if (provider !== 'namesilo') { badRequest(res, 'renew only supported for namesilo'); return; }
+    const result = await this.domainRouter.nameSiloRenew(domain, years || 1);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handleDomainOrders(req, res) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const userId = url.searchParams.get('userId');
+    ok(res, await this.domainRouter.getOrders(userId));
+  }
+
+  async handleDomainSaveContact(req, res) {
+    const body = await parseBody(req);
+    const { id, ...contact } = body;
+    if (!id) { badRequest(res, 'id required'); return; }
+    const result = await this.domainRouter.saveContact(id, contact);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handleDomainGetContact(req, res) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const id = url.searchParams.get('id');
+    if (!id) { badRequest(res, 'id query param required'); return; }
+    const result = await this.domainRouter.getContact(id);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handleDomainUpdateNs(req, res) {
+    const body = await parseBody(req);
+    const { provider, domain, nameservers } = body;
+    if (!provider || !domain || !Array.isArray(nameservers)) { badRequest(res, 'provider, domain, and nameservers array required'); return; }
+    if (provider !== 'namesilo') { badRequest(res, 'nameserver update not supported for this provider'); return; }
+    const result = await this.domainRouter.nameSiloUpdateNameservers(domain, nameservers);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handleDomainListRecords(req, res) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const provider = url.searchParams.get('provider');
+    const domain = url.searchParams.get('domain');
+    if (!provider || !domain) { badRequest(res, 'provider and domain query params required'); return; }
+    if (provider !== 'namesilo') { badRequest(res, 'record listing not supported for this provider'); return; }
+    const result = await this.domainRouter.nameSiloListRecords(domain);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handleDomainAddRecord(req, res) {
+    const body = await parseBody(req);
+    const { provider, domain, record } = body;
+    if (!provider || !domain || !record) { badRequest(res, 'provider, domain, and record required'); return; }
+    if (provider !== 'namesilo') { badRequest(res, 'record management not supported for this provider'); return; }
+    const result = await this.domainRouter.nameSiloAddRecord(domain, record);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handleDomainEditRecord(req, res) {
+    const body = await parseBody(req);
+    const { provider, domain, id, record } = body;
+    if (!provider || !domain || !id) { badRequest(res, 'provider, domain, and id required'); return; }
+    if (provider !== 'namesilo') { badRequest(res, 'record management not supported for this provider'); return; }
+    const result = await this.domainRouter.nameSiloEditRecord(domain, id, record || {});
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  async handleDomainDeleteRecord(req, res) {
+    const body = await parseBody(req);
+    const { provider, domain, id } = body;
+    if (!provider || !domain || !id) { badRequest(res, 'provider, domain, and id required'); return; }
+    if (provider !== 'namesilo') { badRequest(res, 'record management not supported for this provider'); return; }
+    const result = await this.domainRouter.nameSiloRemoveRecord(domain, id);
+    if (result.success) ok(res, result);
+    else badRequest(res, result.error);
+  }
+
+  // ─── OpenAI-compatible proxy ───
 
   /**
    * Validate an inference API key from the Authorization header.
@@ -1595,7 +1743,7 @@ Copy the topic hex and invite others to join.
         prompt: systemMsg ? `[System: ${systemMsg}]\n${prompt}` : prompt,
         maxTokens,
         temperature,
-        source: 'routstr-openai-proxy'
+        source: 'openai-proxy'
       });
 
       if (stream) {

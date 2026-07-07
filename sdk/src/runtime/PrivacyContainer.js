@@ -35,6 +35,7 @@ export class PrivacyContainer {
     this.configPath = opts.configPath || null;
     this.dataVolume = opts.dataVolume || this._makeVolumeName('data');
     this.nodeDataVolume = opts.nodeDataVolume || this._makeVolumeName('nodedata');
+    this.enableDocker = opts.enableDocker || false; // mount host Docker socket for Storj fallback
     this.logger = new Logger('PrivacyContainer');
     this.process = null;
     this.running = false;
@@ -111,10 +112,15 @@ export class PrivacyContainer {
       '-v', `${this.nodeDataVolume}:/app/node-data`,
       '-e', 'CHIMERA_PRIVACY_MODE=true',
       '-e', `PORT=${this.containerPort}`,
+      '-e', `CHIMERA_CONTAINER_NAME=${this.containerName}`,
     ];
 
     if (this.configPath) {
       args.push('-v', `${this.configPath}:/app/config.json:ro`);
+    }
+
+    if (this.enableDocker) {
+      args.push('-v', '/var/run/docker.sock:/var/run/docker.sock:ro');
     }
 
     args.push(this.image);

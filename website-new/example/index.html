@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chimera — Global Machine Resource Providers (Example)</title>
+  <meta name="description" content="Example map of machine resource providers across the Chimera network. Try the browser node wallet connection and start/stop controls.">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin=""/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin=""/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: 'Inter', system-ui, sans-serif; background: #0b0e18; color: #e2e8f4; overflow: hidden; }
+    #map { height: 100%; width: 100%; z-index: 1; }
+
+    .chimera-panel {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      width: 360px;
+      max-width: calc(100vw - 2rem);
+      max-height: calc(100vh - 2rem);
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      color: #111;
+    }
+    .chimera-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      flex-shrink: 0;
+    }
+    .chimera-panel-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+    }
+    .chimera-close-btn {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 8px;
+      min-width: 36px;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+    .chimera-close-btn:hover { background: rgba(255,255,255,0.2); }
+    .chimera-panel-body {
+      padding: 16px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      flex: 1;
+    }
+    .chimera-section { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+    .chimera-section:last-child { border-bottom: none; margin-bottom: 0; }
+    .chimera-panel .btn {
+      width: 100%;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .chimera-panel .btn-semantic { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
+    .chimera-panel .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .chimera-panel h4 { font-size: 12px; text-transform: uppercase; color: #888; margin-bottom: 6px; margin-top: 0; }
+    .chimera-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; font-size: 12px; }
+    .chimera-stat { background: #f8f9fa; border-radius: 4px; padding: 6px; }
+    .chimera-stat-label { color: #888; font-size: 10px; }
+    .chimera-stat-value { color: #333; font-weight: 600; }
+    .chimera-caps-list { font-size: 11px; color: #555; line-height: 1.5; }
+    .chimera-caps-list .cap-row { display: flex; justify-content: space-between; gap: 8px; }
+    .chimera-logs {
+      background: #1a1a2e;
+      color: #a0d2eb;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px;
+      line-height: 1.4;
+      border-radius: 4px;
+      padding: 8px;
+      max-height: 120px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .legend {
+      position: fixed;
+      bottom: 3.5rem;
+      left: 1rem;
+      background: rgba(11, 14, 24, 0.95);
+      border: 1px solid rgba(0, 216, 255, 0.25);
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      z-index: 1000;
+      font-size: 0.75rem;
+      backdrop-filter: blur(12px);
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.375rem; cursor: pointer; }
+    .legend-item:last-child { margin-bottom: 0; }
+    .legend-item input[type="checkbox"] { cursor: pointer; accent-color: #00e5ff; }
+    .filter-count { margin-left: auto; padding: 0.1rem 0.4rem; border-radius: 999px; background: rgba(255,255,255,0.1); font-size: 0.65rem; color: #a0aec0; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; }
+
+    .resource-totals {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(11, 14, 24, 0.95);
+      border-top: 1px solid rgba(0, 216, 255, 0.25);
+      padding: 0.6rem 1rem;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      overflow-x: auto;
+      font-size: 0.75rem;
+      backdrop-filter: blur(12px);
+    }
+    .resource-totals .metric { display: flex; align-items: baseline; gap: 0.35rem; white-space: nowrap; }
+    .resource-totals .metric-value { color: #00e5ff; font-weight: 700; font-size: 0.95rem; }
+    .resource-totals .metric-label { color: #a0aec0; }
+    .resource-totals .metric:first-child .metric-label { color: #fff; font-weight: 600; }
+    @media (max-width: 640px) {
+      .resource-totals { justify-content: flex-start; gap: 1rem; padding: 0.5rem 0.75rem; }
+      .legend { bottom: 3.5rem; }
+    }
+
+    .example-notice {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .leaflet-popup-content { color: #0b0e18; font-size: 0.875rem; }
+    .leaflet-popup-content h4 { margin: 0 0 0.25rem; font-size: 1rem; }
+    .leaflet-popup-content p { margin: 0; color: #6b7594; font-size: 0.75rem; }
+    @media (max-width: 640px) {
+      .chimera-panel { top: 0.5rem; right: 0.5rem; width: calc(100vw - 1rem); max-height: 55vh; }
+      .legend { bottom: 3.5rem; left: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="chimeraPanel" class="chimera-panel">
+    <div class="chimera-panel-header">
+      <h3><i class="fas fa-network-wired"></i> Chimera Browser Node — Example</h3>
+      <button class="chimera-close-btn" id="chimeraCloseBtn" aria-label="Close panel"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="chimera-panel-body">
+      <div class="example-notice">This is an example UI. Provider locations on the map are simulated; the wallet connection and browser node controls are real.</div>
+
+      <div class="chimera-section">
+        <div id="chimeraWalletStatus" style="font-size:13px;margin-bottom:10px;">
+          <span style="color:#666;">Connect your wallet to start earning.</span>
+        </div>
+        <button id="chimeraConnectBtn" class="btn" style="margin-bottom:8px;">
+          <i class="fas fa-wallet"></i> Connect Casper Wallet
+        </button>
+        <iframe id="connectkit-frame" src="connectkit-wallet/dist/" style="display:none;width:100%;height:120px;border:none;margin-bottom:8px;"></iframe>
+        <button id="chimeraConnectEvmBtn" class="btn" style="margin-bottom:8px;background:linear-gradient(135deg, #764ba2 0%, #667eea 100%);">
+          <i class="fab fa-ethereum"></i> Connect EVM Wallet
+        </button>
+        <iframe id="solana-frame" src="solana-wallet-adapter/dist/" style="display:none;width:100%;height:120px;border:none;margin-bottom:8px;"></iframe>
+        <button id="chimeraConnectSolanaBtn" class="btn" style="margin-bottom:8px;background:linear-gradient(135deg, #14f195 0%, #9945ff 100%);color:#fff;">
+          <i class="fas fa-s"></i> Connect Solana Wallet
+        </button>
+        <button id="chimeraDisconnectBtn" class="btn" style="display:none;background:#e53935;margin-top:8px;">
+          <i class="fas fa-sign-out-alt"></i> Disconnect Wallet
+        </button>
+      </div>
+
+      <div id="chimeraNodeControls" style="display:none;">
+        <div class="chimera-section">
+          <div id="chimeraNodeStatus" style="font-size:13px;margin-bottom:10px;"></div>
+          <button id="chimeraStartBtn" class="btn btn-semantic" style="margin-bottom:8px;">
+            <i class="fas fa-play"></i> Start Browser Node
+          </button>
+          <button id="chimeraStopBtn" class="btn" style="display:none;background:#e53935;margin-bottom:8px;">
+            <i class="fas fa-stop"></i> Stop Browser Node
+          </button>
+        </div>
+
+        <div class="chimera-section">
+          <h4><i class="fas fa-chart-bar"></i> Job Statistics</h4>
+          <div id="chimeraNodeStats" class="chimera-stats-grid">
+            <div class="chimera-stat"><div class="chimera-stat-label">Running</div><div class="chimera-stat-value" id="statRunning">No</div></div>
+            <div class="chimera-stat"><div class="chimera-stat-label">Poll Count</div><div class="chimera-stat-value" id="statPolls">0</div></div>
+            <div class="chimera-stat"><div class="chimera-stat-label">Jobs Completed</div><div class="chimera-stat-value" id="statJobs">0</div></div>
+            <div class="chimera-stat"><div class="chimera-stat-label">Earned</div><div class="chimera-stat-value" id="statEarned">—</div></div>
+          </div>
+        </div>
+
+        <div class="chimera-section">
+          <h4><i class="fas fa-microchip"></i> Browser Capabilities</h4>
+          <div id="chimeraNodeCaps" class="chimera-caps-list"></div>
+        </div>
+
+        <div class="chimera-section">
+          <h4><i class="fas fa-terminal"></i> Live Logs</h4>
+          <div id="chimeraNodeLogs" class="chimera-logs"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend" id="mapLegend">
+    <label class="legend-item" title="Toggle GPU providers"><input type="checkbox" class="resource-filter" value="gpu" checked> <span class="dot" style="background:#a855f7;"></span> GPU <span class="filter-count" data-type="gpu"></span></label>
+    <label class="legend-item" title="Toggle CPU providers"><input type="checkbox" class="resource-filter" value="cpu" checked> <span class="dot" style="background:#f59e0b;"></span> CPU <span class="filter-count" data-type="cpu"></span></label>
+    <label class="legend-item" title="Toggle storage providers"><input type="checkbox" class="resource-filter" value="storage" checked> <span class="dot" style="background:#22c55e;"></span> Storage <span class="filter-count" data-type="storage"></span></label>
+    <label class="legend-item" title="Toggle bandwidth providers"><input type="checkbox" class="resource-filter" value="bandwidth" checked> <span class="dot" style="background:#00e5ff;"></span> Bandwidth <span class="filter-count" data-type="bandwidth"></span></label>
+    <label class="legend-item" title="Toggle mixed providers"><input type="checkbox" class="resource-filter" value="mixed" checked> <span class="dot" style="background:#f472b6;"></span> Mixed <span class="filter-count" data-type="mixed"></span></label>
+    <div id="mapLegendText" class="legend-item" style="margin-left:auto;font-weight:600;">Loading providers…</div>
+  </div>
+
+  <div class="resource-totals" id="resourceTotals">
+    <div class="metric">
+      <span class="metric-label">Network Resources</span>
+    </div>
+    <div class="metric">
+      <span class="metric-value" id="totalProviders">—</span>
+      <span class="metric-label">Providers</span>
+    </div>
+    <div class="metric">
+      <span class="metric-value" id="totalCpu">—</span>
+      <span class="metric-label">CPU cores</span>
+    </div>
+    <div class="metric">
+      <span class="metric-value" id="totalGpu">—</span>
+      <span class="metric-label">GPUs</span>
+    </div>
+    <div class="metric">
+      <span class="metric-value" id="totalMemory">—</span>
+      <span class="metric-label">GB RAM</span>
+    </div>
+    <div class="metric">
+      <span class="metric-value" id="totalStorage">—</span>
+      <span class="metric-label">TB storage</span>
+    </div>
+    <div class="metric">
+      <span class="metric-value" id="totalBandwidth">—</span>
+      <span class="metric-label">Gbps bandwidth</span>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const COLORS = { gpu: '#a855f7', cpu: '#f59e0b', storage: '#22c55e', bandwidth: '#00e5ff', mixed: '#f472b6' };
+      const LABELS = { gpu: 'GPU', cpu: 'CPU', storage: 'Storage', bandwidth: 'Bandwidth', mixed: 'Mixed' };
+
+      const map = L.map('map', { center: [20, 0], zoom: 2, minZoom: 2, scrollWheelZoom: false, worldCopyJump: true });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      const markers = L.markerClusterGroup({
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        spiderfyOnMaxZoom: true,
+        disableClusteringAtZoom: 8,
+        maxClusterRadius: 60,
+        iconCreateFunction: function(cluster) {
+          const count = cluster.getChildCount();
+          const size = Math.max(28, Math.min(56, 20 + Math.log2(count) * 6));
+          return L.divIcon({
+            className: 'custom-cluster',
+            html: `<div style="background:rgba(11,14,24,0.9);border:2px solid #00e5ff;color:#00e5ff;width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-shadow:0 0 0 3px rgba(0,229,255,0.25),0 2px 8px rgba(0,0,0,0.4);">${count}</div>`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
+          });
+        },
+      });
+      map.addLayer(markers);
+
+      function classifyLocation(networks, resources) {
+        const types = new Set();
+        for (const n of networks) {
+          const rt = (n.resource_type || '').toLowerCase();
+          if (rt.includes('gpu')) types.add('gpu');
+          if (rt.includes('compute')) types.add('cpu');
+          if (rt.includes('storage')) types.add('storage');
+          if (rt.includes('bandwidth')) types.add('bandwidth');
+        }
+        if (resources) {
+          if ((resources.total_gpu_count || 0) > 0) types.add('gpu');
+          if ((resources.total_cpu_cores || 0) > 0) types.add('cpu');
+          if ((resources.total_storage_tb || 0) > 0) types.add('storage');
+          if ((resources.total_bandwidth_mbps || 0) > 0) types.add('bandwidth');
+        }
+        return types;
+      }
+
+      function primaryType(types) {
+        for (const key of ['gpu', 'cpu', 'storage', 'bandwidth']) {
+          if (types.has(key)) return key;
+        }
+        return 'mixed';
+      }
+
+      function formatResources(resources) {
+        const parts = [];
+        if (!resources) return parts;
+        if (resources.total_gpu_count) parts.push(`${resources.total_gpu_count.toFixed(0)} GPUs`);
+        if (resources.total_cpu_cores) parts.push(`${resources.total_cpu_cores.toFixed(0)} CPU cores`);
+        if (resources.total_memory_gb) parts.push(`${resources.total_memory_gb.toFixed(0)} GB RAM`);
+        if (resources.total_storage_tb) parts.push(`${resources.total_storage_tb.toFixed(0)} TB storage`);
+        if (resources.total_bandwidth_mbps) parts.push(`${(resources.total_bandwidth_mbps / 1000).toFixed(1)} Gbps bandwidth`);
+        return parts;
+      }
+
+      function getLocationResources(p) {
+        const resources = p.resources || {};
+        const hasTopLevel = Object.values(resources).some((v) => typeof v === 'number' && v > 0);
+        if (hasTopLevel) return resources;
+        const aggregated = {
+          total_gpu_count: 0,
+          total_cpu_cores: 0,
+          total_memory_gb: 0,
+          total_storage_tb: 0,
+          total_bandwidth_mbps: 0,
+        };
+        for (const n of p.networks || []) {
+          const r = n.resources || {};
+          aggregated.total_gpu_count += r.total_gpu_count || 0;
+          aggregated.total_cpu_cores += r.total_cpu_cores || 0;
+          aggregated.total_memory_gb += r.total_memory_gb || 0;
+          aggregated.total_storage_tb += r.total_storage_tb || 0;
+          aggregated.total_bandwidth_mbps += r.total_bandwidth_mbps || 0;
+        }
+        return aggregated;
+      }
+
+      const allMarkers = [];
+
+      function updateFilterCounts() {
+        const counts = { gpu: 0, cpu: 0, storage: 0, bandwidth: 0, mixed: 0 };
+        for (const { types, providerCount } of allMarkers) {
+          if (types.size > 1) counts.mixed += providerCount;
+          for (const key of types) {
+            if (counts[key] !== undefined) counts[key] += providerCount;
+          }
+        }
+        for (const [key, count] of Object.entries(counts)) {
+          const el = document.querySelector(`.filter-count[data-type="${key}"]`);
+          if (el) el.textContent = `(${count.toLocaleString()})`;
+        }
+      }
+
+      function applyFilters() {
+        const checked = new Set(
+          Array.from(document.querySelectorAll('.resource-filter:checked')).map((cb) => cb.value)
+        );
+        const visible = allMarkers.filter((m) => {
+          if (checked.has('mixed') && m.types.size > 1) return true;
+          for (const key of m.types) {
+            if (checked.has(key)) return true;
+          }
+          return false;
+        });
+        markers.clearLayers();
+        for (const { layer } of visible) {
+          markers.addLayer(layer);
+        }
+        const legendText = document.getElementById('mapLegendText');
+        if (legendText) {
+          legendText.textContent = `${visible.length.toLocaleString()} visible locations · ${visible.reduce((sum, m) => sum + m.providerCount, 0).toLocaleString()} providers`;
+        }
+      }
+
+      function renderResourceTotals(data) {
+        const locations = data.locations || [];
+        const totals = {
+          providers: data.total_providers || 0,
+          cpu: 0,
+          gpu: 0,
+          memory: 0,
+          storage: 0,
+          bandwidth: 0,
+        };
+        for (const loc of locations) {
+          const r = getLocationResources(loc);
+          totals.cpu += r.total_cpu_cores || 0;
+          totals.gpu += r.total_gpu_count || 0;
+          totals.memory += r.total_memory_gb || 0;
+          totals.storage += r.total_storage_tb || 0;
+          totals.bandwidth += r.total_bandwidth_mbps || 0;
+        }
+        document.getElementById('totalProviders').textContent = totals.providers.toLocaleString();
+        document.getElementById('totalCpu').textContent = Math.round(totals.cpu).toLocaleString();
+        document.getElementById('totalGpu').textContent = Math.round(totals.gpu).toLocaleString();
+        document.getElementById('totalMemory').textContent = Math.round(totals.memory).toLocaleString();
+        document.getElementById('totalStorage').textContent = totals.storage.toLocaleString(undefined, { maximumFractionDigits: 1 });
+        document.getElementById('totalBandwidth').textContent = (totals.bandwidth / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 });
+      }
+
+      document.querySelectorAll('.resource-filter').forEach((cb) => {
+        cb.addEventListener('change', applyFilters);
+      });
+
+      async function loadProviderLocations() {
+        try {
+          const res = await fetch('./data/locations.json');
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const locations = (data.locations || []).filter((l) => l.lat && l.lng);
+
+          renderResourceTotals(data);
+
+          allMarkers.length = 0;
+          for (const p of locations) {
+            const networks = p.networks || [];
+            const resources = getLocationResources(p);
+            const types = classifyLocation(networks, resources);
+            const resourceKey = primaryType(types);
+            const color = COLORS[resourceKey] || COLORS.mixed;
+            const label = types.size > 1 ? 'Mixed' : LABELS[resourceKey] || LABELS.mixed;
+            const size = Math.max(10, Math.min(28, 10 + Math.log2(p.provider_count || 1) * 3));
+            const icon = L.divIcon({
+              className: 'custom-marker',
+              html: `<div style="background:${color};width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;">${p.provider_count}</div>`,
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size / 2]
+            });
+
+            const resParts = formatResources(resources);
+            const resourceList = resParts.length
+              ? resParts.map((part) => `<li>${part}</li>`).join('')
+              : '';
+            const resourceSection = resourceList
+              ? `<ul style="margin:6px 0;padding-left:18px;font-size:12px;">${resourceList}</ul>`
+              : '';
+
+            const popup = `
+              <h4>${p.location}${p.country ? `, ${p.country}` : ''}</h4>
+              <p><b>${p.provider_count.toLocaleString()}</b> providers · ${label}</p>
+              ${resourceSection}
+            `;
+
+            const layer = L.marker([p.lat, p.lng], { icon }).bindPopup(popup);
+            allMarkers.push({ types, resourceKey, providerCount: p.provider_count || 0, layer });
+          }
+
+          updateFilterCounts();
+          applyFilters();
+        } catch (err) {
+          console.error('[map] failed to load provider locations:', err);
+        }
+      }
+
+      loadProviderLocations();
+    })();
+  </script>
+
+  <script type="module">
+    import { BrowserNode, connectWeb3AuthMpc } from './browser-sdk-dist/index.js';
+
+    let web3authClientId = '';
+    let web3authVerifier = '';
+
+    async function loadWeb3AuthConfig() {
+      try {
+        const res = await fetch('/api/web3auth-config');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.clientId) {
+            web3authClientId = data.clientId;
+            web3authVerifier = data.verifier;
+            window.CHIMERA_WEB3AUTH_CLIENT_ID = data.clientId;
+          }
+        }
+      } catch (e) {
+        console.warn('[example] could not load Web3Auth config', e);
+      }
+    }
+    loadWeb3AuthConfig();
+
+    const closeBtn = document.getElementById('chimeraCloseBtn');
+    const panel = document.getElementById('chimeraPanel');
+    if (closeBtn && panel) {
+      closeBtn.addEventListener('click', () => { panel.style.display = 'none'; });
+    }
+
+    // Wallet helpers
+    const WALLET_TIMEOUT = 30 * 60 * 1000;
+    function getProvider() {
+      const Ctor = window.CasperWalletProvider;
+      return Ctor ? Ctor({ timeout: WALLET_TIMEOUT }) : null;
+    }
+    function isWalletInstalled() { return !!window.CasperWalletProvider; }
+
+    async function publicKeyToAccountHash(publicKeyHex) {
+      const prefix = publicKeyHex.startsWith('01') ? 'ed25519' : 'secp256k1';
+      const keyBytes = new Uint8Array(publicKeyHex.slice(2).match(/.{2}/g).map(b => parseInt(b, 16)));
+      const prefixBytes = new TextEncoder().encode(prefix);
+      const combined = new Uint8Array(prefixBytes.length + keyBytes.length);
+      combined.set(prefixBytes, 0);
+      combined.set(keyBytes, prefixBytes.length);
+      const hash = await crypto.subtle.digest('SHA-256', combined);
+      return 'account-hash-' + Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function connectWallet() {
+      const provider = getProvider();
+      if (!provider) return { connected: false, error: 'Casper Wallet extension not found' };
+      try {
+        const ok = await provider.requestConnection();
+        if (!ok) return { connected: false, error: 'Connection request was declined' };
+        const publicKey = await provider.getActivePublicKey();
+        const accountHash = await publicKeyToAccountHash(publicKey);
+        return { connected: true, provider, publicKey, accountHash };
+      } catch (e) {
+        return { connected: false, error: e.message || String(e) };
+      }
+    }
+
+    async function connectWeb3AuthWithJwt(jwt, sub) {
+      const clientId = (typeof window !== 'undefined' && window.CHIMERA_WEB3AUTH_CLIENT_ID) || web3authClientId;
+      if (!clientId) {
+        return { connected: false, error: 'Web3Auth client ID is not configured. The configuration endpoint may be unavailable.' };
+      }
+      if (!web3authVerifier) {
+        return { connected: false, error: 'Web3Auth custom verifier is not configured.' };
+      }
+      try {
+        const wallet = await connectWeb3AuthMpc({
+          clientId,
+          verifier: web3authVerifier,
+          verifierId: sub,
+          idToken: jwt,
+        });
+        return { connected: true, ...wallet, mode: 'web3auth' };
+      } catch (e) {
+        return { connected: false, error: e.message || String(e) };
+      }
+    }
+
+    async function disconnectWallet() {
+      try {
+        const provider = getProvider();
+        if (provider && typeof provider.disconnectFromSite === 'function') {
+          await provider.disconnectFromSite();
+        } else if (provider && typeof provider.disconnect === 'function') {
+          await provider.disconnect();
+        }
+      } catch (e) { console.warn('[wallet] disconnect error:', e); }
+    }
+
+    // UI wiring
+    const connectBtn = document.getElementById('chimeraConnectBtn');
+    const connectkitFrame = document.getElementById('connectkit-frame');
+    const connectEvmBtn = document.getElementById('chimeraConnectEvmBtn');
+    const solanaFrame = document.getElementById('solana-frame');
+    const connectSolanaBtn = document.getElementById('chimeraConnectSolanaBtn');
+    const disconnectBtn = document.getElementById('chimeraDisconnectBtn');
+    const startBtn = document.getElementById('chimeraStartBtn');
+    const stopBtn = document.getElementById('chimeraStopBtn');
+    const walletStatus = document.getElementById('chimeraWalletStatus');
+    const nodeStatus = document.getElementById('chimeraNodeStatus');
+    const nodeControls = document.getElementById('chimeraNodeControls');
+    const capsEl = document.getElementById('chimeraNodeCaps');
+    const logsEl = document.getElementById('chimeraNodeLogs');
+
+    let walletState = null;
+    let browserNode = null;
+
+    function renderWalletStatus() {
+      if (!walletState) {
+        walletStatus.innerHTML = '<span style="color:#666;">Connect your wallet to start earning.</span>';
+        connectBtn.style.display = 'inline-flex';
+        connectEvmBtn.style.display = 'inline-flex';
+        connectSolanaBtn.style.display = 'inline-flex';
+        connectkitFrame.style.display = 'none';
+        solanaFrame.style.display = 'none';
+        disconnectBtn.style.display = 'none';
+        nodeControls.style.display = 'none';
+        return;
+      }
+      const label = walletState.mode === 'web3auth'
+        ? `Web3Auth: <b>${walletState.address.slice(0, 6)}...${walletState.address.slice(-4)}</b>`
+        : `Casper: <b>${walletState.publicKey.slice(0, 16)}...</b>`;
+      walletStatus.innerHTML = `<span style="color:#2e7d32;">Connected: ${label}</span>`;
+      connectBtn.style.display = 'none';
+      connectEvmBtn.style.display = 'none';
+      connectSolanaBtn.style.display = 'none';
+      connectkitFrame.style.display = 'none';
+      solanaFrame.style.display = 'none';
+      disconnectBtn.style.display = 'inline-flex';
+      nodeControls.style.display = 'block';
+    }
+
+    function renderNodeStatus(status) {
+      if (!status) return;
+      const running = status.running;
+      nodeStatus.innerHTML = running
+        ? '<span style="color:#2e7d32;"><i class="fas fa-circle fa-xs"></i> Browser node running</span>'
+        : '<span style="color:#666;"><i class="fas fa-circle fa-xs"></i> Browser node stopped</span>';
+      document.getElementById('statRunning').textContent = running ? 'Yes' : 'No';
+      document.getElementById('statPolls').textContent = status.pollCount || 0;
+      document.getElementById('statJobs').textContent = status.jobsProcessed || 0;
+      const mote = status.earningsMotes ? BigInt(status.earningsMotes) : 0n;
+      const cspr = Number(mote) / 1e9;
+      document.getElementById('statEarned').textContent = cspr > 0 ? `${cspr.toFixed(4)} CSPR` : '—';
+
+      const caps = status.capabilities || {};
+      capsEl.innerHTML = `
+        <div class="cap-row"><span>CPU Cores</span><span>${caps.cpuCores || '?'}</span></div>
+        <div class="cap-row"><span>RAM</span><span>${caps.ramGb || '?'} GB</span></div>
+        <div class="cap-row"><span>GPU</span><span>${caps.gpuName || 'None'}</span></div>
+        <div class="cap-row"><span>WebGPU</span><span>${caps.hasWebGPU ? 'Yes' : 'No'}</span></div>
+        <div class="cap-row"><span>WebRTC</span><span>${caps.hasWebRTC ? 'Yes' : 'No'}</span></div>
+        <div class="cap-row"><span>Storage</span><span>${caps.storageQuotaMb || 0} MB</span></div>
+      `;
+
+      const recent = (status.logs || []).slice(-15).reverse().map(entry => {
+        const time = new Date(entry.timestamp).toLocaleTimeString();
+        const color = entry.level === 'error' ? '#c62828' : entry.level === 'warn' ? '#f57c00' : entry.level === 'success' ? '#2e7d32' : '#a0d2eb';
+        return `<div style="color:${color};"><span style="color:#999;font-size:10px;">${time}</span> ${entry.message}</div>`;
+      }).join('');
+      logsEl.innerHTML = recent;
+    }
+
+    connectBtn.addEventListener('click', async () => {
+      connectBtn.disabled = true;
+      const result = await connectWallet();
+      connectBtn.disabled = false;
+      if (!result.connected) {
+        walletStatus.innerHTML = `<span style="color:#c62828;">Connection failed: ${result.error}</span>`;
+        return;
+      }
+      walletState = result;
+      renderWalletStatus();
+    });
+
+    connectEvmBtn.addEventListener('click', () => {
+      connectEvmBtn.style.display = 'none';
+      connectkitFrame.style.display = 'block';
+    });
+
+    connectSolanaBtn.addEventListener('click', () => {
+      connectSolanaBtn.style.display = 'none';
+      solanaFrame.style.display = 'block';
+    });
+
+    disconnectBtn.addEventListener('click', async () => {
+      if (browserNode) { browserNode.stop(); browserNode = null; }
+      if (walletState?.mode === 'casper') {
+        await disconnectWallet();
+      }
+      walletState = null;
+      renderWalletStatus();
+      nodeStatus.innerHTML = '';
+    });
+
+    startBtn.addEventListener('click', async () => {
+      if (!walletState) return;
+      startBtn.disabled = true;
+      try {
+        if (!browserNode) {
+          if (walletState.mode === 'web3auth') {
+            browserNode = new BrowserNode({ evmProvider: walletState.provider, evmAddress: walletState.address });
+          } else {
+            browserNode = new BrowserNode(walletState.provider, walletState.publicKey, walletState.accountHash);
+          }
+          browserNode.onStatusUpdate(renderNodeStatus);
+        }
+        await browserNode.start();
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-flex';
+      } catch (e) {
+        nodeStatus.innerHTML = `<span style="color:#c62828;">Failed to start: ${e.message}</span>`;
+      }
+      startBtn.disabled = false;
+    });
+
+    stopBtn.addEventListener('click', () => {
+      if (browserNode) browserNode.stop();
+      startBtn.style.display = 'inline-flex';
+      stopBtn.style.display = 'none';
+    });
+
+    window.addEventListener('message', async (event) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (data?.type === 'chimera-evm-jwt' && data.jwt && data.sub) {
+        connectkitFrame.style.display = 'none';
+        walletStatus.innerHTML = '<span style="color:#666;">Creating MPC wallet...</span>';
+        const result = await connectWeb3AuthWithJwt(data.jwt, data.sub);
+        if (!result.connected) {
+          walletStatus.innerHTML = `<span style="color:#c62828;">EVM wallet failed: ${result.error}</span>`;
+          connectEvmBtn.style.display = 'inline-flex';
+          return;
+        }
+        walletState = result;
+        renderWalletStatus();
+      }
+      if (data?.type === 'chimera-solana-jwt' && data.jwt && data.sub) {
+        solanaFrame.style.display = 'none';
+        walletStatus.innerHTML = '<span style="color:#666;">Creating MPC wallet...</span>';
+        const result = await connectWeb3AuthWithJwt(data.jwt, data.sub);
+        if (!result.connected) {
+          walletStatus.innerHTML = `<span style="color:#c62828;">Solana wallet failed: ${result.error}</span>`;
+          connectSolanaBtn.style.display = 'inline-flex';
+          return;
+        }
+        walletState = result;
+        renderWalletStatus();
+      }
+    });
+
+    renderWalletStatus();
+  </script>
+</body>
+</html>

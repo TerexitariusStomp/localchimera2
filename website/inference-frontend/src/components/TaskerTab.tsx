@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import { useWeb3Auth } from '../web3auth';
 import EntryPointCard from './EntryPointCard';
 import { Button, Input, TextArea, StarRating } from './ui';
 import { Send, Brain, HardDrive, Cpu, Wifi, Star, Gavel, AlertTriangle, Trash2, CheckCircle, Download } from 'lucide-react';
@@ -54,13 +54,13 @@ const RESOURCE_BY_CATEGORY: Record<Category, Resource[]> = {
   disputes: ['inference', 'storage', 'compute', 'bandwidth'],
 };
 
-export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }: {
-  provider: any; publicKeyHex: string; accountHash: string; onTx: (tx: TxRecord) => void;
+export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx, initialCategory, fixedCategory }: {
+  provider: any; publicKeyHex: string; accountHash: string; onTx: (tx: TxRecord) => void; initialCategory?: Category; fixedCategory?: Category;
 }) {
-  const { user, authenticated, login } = usePrivy();
-  const evmWallet = user?.wallet;
+  const { isAuthenticated, connect, provider: evmWallet } = useWeb3Auth();
   const canSign = !!provider && !!publicKeyHex;
-  const [category, setCategory] = useState<Category | null>(null);
+  const isFixed = !!fixedCategory;
+  const [category, setCategory] = useState<Category | null>(fixedCategory || initialCategory || null);
   const [resource, setResource] = useState<Resource | null>(null);
 
   // Data loaded from contracts
@@ -176,6 +176,7 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
   return (
     <div className="space-y-6">
       {/* STEP 1: CATEGORY SELECTOR */}
+      {!isFixed && (
       <div>
         <div className="text-xs text-[#7a7468] mb-3">Select a category to get started.</div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -187,6 +188,7 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
           ))}
         </div>
       </div>
+      )}
 
       {/* STEP 2: RESOURCE SELECTOR */}
       {category && (
@@ -1092,15 +1094,15 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
             <strong>Step 2 — Specify Transaction:</strong> Fill in the transaction details below (Job/Session/File/Agreement ID and evidence hash).
           </div>
         )}
-        {/* Step 3: Privy connection (shown when Casper connected) */}
+        {/* Step 3: Web3Auth connection (shown when Casper connected) */}
         {canSign && (
           <div className={`text-sm p-3 rounded-lg border ${evmWallet ? 'text-green-400 bg-green-500/5 border-green-500/10' : 'text-amber-400 bg-amber-500/5 border-amber-500/10'}`}>
-            <strong>Step 3 — Connect Privy (EVM):</strong>{' '}
+            <strong>Step 3 — Connect Web3Auth (EVM):</strong>{' '}
             {evmWallet
               ? <>Connected</>
-              : authenticated
+              : isAuthenticated
                 ? <>Waiting for wallet creation…</>
-                : <button onClick={() => login()} className="underline text-[#00e5ff]">Connect with Privy</button>}
+                : <button onClick={() => connect()} className="underline text-[#00e5ff]">Connect with Web3Auth</button>}
             {' '}— required to pay the Kleros arbitration fee via Ethereum.
           </div>
         )}
@@ -1118,11 +1120,11 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
             const disputableJobs = jobs.filter(j => j.status === 'completed' || j.status === 'confirmed');
             const handleDispute = async (e: React.FormEvent) => {
               e.preventDefault();
-              if (!evmWallet) { setKlerosError('Connect your Privy EVM wallet first (Step 3).'); return; }
+              if (!evmWallet) { setKlerosError('Connect your Web3Auth EVM wallet first (Step 3).'); return; }
               if (!jobId.trim()) { setKlerosError('Specify a Job ID (Step 2).'); return; }
               setCreating(true); setKlerosError('');
               try {
-                const evmProvider = await evmWallet.getEthereumProvider();
+                const evmProvider = evmWallet;
                 const result = await createKlerosDispute(SUBCOURT_IDS.TECHNICAL, 3, false, evmProvider);
                 setKlerosId(String(result.disputeId));
                 submit('dispute_job', {
@@ -1168,11 +1170,11 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
             const [klerosError, setKlerosError] = useState('');
             const handleDispute = async (e: React.FormEvent) => {
               e.preventDefault();
-              if (!evmWallet) { setKlerosError('Connect your Privy EVM wallet first (Step 3).'); return; }
+              if (!evmWallet) { setKlerosError('Connect your Web3Auth EVM wallet first (Step 3).'); return; }
               if (!sessionId.trim()) { setKlerosError('Specify a Session ID (Step 2).'); return; }
               setCreating(true); setKlerosError('');
               try {
-                const evmProvider = await evmWallet.getEthereumProvider();
+                const evmProvider = evmWallet;
                 await createKlerosDispute(SUBCOURT_IDS.TECHNICAL, 3, false, evmProvider);
                 submit('dispute_session', {
                   session_id: sdk.CLValue.newCLString(sessionId),
@@ -1206,11 +1208,11 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
             const [klerosError, setKlerosError] = useState('');
             const handleDispute = async (e: React.FormEvent) => {
               e.preventDefault();
-              if (!evmWallet) { setKlerosError('Connect your Privy EVM wallet first (Step 3).'); return; }
+              if (!evmWallet) { setKlerosError('Connect your Web3Auth EVM wallet first (Step 3).'); return; }
               if (!fileId.trim()) { setKlerosError('Specify a File ID (Step 2).'); return; }
               setCreating(true); setKlerosError('');
               try {
-                const evmProvider = await evmWallet.getEthereumProvider();
+                const evmProvider = evmWallet;
                 await createKlerosDispute(SUBCOURT_IDS.TECHNICAL, 3, false, evmProvider);
                 submit('dispute_file', {
                   file_id: sdk.CLValue.newCLString(fileId),
@@ -1244,11 +1246,11 @@ export default function TaskerTab({ provider, publicKeyHex, accountHash, onTx }:
             const [klerosError, setKlerosError] = useState('');
             const handleDispute = async (e: React.FormEvent) => {
               e.preventDefault();
-              if (!evmWallet) { setKlerosError('Connect your Privy EVM wallet first (Step 3).'); return; }
+              if (!evmWallet) { setKlerosError('Connect your Web3Auth EVM wallet first (Step 3).'); return; }
               if (!agreementId.trim()) { setKlerosError('Specify an Agreement ID (Step 2).'); return; }
               setCreating(true); setKlerosError('');
               try {
-                const evmProvider = await evmWallet.getEthereumProvider();
+                const evmProvider = evmWallet;
                 await createKlerosDispute(SUBCOURT_IDS.TECHNICAL, 3, false, evmProvider);
                 submit('dispute_agreement', {
                   agreement_id: sdk.CLValue.newCLString(agreementId),

@@ -2,6 +2,13 @@
 pragma solidity ^0.8.24;
 
 interface IEscrowVault {
+    function initialize(
+        address _computeRegistry,
+        address _reputation,
+        address _owner,
+        address _protocolFeeRecipient
+    ) external;
+
     struct Job {
         bytes32 jobId;
         address consumer;
@@ -48,6 +55,8 @@ interface IEscrowVault {
     event JobDisputed(bytes32 indexed jobId, address indexed disputer, bytes32 evidenceHash);
     event JobDisputeResolved(bytes32 indexed jobId, bool consumerWins);
     event ProtocolFeeCollected(uint256 amount);
+    event Deposit(address indexed account, uint256 amount);
+    event Withdrawal(address indexed account, uint256 amount);
 
     // Errors
     error JobNotFound();
@@ -100,6 +109,12 @@ interface IEscrowVault {
     function raiseDispute(address jobAddress, bytes32 evidenceHash) external;
 
     function resolveDispute(address jobAddress, bool consumerWins) external;
+
+    // Deposit functions
+    function deposit() external payable;
+    function withdraw(uint256 amount) external;
+    function getBalance(address account) external view returns (uint256);
+    function deposits(address account) external view returns (uint256);
 
     // View functions
     function getJob(address jobAddress) external view returns (Job memory);

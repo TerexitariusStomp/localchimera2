@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import { useWeb3Auth } from '../web3auth';
 import EntryPointCard from './EntryPointCard';
 import { Button, Input, StarRating } from './ui';
 import { Send, Brain, HardDrive, Cpu, Wifi, Star, Gavel, Shield, AlertTriangle, Settings, CheckCircle, Loader2 } from 'lucide-react';
@@ -77,24 +77,6 @@ async function detectMachineResources(): Promise<{
   } catch {}
 
   return { cpuCores, ramGb, hasGpu, vramMb, gpuName, bandwidthMbps, platform };
-}
-
-function getUserLocation(): Promise<{ lat: number; lng: number }> {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      resolve({ lat: 37.7749, lng: -122.4194 });
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => resolve({ lat: 37.7749, lng: -122.4194 }),
-      { timeout: 5000 }
-    );
-  });
-}
-
-function project(lng: number, lat: number) {
-  return { x: ((lng + 180) / 360) * 1000, y: ((90 - lat) / 180) * 500 };
 }
 
 function StatCard({ title, value, subtitle }: { title: string; value: string; subtitle?: string }) {
@@ -227,8 +209,7 @@ const RESOURCE_BY_CATEGORY: Record<Category, Resource[]> = {
 export default function ProviderTab({ provider, publicKeyHex, accountHash, onTx }: {
   provider: any; publicKeyHex: string; accountHash: string; onTx: (tx: TxRecord) => void;
 }) {
-  const { user, authenticated, login } = usePrivy();
-  const evmWallet = user?.wallet;
+  const { isAuthenticated, connect, provider: evmWallet } = useWeb3Auth();
   const canSign = !!provider && !!publicKeyHex;
   const isAdmin = publicKeyHex === ADMIN_PUBLIC_KEY;
   const [category, setCategory] = useState<Category | null>(null);
@@ -239,7 +220,6 @@ export default function ProviderTab({ provider, publicKeyHex, accountHash, onTx 
   const [agreements, setAgreements] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [machine, setMachine] = useState<{ cpuCores: number; ramGb: number; hasGpu: boolean; vramMb: number; gpuName: string; bandwidthMbps: number; platform: string } | null>(null);
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -308,11 +288,8 @@ export default function ProviderTab({ provider, publicKeyHex, accountHash, onTx 
   useEffect(() => {
     let mounted = true;
     detectMachineResources().then((m) => { if (mounted) setMachine(m); });
-    getUserLocation().then((loc) => { if (mounted) setLocation(loc); });
     return () => { mounted = false; };
   }, []);
-
-  const mapDot = location ? project(location.lng, location.lat) : null;
 
   return (
     <div className="space-y-6">
@@ -324,26 +301,8 @@ export default function ProviderTab({ provider, publicKeyHex, accountHash, onTx 
         <StatCard title="Network Activity" value={machine?.bandwidthMbps ? `${machine.bandwidthMbps} Mbps` : '—'} />
       </div>
 
-      {/* PROVIDER MAP + LIST */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-          <h3 className="text-sm font-semibold text-[#e8e2d8] mb-3">Provider Location</h3>
-          <svg viewBox="0 0 1000 500" className="w-full h-auto rounded-lg border border-white/10 bg-[#030308]">
-            <g fill="#16161e">
-              <path d="M 60 80 Q 160 40 280 70 Q 320 100 300 160 Q 250 200 180 190 Q 100 170 60 130 Z" />
-              <path d="M 200 220 Q 280 210 330 250 Q 320 360 260 400 Q 220 380 210 300 Z" />
-              <path d="M 420 90 Q 520 70 620 90 Q 700 110 720 160 Q 680 200 600 190 Q 520 180 460 160 Q 400 140 420 90 Z" />
-              <path d="M 720 110 Q 880 90 950 130 Q 960 200 900 240 Q 820 260 760 230 Q 710 190 720 110 Z" />
-              <path d="M 430 210 Q 540 200 560 260 Q 550 360 480 390 Q 420 360 430 280 Z" />
-              <path d="M 780 310 Q 900 300 930 340 Q 920 410 850 420 Q 780 400 780 340 Z" />
-            </g>
-            {mapDot && (
-              <circle cx={mapDot.x} cy={mapDot.y} r="6" fill="#00e5ff" className="animate-pulse">
-                <title>Your machine</title>
-              </circle>
-            )}
-          </svg>
-        </div>
+      {/* PROVIDER LIST */}
+      <div className="grid grid-cols-1 gap-4">
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 overflow-hidden">
           <h3 className="text-sm font-semibold text-[#e8e2d8] mb-3">Providers</h3>
           <div className="overflow-x-auto">
@@ -811,9 +770,9 @@ export default function ProviderTab({ provider, publicKeyHex, accountHash, onTx 
         {!evmWallet && (
           <div className="col-span-full text-sm text-amber-400 bg-amber-500/5 border border-amber-500/10 p-3 rounded-lg">
             <strong>EVM wallet recommended for Kleros disputes.</strong> {' '}
-            {authenticated
+            {isAuthenticated
               ? <>Waiting for wallet creation…</>
-              : <button onClick={() => login()} className="underline text-[#00e5ff]">Connect with Privy</button>}
+              : <button onClick={() => connect()} className="underline text-[#00e5ff]">Connect with Web3Auth</button>}
             {' '}to pay arbitration fees via Ethereum.
           </div>
         )}

@@ -19,6 +19,23 @@ docker-compose up -d
 
 The node will be available at `http://localhost:3000`
 
+## Push dispatch (volunteer coordinator)
+
+The QVAC miner can connect to the Localchimera volunteer coordinator instead of (or in addition to) polling the blockchain for jobs. The coordinator pushes matching jobs to the node via WebSocket; the node executes them and returns the result, and the protocol orchestrator submits the on-chain result.
+
+Set the environment variables before starting:
+
+```bash
+export COORDINATOR_URL=wss://coordinator.localchimera.com
+export COORDINATOR_TOKEN=your-coordinator-token
+```
+
+The Casper and Botchain escrow bridges in `src/miners/` will automatically connect to the coordinator when started. If no coordinator is configured, the bridges continue to poll the blockchain.
+
+## On-chain Botchain coordinator + bridge dispatcher
+
+When `BOTCHAIN_COORDINATOR_ADDRESS` is set, the Botchain bridge listens for `JobRouted` events and processes jobs assigned to its wallet. If a job is not completed in time, the on-chain coordinator can trigger a fallback. When `BOTCHAIN_BRIDGE_DISPATCHER_ADDRESS` is also configured, the coordinator bridges funds to the tasking network via Li.Fi on-chain and emits a `FallbackBridged` event. The QVAC bridge can then optionally execute the tasking network job and submit the result on-chain.
+
 ## One-Line Integration
 
 The embed script auto-detects idle compute and connects to mining networks. No AI model specification required for regular apps — only mining nodes need explicit model config.
@@ -35,17 +52,15 @@ The embed script auto-detects idle compute and connects to mining networks. No A
 
 ## Protocol Multisig Fund Management
 
-The protocol maintains **shared multisigs** for Nostr and Bittensor. All applications use the same protocol addresses — no per-app generation required.
+The protocol maintains a **shared multisig** for Bittensor. All applications use the same protocol address — no per-app generation required.
 
-- **Nostr (Routstr)** — Cashu NIP-60 P2SH protocol multisig (2-of-3)
-- **Bittensor (Chutes)** — Substrate protocol multisig (2-of-3)
+- **Bittensor** — Substrate protocol multisig (2-of-3)
 - **EVM** — Direct deposit to machine owner address
-- **Solana (Earnidle)** — Direct deposit (separate wallet)
 
 ### Two-Sweep Architecture
 
 **Step 1 — Weekly Collection** (`scripts/weekly-fund-sweep.js`)
-- Collects funds from all network protocol multisigs (Nostr, Bittensor, Solana, Arbitrum) into the EVM collection multisig
+- Collects funds from all network protocol multisigs (Bittensor, Arbitrum) into the EVM collection multisig
 - Runs every Sunday with 48-hour denial window
 
 **Step 2 — Monthly Distribution** (`scripts/monthly-fund-sweep.js`)
@@ -104,7 +119,7 @@ No terminal commands to memorize. No zip extraction. Fully containerized. Start 
 
 ### Phone / Mobile (PWA)
 
-Open `https://miner.templeearth.cc` on your phone. Tap **"Add to Home Screen"** — it installs as a PWA and works offline. No APK, no app store, no download.
+Open `https://new.localchimera.com/mobile` on your phone. Tap **"Add to Home Screen"** — it installs as a PWA and works offline. No APK, no app store, no download.
 
 For embedding in another app:
 ```html
@@ -122,7 +137,7 @@ This node integrates:
 - **QVAC** - Base inference layer for AI applications
 - **Pear** - Peer-to-peer app distribution
 - **Hypercore** - Distributed data store
-- **Multi-Miner Support** - Chutes, Routstr, Earnidle, BTT AI, Golem, Anyone Protocol, Mysterium, Casper
+- **Multi-Miner Support** - BTT AI, Golem, Anyone Protocol, Mysterium, Casper, Botchain
 - **Centralized Inference** - All miners route through single QVAC inference node
 
 ## Features
@@ -131,7 +146,7 @@ This node integrates:
 - **P2P Distribution**: Apps distributed via Pear runtime without cloud infrastructure
 - **Zero-Auth Installation**: Simple sign-in with consent flow, no complex authentication
 - **Distributed Storage**: Hypercore for secure, distributed data storage
-- **Multi-Miner Support**: Automatically switches between 5 different mining protocols
+- **Multi-Miner Support**: Automatically switches between on-chain and resource-provider mining protocols
 - **Centralized Inference**: All miners route through single QVAC inference node
 - **Container Ready**: Full Docker support for easy deployment
 
@@ -181,14 +196,6 @@ Edit `config.json` to customize:
 - Inference settings
 - P2P network settings
 - Data storage paths
-
-## Miner Integration
-
-### Chutes
-GPU mining system with automatic GPU validation.
-
-### Earnidle
-Protocol for putting idle compute resources to work across multiple venues.
 
 ## Development
 

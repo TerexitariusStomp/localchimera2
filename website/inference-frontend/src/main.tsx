@@ -1,27 +1,20 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { PrivyProvider } from '@privy-io/react-auth'
+import { Buffer } from 'buffer'
+import process from 'process'
+import { Web3AuthProvider } from './web3auth'
 import App from './App'
 import './index.css'
 
-const PRIVY_APP_ID = 'cmqu05m41000h0djl70k738mx'
+if (typeof window !== 'undefined') {
+  window.Buffer = Buffer
+  window.process = process as any
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <PrivyProvider
-      appId={PRIVY_APP_ID}
-      config={{
-        loginMethods: ['google', 'email', 'wallet'],
-        embeddedWallets: {
-          createWalletOnLogin: true,
-          requireUserPasswordOnCreate: false,
-        },
-        appearance: {
-          loginMethods: ['google', 'email', 'wallet'],
-        },
-      }}
-    >
+    <Web3AuthProvider>
       <App />
-    </PrivyProvider>
+    </Web3AuthProvider>
   </React.StrictMode>,
 )

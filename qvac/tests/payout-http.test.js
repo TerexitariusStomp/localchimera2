@@ -148,7 +148,7 @@ describe('POST /api/payout/record-order', () => {
   it('records a valid order', async () => {
     const r = await req(port, 'POST', '/api/payout/record-order', {
       orderId: 'ord-http-1', userId: 'user-http-1', appId: 'app-http-1',
-      miner: 'chutes', amount: 5.0
+      miner: 'casper', amount: 5.0
     });
     assert.equal(r.status, 200);
     assert.equal(r.body.success, true);
@@ -158,7 +158,7 @@ describe('POST /api/payout/record-order', () => {
   it('returns 400 for negative amount', async () => {
     const r = await req(port, 'POST', '/api/payout/record-order', {
       orderId: 'ord-http-neg', userId: 'user-http-1', appId: 'app-http-1',
-      miner: 'chutes', amount: -1
+      miner: 'casper', amount: -1
     });
     assert.equal(r.status, 400);
   });
@@ -166,7 +166,7 @@ describe('POST /api/payout/record-order', () => {
   it('returns 400 for unknown user', async () => {
     const r = await req(port, 'POST', '/api/payout/record-order', {
       orderId: 'ord-http-ghost', userId: 'ghost', appId: 'app-http-1',
-      miner: 'chutes', amount: 1
+      miner: 'casper', amount: 1
     });
     assert.equal(r.status, 400);
   });
@@ -238,7 +238,7 @@ describe('distribution lifecycle via HTTP', () => {
     const orders = await store.getOrders();
     orders[`ord-lifecycle-1`] = {
       orderId: 'ord-lifecycle-1', userId: 'user-http-1', appId: 'app-http-1',
-      miner: 'routstr', amount: 3, year: y, month: m, timestamp: Date.now()
+      miner: 'golem', amount: 3, year: y, month: m, timestamp: Date.now()
     };
     await store.saveOrders();
     await req(port, 'GET', `/api/payout/calculate?year=${y}&month=${m}`);
@@ -279,7 +279,7 @@ describe('POST /api/payout/execute', () => {
     const orders = await store.getOrders();
     orders['ord-exec-1'] = {
       orderId: 'ord-exec-1', userId: 'user-http-1', appId: 'app-http-1',
-      miner: 'chutes', amount: 10, year: y, month: m, timestamp: Date.now()
+      miner: 'casper', amount: 10, year: y, month: m, timestamp: Date.now()
     };
     await store.saveOrders();
     await req(port, 'GET', `/api/payout/calculate?year=${y}&month=${m}`);

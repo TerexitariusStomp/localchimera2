@@ -1,48 +1,22 @@
 {
   "model_id": "LiquidAI/LFM2.5-230M",
-  "model_type": "lfm2_mixed_precision_three_phase",
+  "model_type": "lfm2_two_phase_fhe",
+  "layer_index": 2,
   "hidden_size": 1024,
   "intermediate_size": 2560,
-  "optimization": "mixed_precision_3_phase (Groq TruePoint-inspired)",
-  "phases": {
-    "phase1": {
-      "time": 3.319222927093506,
-      "cos": 0.990618927625348,
-      "n_bits": 6,
-      "shape": [
-        7168,
-        1024
-      ]
-    },
-    "phase2": {
-      "time": 0.35933470726013184,
-      "cos": 0.954410512387191,
-      "n_bits": 5,
-      "shape": [
-        1024,
-        1024
-      ]
-    },
-    "phase3": {
-      "time": 0.8532979488372803,
-      "cos": 0.7626959383580472,
-      "n_bits": 4,
-      "shape": [
-        1024,
-        2560
-      ]
-    }
-  },
-  "total_inference_time": 4.531855583190918,
-  "quality": 0.7626959383580472,
-  "gpu_projected_time": 0.1510618527730306,
-  "phase1_dir": "/home/user/CascadeProjects/localchimera/inference-backend/concrete-ml/deployment/lfm2_mx_phase1",
-  "phase2_dir": "/home/user/CascadeProjects/localchimera/inference-backend/concrete-ml/deployment/lfm2_mx_phase2",
-  "phase3_dir": "/home/user/CascadeProjects/localchimera/inference-backend/concrete-ml/deployment/lfm2_mx_phase3",
-  "insights_applied": [
-    "Groq TruePoint: mixed precision per layer (n_bits 6/5/4)",
-    "Cerebras: keep high precision where it matters (attention)",
-    "Concrete-ML: GPU gives ~30x speedup automatically",
-    "3-phase: small FHE calls, client does non-linear ops in plaintext"
-  ]
+  "n_bits": 5,
+  "p_error": 0.02,
+  "phase1_dir": "/workspace/deployment/lfm2_fhe_phase1",
+  "phase2_dir": "/workspace/deployment/lfm2_fhe_phase2",
+  "phase1_output_size": 7168,
+  "phase2_input_size": 3584,
+  "phase2_output_size": 2048,
+  "optimizations": [
+    "Two-phase FHE: parallel Linear ops batched",
+    "n_bits=5 for faster FHE",
+    "p_error=0.02 for faster FHE",
+    "Flattened input (1, hidden) instead of (1, 1, hidden)",
+    "All 7 real Linear weights from LFM2.5-230M"
+  ],
+  "results": {}
 }

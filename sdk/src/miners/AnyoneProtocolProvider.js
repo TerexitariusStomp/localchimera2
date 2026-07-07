@@ -6,7 +6,7 @@
  * dashboard (dashboard.anyone.io) tied to the relay's Ethereum address.
  *
  * In the Chimera SDK, the relay uses the protocol multisig EVM address.
- * Individual Privy wallets receive funds via the monthly sweep.
+ * Individual Web3Auth wallets receive funds via the monthly sweep.
  *
  * Two modes:
  *   - Host mode (default): spawns `docker run anyoneprotocol/relay:latest`
@@ -19,6 +19,7 @@ import { spawn, execSync } from 'child_process';
 import path from 'path';
 import os from 'os';
 import { promises as fs } from 'fs';
+import { getProtocolPayoutAddress } from './protocol-address.js';
 
 const ANYONE_DIR = process.env.CHIMERA_ANYONE_DIR || path.join(os.homedir(), '.chimera', 'upstream', 'anyone-protocol');
 
@@ -28,7 +29,7 @@ export class AnyoneProtocolProvider {
     this.running = false;
     this.logs = [];
     this.relayPort = opts.relayPort || 9001;
-    this.evmAddress = opts.evmAddress || null;  // Protocol multisig for $ANYONE rewards
+    this.evmAddress = opts.evmAddress || getProtocolPayoutAddress(opts);  // Protocol multisig for $ANYONE rewards
   }
 
   async init() {

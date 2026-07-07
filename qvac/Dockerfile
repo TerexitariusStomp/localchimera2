@@ -46,7 +46,7 @@ WORKDIR /app
 
 # Install Python + runtime deps for OpenViking and provider binaries
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl python3 python3-pip wget gnupg2 iproute2 \
+    ca-certificates curl python3 python3-pip wget gnupg2 iproute2 unzip \
     # Mysterium VPN deps
     wireguard openresolv \
     && rm -rf /var/lib/apt/lists/*
@@ -73,6 +73,16 @@ RUN wget -qO /usr/local/bin/routstr https://github.com/routstr/routstr/releases/
 
 # Install BTT AI miner-cli (Python package)
 RUN pip3 install --no-cache-dir miner-cli
+
+# Install Storj storage node and identity binaries
+RUN wget -qO /tmp/storagenode.zip https://github.com/storj/storj/releases/latest/download/storagenode_linux_amd64.zip && \
+    unzip -o /tmp/storagenode.zip -d /usr/local/bin && \
+    chmod +x /usr/local/bin/storagenode && \
+    rm /tmp/storagenode.zip && \
+    wget -qO /tmp/identity.zip https://github.com/storj/storj/releases/latest/download/identity_linux_amd64.zip && \
+    unzip -o /tmp/identity.zip -d /usr/local/bin && \
+    chmod +x /usr/local/bin/identity && \
+    rm /tmp/identity.zip
 
 # Create non-root user
 RUN groupadd -r chimera && useradd -r -g chimera -s /bin/false chimera

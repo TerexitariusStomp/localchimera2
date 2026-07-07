@@ -9,8 +9,6 @@ Documentation for developers and contributors.
 
 ## Provider-Specific Docs
 
-- **CHUTES.md** — Chutes AI miner integration
-- **ROUTSTR.md** — Routstr Nostr/Cashu routing
 - **OPENVIKING.md** — OpenViking memory bridge setup
 
 ## Assessments

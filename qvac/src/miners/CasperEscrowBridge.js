@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { Logger } from '../core/Logger.js';
+import { CoordinatorClient } from '../coordinator/CoordinatorClient.js';
 import pkg from 'casper-js-sdk';
 
 const sdk = pkg;
@@ -90,6 +91,9 @@ export class CasperEscrowBridge {
     this.relayToken = config.relayToken || process.env.CASPER_RELAY_TOKEN || '';
     this.useRelay = false;
     this.deviceFingerprint = null;
+    this.coordinator = null;
+    this.coordinatorUrl = config.coordinatorUrl || process.env.COORDINATOR_URL || '';
+    this.coordinatorToken = config.coordinatorToken || process.env.COORDINATOR_TOKEN || 'development-token';
   }
 
   get rpcUrl() {
@@ -203,6 +207,19 @@ export class CasperEscrowBridge {
     this.isRunning = true;
     this.logger.info('Starting Casper escrow bridge polling...');
 
+    if (this.coordinatorUrl) {
+      this.coordinator = new CoordinatorClient({
+        url: this.coordinatorUrl,
+        token: this.coordinatorToken,
+        volunteerId: this.providerAccountHash || 'casper-provider',
+        address: this.providerAccountHash || '',
+        taskTypes: [0, 1, 2, 3], // inference, storage, compute, bandwidth
+        networks: ['casper'],
+      });
+      this.coordinator.on('job', (envelope) => this.handleCoordinatorJob(envelope, 'casper'));
+      this.coordinator.connect();
+    }
+
     // Poll immediately, then every 15 seconds
     await this.pollJobs();
     this.pollInterval = setInterval(() => this.pollJobs(), 15000).unref();
@@ -219,7 +236,23 @@ export class CasperEscrowBridge {
       clearInterval(this.pollInterval);
       this.pollInterval = null;
     }
+    if (this.coordinator) {
+      this.coordinator.disconnect();
+      this.coordinator = null;
+    }
     this.logger.info('Casper escrow bridge stopped');
+  }
+
+  async handleCoordinatorJob(envelope, network) {
+    try {
+      const { jobId, requestHash, taskType } = envelope;
+      this.logger.info(`Coordinator pushed ${network} job ${jobId}`);
+      const responseText = await this.processJob(requestHash, taskType);
+      this.coordinator.submitResult(jobId, undefined, network, responseText);
+    } catch (e) {
+      this.logger.error(`Coordinator job failed: ${e.message}`);
+      this.coordinator.rejectJob(envelope.jobId, undefined, network, e.message);
+    }
   }
 
   async pollJobs() {

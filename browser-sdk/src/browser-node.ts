@@ -23,8 +23,21 @@
 
 import { CONTRACTS, getContractNamedKeys, queryDictionary, callEntryPointWithWallet, getDeployStatus } from './casper-client';
 import * as sdk from 'casper-js-sdk';
+import { ethers } from 'ethers';
 import { NetworkAdapter, NetworkAdapterStatus, createAllAdapters } from './network-adapters';
+import {
+  BOTCHAIN_TESTNET,
+  BOTCHAIN_CONTRACTS,
+  JOB_STATE,
+  TASK_POLICY,
+  getSignerFromWallet,
+  getBotchainContracts,
+  getBotchainContractsWithSigner,
+  switchToBotchain,
+  botchainExplorerLink,
+} from './botchain-client';
 import { RomaRouter } from './roma-router';
+import { CoordinatorClient } from './coordinator-client';
 import { TASK_TYPE } from './task-types';
 export { TASK_TYPE } from './task-types';
 
@@ -61,6 +74,8 @@ export interface BrowserNodeStatus {
   resourcePaused: boolean;
   networkAdapters: NetworkAdapterStatus[];
   romaRouter?: { jobsRouted: number; jobsSucceeded: number; jobsFailed: number } | null;
+  walletMode: 'casper' | 'evm' | null;
+  evmAddress: string | null;
 }
 
 export interface BrowserCapabilities {
@@ -86,11 +101,33 @@ export interface LogEntry {
 
 type StatusCallback = (status: BrowserNodeStatus) => void;
 
+export interface BrowserNodeOptions {
+  /** Casper wallet provider (signer + connection). */
+  casperProvider?: any;
+  /** Casper public key hex. */
+  publicKeyHex?: string;
+  /** Casper account hash (with or without `account-hash-` prefix). */
+  accountHash?: string;
+  /** EVM wallet provider from Web3Auth or MetaMask. */
+  evmProvider?: any;
+  /** EVM address. */
+  evmAddress?: string;
+  /** Optional Botchain ChimeraCoordinator address for hybrid (payVolunteer) jobs. */
+  coordinatorContract?: string;
+}
+
 export class BrowserNode {
   private provider: any;
   private publicKeyHex: string;
   private accountHash: string;
   private accountHashHex: string;
+  private evmProvider: any | null = null;
+  private evmAddress: string = '';
+  private evmSigner: ethers.Signer | null = null;
+  private evmContracts: { escrowVault: ethers.Contract; computeRegistry: ethers.Contract } | null = null;
+  private coordinatorContract: string = '';
+  private coordinatorContractInstance: ethers.Contract | null = null;
+  private walletMode: 'casper' | 'evm' | null = null;
   private running = false;
   private registered = false;
   private registering = false;
@@ -130,11 +167,34 @@ export class BrowserNode {
   // ROMA task router
   romaRouter: RomaRouter | null = null;
 
-  constructor(provider: any, publicKeyHex: string, accountHash: string) {
-    this.provider = provider;
-    this.publicKeyHex = publicKeyHex;
-    this.accountHash = accountHash;
-    this.accountHashHex = accountHash.replace('account-hash-', '');
+  // Push-dispatch coordinator client
+  private coordinatorClient: CoordinatorClient | null = null;
+
+  constructor(
+    providerOrOptions: any | BrowserNodeOptions,
+    publicKeyHex?: string,
+    accountHash?: string,
+  ) {
+    let options: BrowserNodeOptions;
+    if (providerOrOptions && typeof providerOrOptions === 'object' && ('casperProvider' in providerOrOptions || 'evmProvider' in providerOrOptions)) {
+      options = providerOrOptions as BrowserNodeOptions;
+    } else {
+      options = { casperProvider: providerOrOptions, publicKeyHex, accountHash };
+    }
+
+    this.provider = options.casperProvider || null;
+    this.publicKeyHex = options.publicKeyHex || '';
+    this.accountHash = options.accountHash || '';
+    this.accountHashHex = this.accountHash.replace('account-hash-', '');
+    this.evmProvider = options.evmProvider || null;
+    this.evmAddress = options.evmAddress || '';
+    this.coordinatorContract = options.coordinatorContract ||
+      BOTCHAIN_CONTRACTS.coordinator ||
+      (typeof process !== 'undefined' && process.env?.BOTCHAIN_COORDINATOR_ADDRESS) ||
+      (typeof window !== 'undefined' && (window as any).BOTCHAIN_COORDINATOR_ADDRESS) ||
+      '';
+    this.walletMode = this.provider ? 'casper' : this.evmProvider ? 'evm' : null;
+
     this.capabilities = {
       cpuCores: 0, ramGb: 0, hasGpu: false, gpuName: '', vramMb: 0,
       bandwidthMbps: 0, platform: '', hasWebWorker: false, hasIndexedDB: false,
@@ -149,6 +209,7 @@ export class BrowserNode {
   private log(level: LogEntry['level'], message: string) {
     const entry: LogEntry = { timestamp: Date.now(), level, message };
     this.logs = [...this.logs.slice(-99), entry];
+    console.log(`[BrowserNode] ${level}: ${message}`);
     this.emitStatus();
   }
 
@@ -172,6 +233,8 @@ export class BrowserNode {
         deviceTrustScore: this.deviceTrustScore,
         networkAdapters: this.networkAdapters.map(a => a.status()),
         romaRouter: this.romaRouter?.status() || null,
+        walletMode: this.walletMode,
+        evmAddress: this.evmAddress,
       });
     }
   }
@@ -220,6 +283,7 @@ export class BrowserNode {
   }
 
   async start() {
+    console.log('[BrowserNode] start() entered');
     if (this.running) return;
     this.running = true;
     this.log('info', 'Starting browser node...');
@@ -240,17 +304,41 @@ export class BrowserNode {
       this.log('warn', `Fingerprint/attestation failed: ${e.message}`);
     }
 
-    try {
-      await this.checkRegistration();
-      if (!this.registered) {
-        this.log('info', 'Not registered as provider — registering now...');
-        await this.registerProvider();
+    if (this.walletMode === 'evm') {
+      this.log('info', `EVM wallet active: ${this.evmAddress.slice(0, 8)}...`);
+      try {
+        await switchToBotchain(this.evmProvider);
+        this.evmSigner = await getSignerFromWallet(BOTCHAIN_TESTNET.rpcUrl, this.evmProvider, this.evmAddress);
+        if (!this.evmSigner) throw new Error('Could not get EVM signer from wallet');
+        this.evmContracts = getBotchainContractsWithSigner(this.evmSigner);
+        if (this.coordinatorContract) {
+          this.coordinatorContractInstance = new ethers.Contract(
+            this.coordinatorContract,
+            CHIMERA_COORDINATOR_ABI,
+            this.evmSigner
+          );
+          this.log('info', `Botchain coordinator connected: ${this.coordinatorContract.slice(0, 10)}...`);
+        }
+        this.log('info', 'Botchain contracts connected');
+        await this._checkBotchainRegistration();
+      } catch (e: any) {
+        this.log('warn', `Botchain setup failed: ${e.message}`);
       }
-      // Register on all 4 market contracts (inference, storage, compute, bandwidth)
-      this.log('info', 'Registering on all market contracts...');
-      await this.registerOnAllMarkets();
-    } catch (e) {
-      this.log('warn', `Registration check failed: ${e.message}. Will retry on next poll.`);
+    } else if (this.walletMode === 'casper') {
+      try {
+        await this.checkRegistration();
+        if (!this.registered) {
+          this.log('info', 'Not registered as provider — registering now...');
+          await this.registerProvider();
+        }
+        // Register on all 4 market contracts (inference, storage, compute, bandwidth)
+        this.log('info', 'Registering on all market contracts...');
+        await this.registerOnAllMarkets();
+      } catch (e) {
+        this.log('warn', `Registration check failed: ${e.message}. Will retry on next poll.`);
+      }
+    } else {
+      this.log('warn', 'No wallet connected. External adapters will run, but on-chain job processing is disabled.');
     }
 
     // Initialize and start external tasker network adapters
@@ -268,6 +356,31 @@ export class BrowserNode {
       } catch (e: any) {
         this.log('warn', `Network adapter ${adapter.networkName} failed: ${e.message}`);
       }
+    }
+
+    // Connect to the volunteer coordinator (push dispatch) if configured.
+    const coordinatorUrl = (typeof process !== 'undefined' && process.env?.COORDINATOR_URL) ||
+      (typeof window !== 'undefined' && (window as any).COORDINATOR_URL) ||
+      '';
+    if (coordinatorUrl) {
+      this.coordinatorClient = new CoordinatorClient(
+        this,
+        {
+          url: coordinatorUrl,
+          token: (typeof process !== 'undefined' && process.env?.COORDINATOR_TOKEN) ||
+            (typeof window !== 'undefined' && (window as any).COORDINATOR_TOKEN) ||
+            'development-token',
+          volunteerId: this.walletMode === 'evm' ? this.evmAddress : this.accountHash,
+          address: this.walletMode === 'evm' ? this.evmAddress : this.accountHash,
+          taskTypes: [TASK_TYPE.INFERENCE, TASK_TYPE.STORAGE, TASK_TYPE.COMPUTE, TASK_TYPE.BANDWIDTH],
+          networks: this.walletMode === 'evm' ? ['botchain'] : ['casper', 'botchain'],
+          capabilities: this.capabilities,
+        },
+        (level, msg) => this.log(level as any, msg)
+      );
+      this.coordinatorClient.connect().catch((e: any) => {
+        this.log('warn', `Coordinator connection failed: ${e.message}`);
+      });
     }
 
     // Initialize ROMA task router for complex task decomposition
@@ -290,6 +403,16 @@ export class BrowserNode {
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
+    }
+    // Disconnect push-dispatch coordinator
+    if (this.coordinatorClient) {
+      this.coordinatorClient.disconnect();
+      this.coordinatorClient = null;
+    }
+    // Clean up on-chain Botchain coordinator listener
+    if (this.coordinatorContractInstance) {
+      try { this.coordinatorContractInstance.removeAllListeners(); } catch {}
+      this.coordinatorContractInstance = null;
     }
     // Stop external tasker network adapters
     for (const adapter of this.networkAdapters) {
@@ -513,7 +636,7 @@ export class BrowserNode {
     const models: any[] = [];
     if (this.capabilities.hasWebGPU) {
       try {
-        const webllm = await import(/* @vite-ignore */ '@mlc-ai/web-llm');
+        const webllm = await import('@mlc-ai/web-llm');
         const available = webllm.prebuiltAppConfig.model_list.map((m: any) => m.model_id);
         for (const id of available) {
           models.push({ id, object: 'model', owned_by: 'chimera-browser' });
@@ -531,7 +654,7 @@ export class BrowserNode {
 
     try {
       this.log('info', 'Loading @mlc-ai/web-llm (WebGPU inference engine)...');
-      const webllm = await import(/* @vite-ignore */ '@mlc-ai/web-llm');
+      const webllm = await import('@mlc-ai/web-llm');
 
       // Use Llama-3.2-1B-Instruct q4f16_1 — small enough for browser, good quality
       const modelId = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
@@ -562,7 +685,7 @@ export class BrowserNode {
     if (this.inferencePipeline) return this.inferencePipeline;
     try {
       this.log('info', 'Loading @huggingface/transformers (fallback inference)...');
-      const { pipeline } = await import(/* @vite-ignore */ '@huggingface/transformers');
+      const { pipeline } = await import('@huggingface/transformers');
       this.inferencePipeline = await pipeline('text-generation', 'Xenova/Llama-3.2-1B-Instruct-q4', {
         device: this.capabilities.hasWebGPU ? 'webgpu' : 'wasm',
         dtype: 'q4',
@@ -581,8 +704,8 @@ export class BrowserNode {
     if (this.heliaNode && this.heliaFs) return { helia: this.heliaNode, fs: this.heliaFs };
     try {
       this.log('info', 'Starting Helia (IPFS browser node)...');
-      const { createHelia } = await import(/* @vite-ignore */ 'helia');
-      const { unixfs } = await import(/* @vite-ignore */ '@helia/unixfs');
+      const { createHelia } = await import('helia');
+      const { unixfs } = await import('@helia/unixfs');
       this.heliaNode = await createHelia();
       this.heliaFs = unixfs(this.heliaNode);
       this.log('success', 'Helia IPFS node ready');
@@ -599,7 +722,7 @@ export class BrowserNode {
     if (this.wasmerInit) return true;
     try {
       this.log('info', 'Initializing @wasmer/sdk (WASI runtime)...');
-      const { init } = await import(/* @vite-ignore */ '@wasmer/sdk');
+      const { init } = await import('@wasmer/sdk');
       await init();
       this.wasmerInit = true;
       this.log('success', 'Wasmer SDK ready');
@@ -928,11 +1051,14 @@ export class BrowserNode {
     }
     this.pollCount++;
 
-    // 1. Poll escrow vault for pending/assigned jobs (all task types)
-    await this._pollEscrowJobs();
-
-    // 2. Poll each market contract for market-specific job queues
-    await this._pollMarketJobs();
+    if (this.walletMode === 'casper') {
+      // 1. Poll escrow vault for pending/assigned jobs (all task types)
+      await this._pollEscrowJobs();
+      // 2. Poll each market contract for market-specific job queues
+      await this._pollMarketJobs();
+    } else if (this.walletMode === 'evm') {
+      await this._pollBotchainJobs();
+    }
 
     if (this.pollCount % 4 === 0) {
       this.emitStatus();
@@ -995,6 +1121,157 @@ export class BrowserNode {
         this.log('debug', `${market.label} market poll error: ${e.message}`);
       }
     }
+  }
+
+  private async _checkBotchainRegistration() {
+    if (!this.evmContracts || !this.evmSigner) return;
+    try {
+      const address = await this.evmSigner.getAddress();
+      const provider = await this.evmContracts.computeRegistry.authorityToProvider(address);
+      if (provider && provider !== ethers.ZeroAddress) {
+        this.registered = true;
+        this.log('info', `Botchain provider registered: ${provider}`);
+      } else {
+        this.log('info', 'Not registered on Botchain — registering now...');
+        await this._registerBotchainProvider();
+      }
+    } catch (e: any) {
+      this.log('warn', `Botchain registration check failed: ${e.message}`);
+    }
+  }
+
+  private async _registerBotchainProvider() {
+    if (!this.evmContracts || !this.evmSigner) return;
+    try {
+      const address = await this.evmSigner.getAddress();
+      const peerId = '0x' + this.fingerprint?.slice(0, 64) || '0x' + '0'.repeat(64);
+      const name = 'ChimeraBrowserNode';
+      const minStake = await this.evmContracts.computeRegistry.minimumStake();
+      const stake = minStake > 0n ? minStake : ethers.parseEther('1');
+      const tx = await this.evmContracts.computeRegistry.registerProvider(peerId, name, stake, { value: stake });
+      await tx.wait();
+      this.registered = true;
+      this.log('success', `Registered Botchain provider: ${address}`);
+    } catch (e: any) {
+      this.log('error', `Botchain registration failed: ${e.message}`);
+    }
+  }
+
+  private async _pollBotchainJobs() {
+    if (!this.evmContracts || !this.evmSigner) return;
+    try {
+      const jobIds = await this.evmContracts.escrowVault.getPendingJobs();
+      if (!jobIds || jobIds.length === 0) return;
+      this.log('info', `Botchain poll #${this.pollCount}: ${jobIds.length} pending job(s)`);
+      for (const jobId of jobIds) {
+        const jobIdStr = typeof jobId === 'string' ? jobId : jobId.toHexString();
+        if (this.processedJobs.has(jobIdStr) || this.inProgressJobs.has(jobIdStr)) continue;
+        const jobAddress = await this.evmContracts.escrowVault.jobIdToAddress(jobId);
+        await this._handleBotchainJob(jobAddress, jobIdStr);
+      }
+    } catch (e: any) {
+      this.log('error', `Botchain poll error: ${e.message}`);
+    }
+  }
+
+  private async _handleBotchainJob(jobAddress: string, jobIdStr: string) {
+    this.inProgressJobs.add(jobIdStr);
+    this.currentJob = jobIdStr;
+    this.emitStatus();
+
+    try {
+      const job = await this.evmContracts!.escrowVault.getJob(jobAddress);
+      const state = Number(job.state);
+      const providerAuthority = job.providerAuthority;
+      const isZeroProvider = !providerAuthority || providerAuthority === ethers.ZeroAddress;
+      const taskType = Number(job.taskType);
+      const requestHash = job.requestHash || jobIdStr;
+
+      this.log('info', `Botchain job ${jobAddress.slice(0, 14)}: state=${state}, provider=${isZeroProvider ? 'AUTO' : providerAuthority}, taskType=${taskType}`);
+
+      if (state >= JOB_STATE.PROVIDER_DONE) {
+        this.processedJobs.add(jobIdStr);
+        return;
+      }
+      if (isZeroProvider && state === JOB_STATE.PENDING) {
+        return;
+      }
+      if (!isZeroProvider && providerAuthority.toLowerCase() !== this.evmAddress.toLowerCase()) {
+        this.processedJobs.add(jobIdStr);
+        return;
+      }
+
+      const responseText = await this._processJob(requestHash, taskType);
+      const responseHash = ethers.keccak256(ethers.toUtf8Bytes(responseText)).slice(2, 66);
+      const responseHashBytes32 = '0x' + responseHash;
+
+      let policy = TASK_POLICY.FIRST_PARTY_ONLY;
+      if (this.coordinatorContractInstance) {
+        try { policy = Number(await this.coordinatorContractInstance.jobPolicy(jobAddress)); } catch {}
+      }
+
+      if (policy === TASK_POLICY.SECOND_PARTY_ONLY) {
+        this.log('info', `Skipping second-party-only job ${jobAddress.slice(0, 14)}`);
+        this.processedJobs.add(jobIdStr);
+        return;
+      }
+
+      if (policy === TASK_POLICY.HYBRID) {
+        if (!this.coordinatorContractInstance) {
+          this.log('warn', `Hybrid job ${jobAddress.slice(0, 14)} requires a coordinator contract; skipping`);
+          return;
+        }
+        const isBridged = await this.coordinatorContractInstance.bridged(jobAddress).catch(() => false);
+        const isPaid = await this.coordinatorContractInstance.paid(jobAddress).catch(() => false);
+        if (isBridged || isPaid) {
+          this.log('info', `Hybrid job ${jobAddress.slice(0, 14)} already bridged or paid; skipping`);
+          this.processedJobs.add(jobIdStr);
+          return;
+        }
+        const deadline = await this.coordinatorContractInstance.jobDeadline(jobAddress);
+        if (Date.now() / 1000 > Number(deadline)) {
+          this.log('info', `Hybrid job ${jobAddress.slice(0, 14)} deadline passed; skipping to allow fallback bridge`);
+          this.processedJobs.add(jobIdStr);
+          return;
+        }
+        const tx = await this.coordinatorContractInstance.payVolunteer(jobAddress, responseHashBytes32);
+        await tx.wait();
+        this.log('success', `Hybrid job ${jobAddress.slice(0, 14)} paid via coordinator`);
+      } else {
+        await this.evmContracts!.escrowVault.providerComplete(jobAddress, responseHashBytes32, '0x');
+        this.log('success', `Botchain job ${jobAddress.slice(0, 14)} completed on escrow vault`);
+        this._monitorBotchainSettlement(jobAddress);
+      }
+      this.processedJobs.add(jobIdStr);
+    } catch (e: any) {
+      this.log('error', `Botchain job ${jobAddress.slice(0, 14)} failed: ${e.message}`);
+    } finally {
+      this.inProgressJobs.delete(jobIdStr);
+      this.currentJob = null;
+      this.emitStatus();
+    }
+  }
+
+  private _monitorBotchainSettlement(jobAddress: string) {
+    if (!this.evmContracts) return;
+    const poll = async () => {
+      try {
+        const job = await this.evmContracts!.escrowVault.getJob(jobAddress);
+        const state = Number(job.state);
+        if (state === JOB_STATE.SETTLED) {
+          this.earningsMotes = (BigInt(this.earningsMotes) + BigInt(job.amount)).toString();
+          this.log('success', `Botchain job ${jobAddress.slice(0, 14)} settled`);
+          this.emitStatus();
+          return;
+        }
+        if (state === JOB_STATE.REFUNDED) {
+          this.log('warn', `Botchain job ${jobAddress.slice(0, 14)} refunded`);
+          return;
+        }
+        setTimeout(poll, 15000);
+      } catch {}
+    };
+    poll();
   }
 
   private async _handleMarketJob(
@@ -1304,7 +1581,7 @@ export class BrowserNode {
           const fileHash = parts[3] || '';
           // Try to retrieve from IPFS by CID if valid
           try {
-            const { CID } = await import(/* @vite-ignore */ 'multiformats/cid');
+            const { CID } = await import('multiformats/cid');
             if (CID.parse(fileHash)) {
               const chunks = [];
               for await (const chunk of fs.cat(CID.parse(fileHash))) {
@@ -1371,7 +1648,7 @@ export class BrowserNode {
     const wasmerReady = await this._ensureWasmer();
     if (wasmerReady) {
       try {
-        const { Wasmer } = await import(/* @vite-ignore */ '@wasmer/sdk');
+        const { Wasmer } = await import('@wasmer/sdk');
 
         if (runtime === 'wasm' && wasmModule) {
           // Run a specific WASM module from the registry

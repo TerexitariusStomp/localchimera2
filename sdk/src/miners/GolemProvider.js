@@ -15,6 +15,7 @@ import { spawn, execSync } from 'child_process';
 import path from 'path';
 import os from 'os';
 import { promises as fs } from 'fs';
+import { getProtocolPayoutAddress } from './protocol-address.js';
 
 const GOLEM_DIR = process.env.CHIMERA_GOLEM_DIR || path.join(os.homedir(), '.chimera', 'upstream', 'golem');
 
@@ -24,6 +25,7 @@ export class GolemProvider {
     this.running = false;
     this.logs = [];
     this.subnet = opts.subnet || 'public';
+    this.payoutAddress = getProtocolPayoutAddress(opts); // Protocol address for GLM earnings; yagna wallet is managed separately
   }
 
   async init() {
@@ -121,6 +123,7 @@ export class GolemProvider {
       running: this.running,
       pid: this.process?.pid || null,
       subnet: this.subnet,
+      payoutAddress: this.payoutAddress,
       resources: this.inContainer ? 'Inline (container), CPU + optional GPU' : 'Docker-based, CPU + optional GPU',
       recentLogs: this.logs.slice(-10)
     };

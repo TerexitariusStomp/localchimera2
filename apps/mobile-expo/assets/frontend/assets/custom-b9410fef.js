@@ -1,1 +1,0 @@
-import{eD as m}from"./index-6efb313d.js";function a(t,e={}){const{key:r="custom",methods:o,name:s="Custom Provider",retryDelay:u}=e;return({retryCount:n})=>m({key:r,methods:o,name:s,request:t.request.bind(t),retryCount:e.retryCount??n,retryDelay:u,type:"custom"})}export{a as c};

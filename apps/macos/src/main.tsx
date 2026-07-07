@@ -1,22 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { PrivyProvider } from "@privy-io/react-auth";
+import { Web3AuthProvider } from "./web3auth";
 import App from "./App";
-
-const PRIVY_APP_ID = "cmqu05m41000h0djl70k738mx";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <PrivyProvider
-      appId={PRIVY_APP_ID}
-      config={{
-        embeddedWallets: {
-          createWalletOnLogin: true,
-          requireUserPasswordOnCreate: false,
-        },
-      }}
-    >
+    <Web3AuthProvider>
       <App />
-    </PrivyProvider>
+    </Web3AuthProvider>
   </React.StrictMode>
 );

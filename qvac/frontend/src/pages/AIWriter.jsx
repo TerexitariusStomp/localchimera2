@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
 const isNative = typeof window !== 'undefined' && (window.Capacitor || window.__TAURI__ || window.__bridgeFetch);
+const NATIVE_API_BASE = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE
+  ? import.meta.env.VITE_API_BASE
+  : 'http://localhost:3002/api';
 const API_BASE = isNative
-  ? 'http://localhost:3002/api'
+  ? NATIVE_API_BASE
   : (window.location.protocol === 'http:' || window.location.protocol === 'https:')
     ? '/api'
-    : 'http://localhost:3002/api';
+    : NATIVE_API_BASE;
 
 export default function AIWriter() {
   const [prompt, setPrompt] = useState('');

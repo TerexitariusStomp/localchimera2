@@ -26,6 +26,7 @@ import os
 import time
 import json
 import argparse
+import gc
 import numpy as np
 from pathlib import Path
 
@@ -208,13 +209,13 @@ def build_phase2(weights, config, layer_idx):
     return module, hidden_size
 
 
-def compile_phase(module, phase_name, input_shape, n_bits, p_error, output_dir):
+def compile_phase(module, phase_name, input_shape, n_bits, p_error, output_dir, device="cpu"):
     """Compile a single phase to FHE."""
     from concrete.ml.torch.compile import compile_torch_model
 
     print(f"\nCompiling {phase_name}...")
     print(f"  Input shape: {input_shape}")
-    print(f"  n_bits: {n_bits}, p_error: {p_error}")
+    print(f"  n_bits: {n_bits}, p_error: {p_error}, device: {device}")
 
     calib_input = torch.randn(*input_shape)
 
@@ -228,6 +229,7 @@ def compile_phase(module, phase_name, input_shape, n_bits, p_error, output_dir):
         calib_input,
         n_bits=n_bits,
         p_error=p_error,
+        device=device,
     )
     compile_time = time.time() - start
     mem_after = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
@@ -284,6 +286,8 @@ def main():
                         help="FHE error tolerance (0.02=faster, 0.01=better quality)")
     parser.add_argument("--phase", choices=["both", "1", "2"], default="both",
                         help="Which phase to compile")
+    parser.add_argument("--device", choices=["cpu", "cuda"], default="cpu",
+                        help="Target device for FHE compilation (cpu or cuda)")
     parser.add_argument("--skip-test", action="store_true")
     args = parser.parse_args()
 
@@ -292,6 +296,7 @@ def main():
     print(f"  n_bits: {args.n_bits}")
     print(f"  p_error: {args.p_error}")
     print(f"  Phase: {args.phase}")
+    print(f"  Device: {args.device}")
     print("=" * 60)
 
     # Load weights
@@ -329,6 +334,7 @@ def main():
             input_shape=(1, hidden_size),
             n_bits=args.n_bits, p_error=args.p_error,
             output_dir=PHASE1_DIR,
+            device=args.device,
         )
 
         if not args.skip_test:
@@ -343,7 +349,7 @@ def main():
             }
 
         del module1, fhe_circuit1
-        import gc; gc.collect()
+        gc.collect()
 
     if args.phase in ("both", "2"):
         # Reload weights for phase 2 if we freed them
@@ -365,6 +371,7 @@ def main():
             input_shape=(1, phase2_input_size),
             n_bits=args.n_bits, p_error=args.p_error,
             output_dir=PHASE2_DIR,
+            device=args.device,
         )
 
         if not args.skip_test:

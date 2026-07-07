@@ -13,13 +13,15 @@ out/
 # Foundry / inference generated libs (tracked submodules are exceptions)
 lib/encrypted-types/
 lib/fhevm-sdk/
-lib/privy-types/
 
 # Logs & data
 **/logs/
 **/*.log
 **/data/
 **/llmwiki-data/
+
+# Keep example provider locations tracked for the /example map
+!website-new/example/data/
 
 # Website build outputs
 website/inference/
@@ -45,8 +47,14 @@ inference-backend/concrete-ml/.artifacts/
 
 # Env & secrets
 **/.env
+**/.env.local
+**/.env.production
+**/.dev.vars
 **/*.key
 **/*.pem
+wallets.json
+forward_swaps.json
+forward_txns.json
 
 
 # Backup files

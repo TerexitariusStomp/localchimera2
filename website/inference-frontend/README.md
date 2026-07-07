@@ -18,6 +18,30 @@ npm run build
 
 The build output is served from `website/inference/`.
 
+## Domain Registrar
+
+The static `website-new/` pages (including `console.html` and `domains.html`) are copied into `dist/` during the post-build step. The domain registrar API is implemented as Cloudflare Pages Functions in `functions/` and uses the `DOMAIN_KV` namespace for order/contact persistence.
+
+### Setup before first deploy
+
+1. Create the KV namespace:
+   ```bash
+   wrangler kv:namespace create "DOMAIN_KV"
+   ```
+   Copy the returned `id` into `wrangler.toml` under `[[kv_namespaces]]`.
+
+2. Add the NameSilo API key as a secret:
+   ```bash
+   wrangler pages secret put NAMESILO_KEY
+   ```
+
+### Deploy
+
+```bash
+npm run build
+wrangler pages deploy ./dist
+```
+
 ## Related
 
 - `../../inference-backend/` — Inference backend API

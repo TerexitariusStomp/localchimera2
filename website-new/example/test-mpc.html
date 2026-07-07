@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web3Auth MPC Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 2rem; background: #111; color: #eee; }
+    #status { margin-top: 1rem; padding: 1rem; border: 1px solid #444; border-radius: 0.5rem; white-space: pre-wrap; }
+    .ok { color: #2e7d32; }
+    .err { color: #c62828; }
+  </style>
+</head>
+<body>
+  <h1>Web3Auth MPC Test</h1>
+  <p>Call <code>window.connectWithJwt(jwt, sub)</code> from the console or automation.</p>
+  <div id="status">Waiting for JWT...</div>
+  <script type="module">
+    import { connectWeb3AuthMpc } from './browser-sdk-dist/index.js';
+    const status = document.getElementById('status');
+    window.connectWithJwt = async (jwt, sub) => {
+      status.textContent = 'Connecting to Web3Auth MPC...';
+      try {
+        const wallet = await connectWeb3AuthMpc({
+          clientId: 'BFb9PwlIn0cgDq0dNSLgw9vsIVAqZ-XiUkACB5_Rktla5N6J9oJ1UeeSOILLSaAGJPYUMChG0DwP7RAzd3ZXhZA',
+          verifier: 'new-localchimera',
+          verifierId: sub,
+          idToken: jwt,
+        });
+        status.innerHTML = '<span class="ok">MPC wallet created.</span>\nAddress: ' + wallet.address;
+        window.__mpcWallet = wallet;
+        return { success: true, address: wallet.address, wallet };
+      } catch (e) {
+        status.innerHTML = '<span class="err">Error: ' + (e.message || String(e)) + '</span>';
+        return { success: false, error: e.message || String(e) };
+      }
+    };
+  </script>
+</body>
+</html>

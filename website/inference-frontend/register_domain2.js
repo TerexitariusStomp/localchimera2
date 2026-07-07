@@ -1,0 +1,140 @@
+const sdk = require('casper-js-sdk');
+const fs = require('fs');
+
+const RPC_URL = 'https://node.mainnet.casper.network/rpc';
+const CHAIN_NAME = 'casper';
+const PROTOCOL_MULTISIG_PUBKEY = '02038cc8406b93afa9404b47c836b7c83ce0a4e669c611b2712f3ba7fa9b79bb6f3a';
+const NAMESILO_PROXY = 'https://e82fa512.new-localchimera.pages.dev/api/namesilo';
+
+async function rpcCall(method, params) {
+  const res = await fetch(RPC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  });
+  return res.json();
+}
+
+async function main() {
+  // 1. Load private key
+  const pem = fs.readFileSync('/tmp/casper_keys_8/Account 10_secret_key.pem', 'utf8');
+  const pk = sdk.PrivateKey.fromPem(pem, sdk.KeyAlgorithm.SECP256K1);
+  const pubKeyHex = pk.publicKey.toHex();
+  const accountHash = pk.publicKey.accountHash().toPrefixedString();
+  console.log('Public key:', pubKeyHex);
+  console.log('Account hash:', accountHash);
+
+  // 2. Check balance on mainnet
+  const acctRes = await rpcCall('state_get_account_info', { account_identifier: accountHash });
+  if (acctRes.error) { console.error('Account not found:', acctRes.error.message); return; }
+  const mainPurse = acctRes.result?.account?.main_purse;
+  console.log('Main purse:', mainPurse);
+
+  const balRes = await rpcCall('query_balance', { purse_identifier: { main_purse_under_account_hash: accountHash } });
+  const balance = balRes.result?.balance || '0';
+  console.log('Balance:', (Number(balance) / 1e9).toFixed(4), 'CSPR');
+
+  // 3. Find cheapest domain
+  const searchName = 'chimera2';
+  const tlds = ['xyz', 'site', 'online', 'store', 'tech', 'cloud', 'app', 'dev'];
+  const allDomains = tlds.map(t => `${searchName}.${t}`);
+  console.log('\nSearching for:', allDomains.join(', '));
+
+  const checkRes = await fetch(`${NAMESILO_PROXY}/checkRegisterAvailability?domains=${allDomains.join(',')}`);
+  const checkData = await checkRes.json();
+  if (!checkData.success) { console.error('Check failed:', checkData.error); return; }
+
+  const avail = checkData.result?.available || [];
+  const availArr = Array.isArray(avail) ? avail : [avail];
+  if (availArr.length === 0) { console.error('No domains available'); return; }
+
+  availArr.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+  const cheapest = availArr[0];
+  console.log('Cheapest:', cheapest.domain, '- $' + cheapest.price);
+
+  // 4. Calculate CSPR amount
+  const priceUSD = parseFloat(cheapest.price);
+  const amountCSPR = Math.ceil(priceUSD * 20);
+  const amountMotes = String(Math.floor(amountCSPR * 1e9));
+  console.log('Payment:', amountCSPR, 'CSPR =', amountMotes, 'motes');
+
+  // 5. Build and sign transfer deploy
+  const multisigAccountHash = 'account-hash-' + PROTOCOL_MULTISIG_PUBKEY.slice(2);
+  console.log('\nTransferring to multisig:', multisigAccountHash);
+
+  const transferItem = new sdk.TransferDeployItem();
+  transferItem.amount = amountMotes;
+  transferItem.target = multisigAccountHash;
+  transferItem.transfer_id = Date.now();
+
+  const session = new sdk.ExecutableDeployItem();
+  session.transfer = transferItem;
+
+  const paymentItem = sdk.ExecutableDeployItem.standardPayment('10000000000');
+
+  const header = sdk.DeployHeader.default();
+  header.account = pk.publicKey;
+  header.chainName = CHAIN_NAME;
+  header.gasPrice = 5;
+  header.ttl = '1800000';
+
+  const deploy = sdk.Deploy.makeDeploy(header, paymentItem, session);
+  deploy.sign(pk);
+
+  const deployJSON = sdk.Deploy.toJSON(deploy);
+  const deployHash = deployJSON.hash;
+  console.log('Deploy hash:', deployHash);
+
+  // 6. Submit deploy
+  const putRes = await rpcCall('account_put_deploy', { deploy: deployJSON });
+  if (putRes.error) { console.error('Submit failed:', putRes.error); return; }
+  console.log('Deploy submitted! Hash:', putRes.result?.deploy_hash || deployHash);
+
+  // 7. Wait for confirmation
+  console.log('\nWaiting for confirmation...');
+  let confirmed = false;
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 10000));
+    const infoRes = await rpcCall('info_get_deploy', { deploy_hash: deployHash });
+    const execResults = infoRes.result?.execution_results || [];
+    if (execResults.length > 0) {
+      const result = execResults[0].result;
+      if (result.Success) {
+        console.log('Deploy confirmed! Success');
+        confirmed = true;
+        break;
+      } else {
+        console.log('Deploy failed:', JSON.stringify(result));
+        return;
+      }
+    }
+    console.log(`  Attempt ${i+1}/30: pending...`);
+  }
+
+  if (!confirmed) { console.error('Not confirmed after 5 min'); return; }
+
+  // 8. Register domain
+  console.log('\nRegistering:', cheapest.domain);
+  const regRes = await fetch(`${NAMESILO_PROXY}/registerDomain`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      domain: cheapest.domain,
+      years: 1,
+      deployHash,
+      paymentMethod: 'casper',
+      paymentAmount: String(amountCSPR),
+      orderId: `DOMAIN:${cheapest.domain}:${Date.now()}`,
+      contact: {
+        fn: 'Chimera', ln: 'Network',
+        email: 'admin@localchimera.com', phone: '5555555555',
+        ad: '123 Main St', city: 'San Francisco', st: 'CA',
+        country: 'US', zp: '94101',
+      },
+    }),
+  });
+  const regData = await regRes.json();
+  console.log('Registration:', JSON.stringify(regData, null, 2));
+}
+
+main().catch(e => console.error('Fatal:', e));

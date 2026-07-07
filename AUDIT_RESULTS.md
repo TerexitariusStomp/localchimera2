@@ -1,4 +1,4 @@
-# Audit Results — Real QVAC SDK Execution
+# Audit Results — Real Chimera SDK Execution
 
 Generated: 2026-06-21 by `node scripts/audit-demo.js` (CPU-only, no GPU)
 
@@ -7,7 +7,7 @@ Generated: 2026-06-21 by `node scripts/audit-demo.js` (CPU-only, no GPU)
 | Property | Value |
 |----------|-------|
 | Model | Llama-3.2-1B-Instruct-Q4_0 |
-| SDK | @qvac/sdk v0.13.2 |
+| SDK | @localchimera/sdk v0.13.2 |
 | Device | CPU (no GPU detected) |
 | OS | Linux |
 

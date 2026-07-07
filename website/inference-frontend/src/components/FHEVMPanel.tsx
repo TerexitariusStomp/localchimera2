@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { ethers } from 'ethers';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useWeb3Auth } from '../web3auth';
 import { Button, TextArea } from './ui';
 import { Send, Lock } from 'lucide-react';
 import { runFhevmInference } from '../fhe/fhevm';
 import type { TxRecord } from '../types';
 
 export default function FHEVMPanel({ onTx }: { onTx: (tx: TxRecord) => void }) {
-  const { user, authenticated, login } = usePrivy();
-  const { wallets } = useWallets();
+  const { isAuthenticated, connect, provider: evmWallet } = useWeb3Auth();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
@@ -17,13 +16,13 @@ export default function FHEVMPanel({ onTx }: { onTx: (tx: TxRecord) => void }) {
   const [address, setAddress] = useState('');
   const [prompt, setPrompt] = useState('');
 
-  const evmWallet = wallets.find((w) => w.type === 'ethereum') || user?.wallet;
+  const connected = isAuthenticated && !!evmWallet;
 
   const handleRun = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim() || loading) return;
-    if (!evmWallet) {
-      setError('No EVM wallet connected. Connect via Privy.');
+    if (!connected) {
+      setError('No EVM wallet connected. Connect via Web3Auth.');
       return;
     }
     setLoading(true);
@@ -32,7 +31,7 @@ export default function FHEVMPanel({ onTx }: { onTx: (tx: TxRecord) => void }) {
     setJobId('');
     setStatus('Connecting wallet...');
     try {
-      const walletProvider = await (evmWallet as any).getProvider?.();
+      const walletProvider = evmWallet as any;
       if (!walletProvider) throw new Error('Wallet provider not available');
       const provider = new ethers.BrowserProvider(walletProvider);
       const signer = await provider.getSigner();
@@ -59,13 +58,13 @@ export default function FHEVMPanel({ onTx }: { onTx: (tx: TxRecord) => void }) {
     }
   };
 
-  if (!authenticated) {
+  if (!isAuthenticated) {
     return (
       <div className="space-y-2">
         <div className="text-xs text-muted-foreground">
-          Connect an EVM wallet via Privy to run on-chain fhEVM inference on Sepolia.
+          Connect an EVM wallet via Web3Auth to run on-chain fhEVM inference on Sepolia.
         </div>
-        <Button type="button" onClick={login} className="w-full">
+        <Button type="button" onClick={() => connect()} className="w-full">
           Connect Wallet
         </Button>
       </div>

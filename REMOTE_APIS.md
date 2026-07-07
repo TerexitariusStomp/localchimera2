@@ -43,15 +43,9 @@ This document lists every remote API, RPC endpoint, and external service the Chi
 
 **Environment override:** `RPC_URL` env var can point to a private RPC (e.g., Alchemy, Infura).
 
-### 3.2 Inference Router — Model APIs
+### 3.2 Resource Payments
 
-| Endpoint | Protocol | Purpose | Auth |
-|----------|----------|---------|------|
-| `https://llm.chutes.ai/v1` | HTTP (OpenAI-compatible) | Chutes miner upstream inference. API key sent via `Authorization: Bearer` header from `CHUTES_API_KEY` env var. | Bearer token |
-
-**Notes:**
-- These are upstream inference APIs that miners call when forwarding tasks. The Chimera node itself does not hardcode keys; they are injected via environment variables (`CHUTES_API_KEY`).
-- Routstr miner connects to local Docker container (`http://localhost:8000/v1`), not a remote API.
+Payments for tasking resources (Golem compute, BTFS storage, etc.) are handled through the static frontend using the user's EVM wallet via Web3Auth. Request Network creates an on-chain payment request, and the protocol converts the received funds to the resource's native token off-chain.
 
 ### 3.3 Casper Escrow Bridge
 
@@ -89,7 +83,7 @@ No tasking-network installers are downloaded by Localchimera. The remaining mine
 
 | Dependency | Purpose |
 |------------|---------|
-| `@qvac/sdk` (npm) | On-device LLM inference via QVAK (Metal/Vulkan). Loaded at runtime, no remote API calls. |
+| `@localchimera/sdk` (npm) | On-device LLM inference via QVAK (Metal/Vulkan). Loaded at runtime, no remote API calls. |
 
 **Notes:**
 - The mobile app loads the frontend from bundled assets (`./assets/frontend/index.html`) and runs inference locally. No cloud inference API is contacted.
@@ -110,7 +104,6 @@ No tasking-network installers are downloaded by Localchimera. The remaining mine
 | Technology | Protocol | Purpose |
 |------------|----------|---------|
 | Pear P2P | Hyperswarm / Noise-secret-stream | Peer discovery and direct message relay for wiki sync and fleet orchestration. |
-| Nostr | WebSocket (`wss://`) | Routstr miner discovery and reputation propagation. Relay URLs are configurable. |
 | Hypercore | Noise-secret-stream | Append-only log replication for wiki page history and miner task logs. |
 
 ---
@@ -122,7 +115,6 @@ No tasking-network installers are downloaded by Localchimera. The remaining mine
 | GitHub API (unauthenticated) | 60 req/hour | Cached in `sessionStorage` for 5 min |
 | Arbitrum public RPC | ~10 req/sec | 3 retries with 1s backoff in PayoutRouter |
 | Casper RPC | Varies by provider | No retry (deploy failures are logged) |
-| Chutes | Determined by upstream | 3 retries with exponential backoff in miner client |
 
 ---
 

@@ -1,5 +1,5 @@
 /**
- * Casper native marketplace client for Chimera-Fortytwo node.
+ * Casper native marketplace client for Chimera node.
  *
  * NOTE: Uses casper-js-sdk v5. Uses `any` for SDK types pending full type alignment.
  */

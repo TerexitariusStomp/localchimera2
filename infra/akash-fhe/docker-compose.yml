@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  fhe-inference:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: localchimera/fhe-inference:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - FHE_SERVER_DIR=/app/server_files
+      - FHE_MODEL_NAME=lfm2.5-230m
+      - SDFG_MAX_BATCH_SIZE=256
+    volumes:
+      - ./server_files:/app/server_files:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

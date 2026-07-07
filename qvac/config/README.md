@@ -10,7 +10,7 @@ QVAC configuration files.
 ## Included Configs
 
 - Local LLM settings
-- Tasking network miner settings (Chutes, Routstr, BTT AI, Golem, Anyone, Mysterium, BTFS, Casper, Earnidle)
+- Tasking network miner settings (BTT AI, Golem, Anyone, Mysterium, BTFS, Casper, Botchain)
 - Casper relay settings
 - Wallet / payout configuration
 

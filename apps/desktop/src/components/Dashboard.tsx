@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-shell";
 import { invoke } from "@tauri-apps/api/core";
-import { usePrivy } from "@privy-io/react-auth";
+import { useWeb3Auth } from "../web3auth";
 
 interface Status {
   running: boolean;
@@ -18,8 +18,8 @@ export function Dashboard() {
   const [loading, setLoading] = useState({ start: false, stop: false });
   const [backendUrl] = useState("http://localhost:3002");
 
-  // Privy auth
-  const { authenticated, login, logout, user } = usePrivy();
+  // Web3Auth auth
+  const { isAuthenticated: authenticated, disconnect: logout, user, connect, address: evmAddress } = useWeb3Auth();
   const [walletError, setWalletError] = useState("");
 
   // Settings state
@@ -79,8 +79,8 @@ export function Dashboard() {
 
   const startMining = async () => {
     setWalletError("");
-    if (!authenticated || !user?.wallet?.address) {
-      setWalletError("Please log in with Privy to create a wallet first.");
+    if (!authenticated || !evmAddress) {
+      setWalletError("Please log in with Web3Auth to create a wallet first.");
       return;
     }
     setLoading(l => ({ ...l, start: true }));
@@ -131,7 +131,7 @@ export function Dashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          evmAddress: user.wallet.address,
+          evmAddress: evmAddress,
           attestedFingerprint,
         }),
       });
@@ -327,7 +327,7 @@ export function Dashboard() {
               fontSize: 12,
               fontWeight: 500,
             }}>
-              Log in with Privy to create a wallet and start mining. Your node will automatically register as a provider on all Casper markets.
+              Log in with Web3Auth to create a wallet and start mining. Your node will automatically register as a provider on all Casper markets.
             </div>
             {authenticated ? (
               <div style={{
@@ -342,7 +342,7 @@ export function Dashboard() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={{ fontSize: 12, color: "#86efac", fontWeight: 600 }}>Connected</span>
                   <span style={{ fontSize: 11, color: "#7a7468", fontFamily: "ui-monospace, SFMono-Regular, 'Cascadia Code', monospace" }}>
-                    {user?.wallet?.address ? `${user.wallet.address.slice(0, 8)}...${user.wallet.address.slice(-6)}` : "Wallet connected"}
+                    {evmAddress ? `${evmAddress.slice(0, 8)}...${evmAddress.slice(-6)}` : "Wallet connected"}
                   </span>
                 </div>
                 <button
@@ -363,7 +363,7 @@ export function Dashboard() {
               </div>
             ) : (
               <button
-                onClick={() => login()}
+                onClick={() => connect()}
                 disabled={loading.start}
                 style={{
                   padding: "10px 18px",
@@ -376,7 +376,7 @@ export function Dashboard() {
                   cursor: loading.start ? "not-allowed" : "pointer",
                 }}
               >
-                Log in with Privy
+                Log in with Web3Auth
               </button>
             )}
             {walletError && (

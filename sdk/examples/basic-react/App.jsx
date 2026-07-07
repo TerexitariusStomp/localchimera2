@@ -1,15 +1,15 @@
 import React from 'react';
-import { ChimeraPrivyProvider } from '../../src/useChimera.js';
+import { ChimeraWeb3AuthProvider } from '../../src/useChimera.js';
 import MiningPanel from './MiningPanel';
 
 /**
  * Example app integrating the Chimera SDK.
- * Wrap your app in <ChimeraPrivyProvider> and use the useChimera hook.
+ * Wrap your app in <ChimeraWeb3AuthProvider> and use the useChimera hook.
  * Wallet and earnings are managed on the Chimera dashboard.
  */
 export default function App() {
   return (
-    <ChimeraPrivyProvider>
+    <ChimeraWeb3AuthProvider>
       <div style={{
         minHeight: '100vh',
         background: '#030308',
@@ -20,6 +20,6 @@ export default function App() {
       }}>
         <MiningPanel />
       </div>
-    </ChimeraPrivyProvider>
+    </ChimeraWeb3AuthProvider>
   );
 }

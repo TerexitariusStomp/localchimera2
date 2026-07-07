@@ -39,47 +39,14 @@
     "enabled": true,
     "parallelMode": true,
     "priority": [
-      "routstr",
-      "chutes",
       "btfs",
       "btt-ai",
       "golem",
       "anyone-protocol",
       "mysterium",
-      "earnidle",
       "casper"
     ],
     "switchInterval": 60000,
-    "routstr": {
-      "enabled": true,
-      "config": {
-        "network": "nostr",
-        "platform": "https://routstr.com",
-        "nsec": "",
-        "npub": "npub1f60vyl802rs2nt8n3lrw89jq9xt6rqzuw8ddxz0vwdqwm8v3xk5sgj9aef",
-        "name": "Chimera-Routstr-Node",
-        "description": "QVAC-Chimera decentralized AI inference node",
-        "receiveLnAddress": "happinesssuperb162013@getalby.com",
-        "adminPassword": "",
-        "apiPort": 8000,
-        "autoFundSweep": true
-      }
-    },
-    "chutes": {
-      "enabled": true,
-      "config": {
-        "network": "bittensor",
-        "platform": "https://chutes.ai",
-        "walletAddress": "5HVRSwRNAoNaghJ4BigmH8ECSLnLA3G55GiDQcZskmdK7vTu",
-        "hotkeyAddress": "5HVRSwRNAoNaghJ4BigmH8ECSLnLA3G55GiDQcZskmdK7vTu",
-        "mnemonic": "",
-        "apiKey": "",
-        "apiBaseUrl": "https://api.chutes.ai",
-        "inferenceBaseUrl": "https://llm.chutes.ai/v1",
-        "chutesHome": "~/.chutes",
-        "endpoint": ""
-      }
-    },
     "btfs": {
       "enabled": true,
       "config": {}
@@ -106,16 +73,6 @@
       "enabled": true,
       "config": {
         "containerName": "myst"
-      }
-    },
-    "earnidle": {
-      "enabled": true,
-      "config": {
-        "walletAddress": "",
-        "model": "llama-3.2-1b-instruct",
-        "apiBase": "https://api.earnidle.com",
-        "network": "solana",
-        "nodeName": "Chimera-Earnidle-Node"
       }
     },
     "casper": {
@@ -184,13 +141,6 @@
       "bittensor": {
         "enabled": true,
         "protocol": "substrate-multisig",
-        "address": "",
-        "threshold": 2,
-        "signers": 3
-      },
-      "solana": {
-        "enabled": true,
-        "protocol": "spl-multisig",
         "address": "",
         "threshold": 2,
         "signers": 3

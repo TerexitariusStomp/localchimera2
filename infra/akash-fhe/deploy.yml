@@ -7,7 +7,7 @@ version: "2.0"
 
 services:
   fhe-inference:
-    image: ghcr.io/${IMAGE_OWNER}/fhe-inference:gpu
+    image: ghcr.io/${IMAGE_OWNER}/fhe-inference:sha-1923896
     credentials:
       host: ghcr.io
       username: ${IMAGE_OWNER}

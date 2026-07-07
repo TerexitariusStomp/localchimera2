@@ -5,11 +5,14 @@ import "./interfaces/IEscrowVault.sol";
 import "./interfaces/IComputeRegistry.sol";
 import "./interfaces/IReputation.sol";
 import "./libraries/Utils.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title EscrowVault
 /// @notice Job escrow with hold/release funds, dispute window, and state machine
 /// @dev Implements the Job Escrow from the decentralized compute marketplace architecture
-contract EscrowVault is IEscrowVault {
+contract EscrowVault is IEscrowVault, Initializable, OwnableUpgradeable, UUPSUpgradeable {
     using MathLib for uint256;
     using ValidationLib for uint256;
     using ValidationLib for address;
@@ -23,9 +26,8 @@ contract EscrowVault is IEscrowVault {
     mapping(address => bytes32[]) public providerJobs;
     bytes32[] public pendingJobs;
 
-    address public immutable computeRegistry;
-    address public immutable reputation;
-    address public immutable owner;
+    address public computeRegistry;
+    address public reputation;
     address public protocolFeeRecipient;
 
     // Constants
@@ -33,25 +35,24 @@ contract EscrowVault is IEscrowVault {
     uint256 public constant CONFIRM_WINDOW_ = 300; // 5 minutes
     uint256 public constant MIN_AMOUNT_ = 1000; // 1000 wei minimum
     uint256 public constant PROTOCOL_FEE_BPS_ = 100; // 1%
+    uint256 public constant NODE_DISCOUNT_BPS = 1000; // 10% discount for active node runners
 
     // Protocol fee tracking
     uint256 public protocolFeesCollected_;
 
-    constructor(
+    // Per-user deposits held by the escrow
+    mapping(address => uint256) public deposits;
+
+    function initialize(
         address _computeRegistry,
         address _reputation,
         address _owner,
         address _protocolFeeRecipient
-    ) {
+    ) external initializer {
+        __Ownable_init(_owner);
         computeRegistry = _computeRegistry;
         reputation = _reputation;
-        owner = _owner;
         protocolFeeRecipient = _protocolFeeRecipient;
-    }
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "EscrowVault: not owner");
-        _;
     }
 
     modifier jobExists(address jobAddress) {
@@ -79,8 +80,30 @@ contract EscrowVault is IEscrowVault {
     }
 
     modifier onlyArbitrator(address jobAddress) {
-        require(jobs[jobAddress].arbitrator == msg.sender || msg.sender == owner, "EscrowVault: not arbitrator");
+        require(jobs[jobAddress].arbitrator == msg.sender || msg.sender == owner(), "EscrowVault: not arbitrator");
         _;
+    }
+
+    /// @notice Deposit native funds into the escrow for later use when creating jobs.
+    function deposit() external payable {
+        require(msg.value > 0, "EscrowVault: deposit must be greater than 0");
+        deposits[msg.sender] += msg.value;
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    /// @notice Withdraw unused deposited funds.
+    /// @param amount The amount to withdraw.
+    function withdraw(uint256 amount) external {
+        require(amount > 0, "EscrowVault: withdraw amount must be greater than 0");
+        require(deposits[msg.sender] >= amount, "EscrowVault: insufficient deposit balance");
+        deposits[msg.sender] -= amount;
+        payable(msg.sender).transfer(amount);
+        emit Withdrawal(msg.sender, amount);
+    }
+
+    /// @notice Returns the deposited balance for an account.
+    function getBalance(address account) external view returns (uint256) {
+        return deposits[account];
     }
 
     function JOB_TIMEOUT() external view override returns (uint256) {
@@ -115,6 +138,7 @@ contract EscrowVault is IEscrowVault {
         require(paymentMint == address(0) || paymentMint != address(0), "EscrowVault: invalid payment mint");
         require(validUntil > block.timestamp, "EscrowVault: validUntil in past");
         require(validUntil - block.timestamp <= 3600, "EscrowVault: validUntil too far in future");
+        require(msg.value == 0, "EscrowVault: use deposit() to add funds first");
         
         // Verify provider exists and is active
         IComputeRegistry registry = IComputeRegistry(computeRegistry);
@@ -122,12 +146,16 @@ contract EscrowVault is IEscrowVault {
         require(providerAddress != address(0), "EscrowVault: provider not registered");
         require(registry.isActiveProvider(providerAddress), "EscrowVault: provider not active");
 
-        // Verify payment
-        if (paymentMint == address(0)) {
-            require(msg.value == amount, "EscrowVault: ETH amount mismatch");
-        } else {
-            require(msg.value == 0, "EscrowVault: ETH sent for ERC20 job");
+        // Deduct from the caller's deposit balance
+        require(deposits[msg.sender] >= amount, "EscrowVault: insufficient deposit balance");
+
+        // Check if consumer is an active provider (node runner) for 10% discount
+        bool isNodeRunner = registry.isActiveProvider(msg.sender);
+        uint256 deductAmount = amount;
+        if (isNodeRunner) {
+            deductAmount = amount - (amount * NODE_DISCOUNT_BPS / 10000);
         }
+        deposits[msg.sender] -= deductAmount;
 
         // Generate deterministic job ID
         jobId = keccak256(abi.encodePacked(msg.sender, providerAuthority, nonce, block.timestamp));
@@ -151,7 +179,7 @@ contract EscrowVault is IEscrowVault {
         job.taskType = taskType;
         job.validUntil = validUntil;
         job.quoteSignature = quoteSignature;
-        job.amount = amount;
+        job.amount = deductAmount;
         job.paymentMint = paymentMint;
         job.providerFeeBps = PROTOCOL_FEE_BPS_;
         job.state = uint8(JobState.Pending);
@@ -163,7 +191,7 @@ contract EscrowVault is IEscrowVault {
         providerJobs[providerAuthority].push(jobId);
         pendingJobs.push(jobId);
 
-        emit JobCreated(jobId, msg.sender, providerAuthority, amount);
+        emit JobCreated(jobId, msg.sender, providerAuthority, deductAmount);
     }
 
     function providerAck(address jobAddress, bytes32 requestHash) external override onlyProvider(jobAddress) jobExists(jobAddress) {
@@ -280,11 +308,9 @@ contract EscrowVault is IEscrowVault {
             require(job.providerAckedAt.addSeconds(JOB_TIMEOUT_).isExpired(), "EscrowVault: provider timeout not reached");
         }
 
-        // Refund consumer
+        // Refund consumer by returning funds to their deposit balance
         if (job.amount > 0) {
-            if (job.paymentMint == address(0)) {
-                payable(job.consumer).transfer(job.amount);
-            }
+            deposits[job.consumer] += job.amount;
         }
 
         job.state = uint8(JobState.Refunded);
@@ -317,7 +343,7 @@ contract EscrowVault is IEscrowVault {
         job.state = uint8(JobState.Disputed);
         job.disputeEvidenceHash = evidenceHash;
         // Arbitrator defaults to owner, can be set differently via governance
-        job.arbitrator = owner;
+        job.arbitrator = owner();
 
         // Record dispute in reputation
         IReputation rep = IReputation(reputation);
@@ -333,11 +359,9 @@ contract EscrowVault is IEscrowVault {
         require(!job.disputeEvidenceHash.isZero(), "EscrowVault: no dispute evidence");
 
         if (consumerWins) {
-            // Refund consumer
+            // Refund consumer by returning funds to their deposit balance
             if (job.amount > 0) {
-                if (job.paymentMint == address(0)) {
-                    payable(job.consumer).transfer(job.amount);
-                }
+                deposits[job.consumer] += job.amount;
             }
             // Record consumer win
             IReputation rep = IReputation(reputation);
@@ -411,8 +435,10 @@ contract EscrowVault is IEscrowVault {
     }
 
     function emergencyWithdraw() external onlyOwner {
-        payable(owner).transfer(address(this).balance);
+        payable(owner()).transfer(address(this).balance);
     }
 
     receive() external payable {}
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }

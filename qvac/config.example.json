@@ -32,56 +32,15 @@
     "enabled": true,
     "parallelMode": true,
     "priority": [
-      "routstr",
-      "chutes",
       "btfs",
-      "earnidle"
+      "btt-ai",
+      "golem",
+      "anyone-protocol",
+      "mysterium",
+      "casper",
+      "botchain"
     ],
     "switchInterval": 60000,
-    "earnidle": {
-      "enabled": true,
-      "config": {
-        "network": "solana",
-        "walletAddress": "YOUR_SOLANA_WALLET_ADDRESS",
-        "protocolAddress": "",
-        "nodeName": "Chimera-IDLE-Inference",
-        "model": "llama-3.2-1b-instruct",
-        "gpuAvailable": false,
-        "pollInterval": 30000,
-        "apiBase": "https://api.earnidle.com",
-        "autoFundSweep": true
-      }
-    },
-    "routstr": {
-      "enabled": true,
-      "config": {
-        "network": "nostr",
-        "platform": "https://routstr.com",
-        "nsec": "nsec1YOUR_NOSTR_PRIVATE_KEY",
-        "npub": "npub1YOUR_NOSTR_PUBLIC_KEY",
-        "name": "Chimera-Routstr-Node",
-        "description": "QVAC-Chimera decentralized AI inference node",
-        "receiveLnAddress": "you@your-lightning-wallet.com",
-        "adminPassword": "GENERATE_A_STRONG_RANDOM_PASSWORD",
-        "apiPort": 8000,
-        "autoFundSweep": true
-      }
-    },
-    "chutes": {
-      "enabled": true,
-      "config": {
-        "network": "bittensor",
-        "platform": "https://chutes.ai",
-        "walletAddress": "YOUR_BITTENSOR_COLDKEY_SS58",
-        "hotkeyAddress": "YOUR_BITTENSOR_HOTKEY_SS58",
-        "mnemonic": "YOUR TWELVE WORD BITTENSOR MNEMONIC PHRASE HERE",
-        "apiKey": "cpk_YOUR_CHUTES_API_KEY",
-        "apiBaseUrl": "https://api.chutes.ai",
-        "inferenceBaseUrl": "https://llm.chutes.ai/v1",
-        "chutesHome": "~/.chutes",
-        "endpoint": "https://your-node-domain.com:3002/v1"
-      }
-    },
     "btfs": {
       "enabled": true,
       "config": {
@@ -97,7 +56,18 @@
       "config": {
         "network": "casper",
         "rpcUrl": "https://rpc.mainnet.casper.network/rpc",
-        "providerKeyPem": ""
+        "providerKeyPem": "",
+        "coordinatorUrl": "wss://coordinator.localchimera.com",
+        "coordinatorToken": "YOUR_COORDINATOR_TOKEN"
+      }
+    },
+    "botchain": {
+      "enabled": false,
+      "config": {
+        "rpcUrl": "https://rpc.bohr.life",
+        "privateKey": "0xYOUR_BOTCHAIN_PRIVATE_KEY",
+        "coordinatorUrl": "wss://coordinator.localchimera.com",
+        "coordinatorToken": "YOUR_COORDINATOR_TOKEN"
       }
     }
   },
@@ -140,13 +110,6 @@
         "enabled": true,
         "protocol": "substrate-multisig",
         "address": "YOUR_BITTENSOR_MULTISIG_SS58_ADDRESS",
-        "threshold": 2,
-        "signers": 3
-      },
-      "solana": {
-        "enabled": true,
-        "protocol": "spl-multisig",
-        "address": "YOUR_SOLANA_MULTISIG_ADDRESS",
         "threshold": 2,
         "signers": 3
       }

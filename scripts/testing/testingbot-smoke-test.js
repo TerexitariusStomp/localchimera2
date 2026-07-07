@@ -130,9 +130,9 @@ async function runSingleAttempt() {
                   const hasWiki = bodyText.toLowerCase().includes('wiki') || bodyText.toLowerCase().includes('chimera');
                   const hasNotes = bodyText.toLowerCase().includes('notes') || bodyText.toLowerCase().includes('editor');
                   const hasAI = bodyText.toLowerCase().includes('ai') || bodyText.toLowerCase().includes('writer');
-                  const hasPrivy = bodyText.toLowerCase().includes('privy') || bodyText.toLowerCase().includes('log in');
+                  const hasWeb3Auth = bodyText.toLowerCase().includes('web3auth') || bodyText.toLowerCase().includes('log in');
 
-                  console.log(`WebView content check: wiki=${hasWiki}, notes=${hasNotes}, ai=${hasAI}, privy=${hasPrivy}`);
+                  console.log(`WebView content check: wiki=${hasWiki}, notes=${hasNotes}, ai=${hasAI}, web3auth=${hasWeb3Auth}`);
 
                   if (hasWiki || hasNotes || hasAI) {
                     console.log('SUCCESS: WebView is showing wiki/notes UI with AI writer');

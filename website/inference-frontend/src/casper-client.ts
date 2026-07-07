@@ -5,7 +5,7 @@ const RPC_URL = typeof window !== 'undefined' && window.location?.origin
   ? `${window.location.origin}/api/rpc`
   : '/api/rpc';
 const FALLBACK_RPC = 'https://node.testnet.casper.network/rpc';
-const CHAIN_NAME = 'casper-test';
+const CHAIN_NAME = 'casper';
 
 export interface ContractConfig {
   inferenceMarket: string;
@@ -167,9 +167,9 @@ const NEEDS_PURSE = new Set(['register_provider', 'deposit_stake', 'withdraw_sta
 function buildDeploy(account: any, contractHash: string, entryPoint: string, argsMap: Record<string, any>, payment = '50000000000') {
   const args = sdk.Args.fromMap(argsMap);
   const contractHashObj = sdk.ContractHash.newContract(contractHash);
-  const storedContract = new sdk.StoredContractByHash(contractHashObj, entryPoint, args);
+  const storedContract = new sdk.StoredVersionedContractByHash(contractHashObj, entryPoint, args);
   const session = new sdk.ExecutableDeployItem();
-  session.storedContractByHash = storedContract;
+  session.storedVersionedContractByHash = storedContract;
   const paymentItem = sdk.ExecutableDeployItem.standardPayment(payment);
   const header = sdk.DeployHeader.default();
   header.account = account;
@@ -407,16 +407,93 @@ export function publicKeyFromPrivate(privateKey: any): any {
   return privateKey.publicKey;
 }
 
+export async function depositWithWallet(
+  provider: any,
+  publicKeyHex: string,
+  contractHash: string,
+  amountMotes: string,
+  payment = '10000000000'
+): Promise<{ deployHash: string; error?: string }> {
+  return callEntryPointWithWallet(
+    provider,
+    publicKeyHex,
+    contractHash,
+    'deposit',
+    { amount: sdk.CLValue.newCLUInt512(amountMotes) },
+    payment
+  );
+}
+
+export async function withdrawWithWallet(
+  provider: any,
+  publicKeyHex: string,
+  contractHash: string,
+  amountMotes: string,
+  payment = '10000000000'
+): Promise<{ deployHash: string; error?: string }> {
+  return callEntryPointWithWallet(
+    provider,
+    publicKeyHex,
+    contractHash,
+    'withdraw',
+    { amount: sdk.CLValue.newCLUInt512(amountMotes) },
+    payment
+  );
+}
+
+export async function transferCSPRWithWallet(
+  provider: any,
+  publicKeyHex: string,
+  targetAccountHash: string,
+  amountMotes: string,
+  transferId = 1
+): Promise<{ deployHash: string; error?: string }> {
+  try {
+    const client = getClient();
+    const publicKey = sdk.PublicKey.fromHex(publicKeyHex);
+    const targetHash = sdk.AccountHash.fromHex(targetAccountHash.replace(/^account-hash-/, ''));
+    const transaction = new sdk.NativeTransferBuilder()
+      .from(publicKey)
+      .targetAccountHash(targetHash)
+      .amount(amountMotes)
+      .id(transferId)
+      .chainName(CHAIN_NAME)
+      .payment('10000000000')
+      .buildFor1_5();
+    const deploy = transaction.getDeploy();
+    if (!deploy) throw new Error('Native transfer builder did not produce a deploy.');
+    const deployJSON = sdk.Deploy.toJSON(deploy);
+    const deployJsonString = JSON.stringify(deployJSON);
+
+    const result = await provider.sign(deployJsonString, publicKeyHex);
+    if (result?.cancelled) return { deployHash: '', error: 'User cancelled the signing request.' };
+    if (!result?.signatureHex) return { deployHash: '', error: 'Wallet did not return a signature.' };
+
+    const prefix = publicKeyHex.slice(0, 2);
+    const fullSigHex = prefix + result.signatureHex;
+    const completeJSON = { ...deployJSON, approvals: [{ signer: publicKeyHex, signature: fullSigHex }] };
+    const signedDeploy = sdk.Deploy.fromJSON(completeJSON);
+    const putResult = await client.putDeploy(signedDeploy);
+    return { deployHash: putResult.deployHash.toHex() };
+  } catch (err: any) {
+    console.error('[transfer] error:', err);
+    return { deployHash: '', error: err.message || String(err) };
+  }
+}
+
 // ── Dictionary Queries ──
 
 export async function getContractNamedKeys(contractHash: string): Promise<Record<string, string>> {
+  const entity_identifier = contractHash.length === 64 && contractHash.startsWith('contract-package-')
+    ? { ContractPackageHash: contractHash }
+    : { ContractHash: 'contract-' + contractHash };
   const res = await fetch(RPC_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       jsonrpc: '2.0', id: 1,
       method: 'state_get_entity',
-      params: { entity_identifier: { ContractHash: 'contract-' + contractHash } },
+      params: { entity_identifier },
     }),
   }).then(r => r.json());
   const keys: any[] = res.result?.entity?.Contract?.contract?.named_keys || [];
@@ -455,6 +532,19 @@ export async function queryDictionary(uref: string, key: string): Promise<any> {
 
 export async function queryDictionaryItem(uref: string, key: string): Promise<any> {
   return queryDictionary(uref, key);
+}
+
+export async function getDepositBalance(contractHash: string, accountHash: string): Promise<string> {
+  try {
+    const namedKeys = await getContractNamedKeys(contractHash);
+    const uref = namedKeys.deposits_dict?.replace(/^uref-/, '').replace(/-\d{3}$/, '');
+    if (!uref) return '0';
+    const balance = await queryDictionary(`uref-${uref}-007`, accountHash);
+    return balance?.toString() || '0';
+  } catch (e: any) {
+    console.error('[getDepositBalance] error:', e.message);
+    return '0';
+  }
 }
 
 export async function getRegisteredProviders(contractHash: string): Promise<{

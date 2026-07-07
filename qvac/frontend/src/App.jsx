@@ -1,4 +1,5 @@
 import React from 'react'
+import { ChimeraWeb3AuthProvider } from '@localchimera/sdk'
 import WikiPage from './pages/WikiPage'
 import DocsPage from './pages/DocsPage'
 
@@ -10,4 +11,12 @@ function App() {
   return <WikiPage />
 }
 
-export default App
+function WrappedApp() {
+  return (
+    <ChimeraWeb3AuthProvider>
+      <App />
+    </ChimeraWeb3AuthProvider>
+  )
+}
+
+export default WrappedApp

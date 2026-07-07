@@ -13,7 +13,8 @@ use casper_types::{
         Parameter,
     },
     bytesrepr::{FromBytes, ToBytes},
-    contracts::{ContractHash, NamedKeys},
+    contracts::{ContractHash, ContractPackageHash, NamedKeys},
+    contract_messages::MessageTopicOperation,
     AccessRights, ApiError, CLType, CLTyped, CLValue, Key, RuntimeArgs, URef, U512,
 };
 
@@ -29,7 +30,10 @@ const PROVIDER_JOBS: &str = "provider_jobs";
 const PENDING_JOBS: &str = "pending_jobs";
 const CONTRACT_PURSE: &str = "contract_purse";
 const CHALLENGES_DICT: &str = "challenges_dict";
+const DEPOSITS_DICT: &str = "deposits_dict";
 const PROTOCOL_FEE_BPS: &str = "protocol_fee_bps";
+const CONTRACT_PACKAGE_HASH: &str = "contract_package_hash";
+const NODE_DISCOUNT_BPS: u64 = 1000; // 10% discount for active node runners
 
 const STATE_PENDING: u8 = 0;
 const STATE_ASSIGNED: u8 = 1;
@@ -65,6 +69,22 @@ fn require_owner() {
     if runtime::get_caller() != owner {
         runtime::revert(ApiError::User(10));
     }
+}
+
+fn is_active_provider(account: &AccountHash) -> bool {
+    let cr_key = runtime::get_key(COMPUTE_REGISTRY);
+    if cr_key.is_none() {
+        return false;
+    }
+    let cr_hash = cr_key.unwrap().into_hash_addr().unwrap_or_default();
+    if cr_hash == [0u8; 32] {
+        return false;
+    }
+    let cr_contract_hash = ContractHash::new(cr_hash);
+    let mut args = RuntimeArgs::new();
+    args.insert("provider_address", *account).unwrap_or_revert();
+    let result: bool = runtime::call_contract(cr_contract_hash, "is_active_provider", args);
+    result
 }
 
 fn create_entry_points() -> EntryPoints {
@@ -183,6 +203,33 @@ fn create_entry_points() -> EntryPoints {
         "auto_release",
         vec![Parameter::new("job_id", CLType::String)],
         CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Called,
+        EntryPointPayment::Caller,
+    ));
+
+    eps.add_entry_point(EntityEntryPoint::new(
+        "deposit",
+        vec![Parameter::new("amount", U512::cl_type())],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Called,
+        EntryPointPayment::Caller,
+    ));
+
+    eps.add_entry_point(EntityEntryPoint::new(
+        "withdraw",
+        vec![Parameter::new("amount", U512::cl_type())],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Called,
+        EntryPointPayment::Caller,
+    ));
+
+    eps.add_entry_point(EntityEntryPoint::new(
+        "get_balance",
+        vec![Parameter::new("account", AccountHash::cl_type())],
+        CLType::U512,
         EntryPointAccess::Public,
         EntryPointType::Called,
         EntryPointPayment::Caller,
@@ -410,6 +457,15 @@ fn create_entry_points() -> EntryPoints {
     ));
 
 
+    eps.add_entry_point(EntityEntryPoint::new(
+        "upgrade",
+        vec![],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Called,
+        EntryPointPayment::Caller,
+    ));
+
     eps
 }
 
@@ -427,6 +483,22 @@ pub extern "C" fn create_job() {
     let amount: U512 = runtime::get_named_arg("amount");
     let provider_fee_bps: u64 = runtime::get_named_arg("provider_fee_bps");
     let order_id: String = runtime::get_named_arg("order_id");
+
+    // Deduct the job amount from the consumer's deposit balance.
+    // Apply 10% discount if the consumer is an active provider (node runner).
+    let deposits_dict = get_dict(DEPOSITS_DICT);
+    let deposit_key = consumer.to_string();
+    let current_deposit: U512 = read_dict(deposits_dict, &deposit_key).unwrap_or_default();
+    if amount > current_deposit {
+        runtime::revert(ApiError::User(34));
+    }
+    let is_node_runner = is_active_provider(&consumer);
+    let deduct_amount = if is_node_runner {
+        amount - amount.clone() * U512::from(NODE_DISCOUNT_BPS) / U512::from(10000)
+    } else {
+        amount.clone()
+    };
+    write_dict(deposits_dict, &deposit_key, current_deposit - deduct_amount.clone());
 
     let now: u64 = Into::<u64>::into(runtime::get_blocktime());
     let valid_until = now + 3_600_000;
@@ -477,7 +549,7 @@ pub extern "C" fn create_job() {
     write_dict(jobs_dict, &format!("{}:nonce", job_id), nonce);
     write_dict(jobs_dict, &format!("{}:task_type", job_id), task_type);
     write_dict(jobs_dict, &format!("{}:valid_until", job_id), valid_until);
-    write_dict(jobs_dict, &format!("{}:amount", job_id), amount.clone());
+    write_dict(jobs_dict, &format!("{}:amount", job_id), deduct_amount.clone());
     write_dict(jobs_dict, &format!("{}:provider_fee_bps", job_id), provider_fee_bps);
     write_dict(jobs_dict, &format!("{}:created_at", job_id), now);
 
@@ -731,6 +803,77 @@ pub extern "C" fn withdraw_protocol_fees() {
     system::transfer_from_purse_to_account(contract_purse, owner, amount, None)
         .unwrap_or_revert();
     storage::write(fees_uref, fees - amount);
+}
+
+#[no_mangle]
+pub extern "C" fn upgrade() {
+    let caller = runtime::get_caller();
+    let owner: AccountHash = runtime::get_key(OWNER)
+        .unwrap_or_revert_with(ApiError::MissingKey)
+        .into_account()
+        .unwrap_or_revert();
+    if caller != owner {
+        runtime::revert(ApiError::User(35));
+    }
+
+    let contract_package_hash: ContractPackageHash = runtime::get_key(CONTRACT_PACKAGE_HASH)
+        .unwrap_or_revert_with(ApiError::MissingKey)
+        .into_package_hash()
+        .unwrap_or_revert()
+        .into();
+    let entry_points = create_entry_points();
+    let named_keys = NamedKeys::new();
+    let message_topics = alloc::collections::BTreeMap::<String, MessageTopicOperation>::new();
+    storage::add_contract_version(contract_package_hash, entry_points, named_keys, message_topics);
+}
+
+#[no_mangle]
+pub extern "C" fn deposit() {
+    let caller = runtime::get_caller();
+    let amount: U512 = runtime::get_named_arg("amount");
+    if amount == U512::from(0) {
+        runtime::revert(ApiError::User(30));
+    }
+
+    let contract_purse = get_contract_purse();
+    let caller_purse = account::get_main_purse();
+    system::transfer_from_purse_to_purse(caller_purse, contract_purse, amount, None)
+        .unwrap_or_revert_with(ApiError::User(31));
+
+    let deposits_dict = get_dict(DEPOSITS_DICT);
+    let key = caller.to_string();
+    let current: U512 = read_dict(deposits_dict, &key).unwrap_or_default();
+    write_dict(deposits_dict, &key, current + amount);
+}
+
+#[no_mangle]
+pub extern "C" fn withdraw() {
+    let caller = runtime::get_caller();
+    let amount: U512 = runtime::get_named_arg("amount");
+    if amount == U512::from(0) {
+        runtime::revert(ApiError::User(30));
+    }
+
+    let deposits_dict = get_dict(DEPOSITS_DICT);
+    let key = caller.to_string();
+    let current: U512 = read_dict(deposits_dict, &key).unwrap_or_default();
+    if amount > current {
+        runtime::revert(ApiError::User(32));
+    }
+
+    let contract_purse = get_contract_purse();
+    system::transfer_from_purse_to_account(contract_purse, caller, amount, None)
+        .unwrap_or_revert_with(ApiError::User(33));
+    write_dict(deposits_dict, &key, current - amount);
+}
+
+#[no_mangle]
+pub extern "C" fn get_balance() {
+    let account: AccountHash = runtime::get_named_arg("account");
+    let deposits_dict = get_dict(DEPOSITS_DICT);
+    let key = account.to_string();
+    let balance: U512 = read_dict(deposits_dict, &key).unwrap_or_default();
+    runtime::ret(CLValue::from_t(balance).unwrap_or_revert());
 }
 
 #[no_mangle]
@@ -1499,15 +1642,26 @@ pub extern "C" fn call() {
     named_keys.insert(PROVIDER_JOBS.to_string(), storage::new_dictionary("ev4_provider_jobs").unwrap_or_revert().into());
     named_keys.insert(PENDING_JOBS.to_string(), storage::new_dictionary("ev4_pending_jobs").unwrap_or_revert().into());
     named_keys.insert(CHALLENGES_DICT.to_string(), storage::new_dictionary("ev4_challenges").unwrap_or_revert().into());
+    named_keys.insert(DEPOSITS_DICT.to_string(), storage::new_dictionary("ev4_deposits").unwrap_or_revert().into());
     named_keys.insert(PROTOCOL_FEE_BPS.to_string(), storage::new_uref(0u64).into());
 
     let hash_name = format!("{}_hash", contract_name);
-    let (contract_hash, _) = storage::new_contract(
-        create_entry_points(),
-        Some(named_keys),
-        Some(contract_name.clone()),
-        Some(hash_name.clone()),
-        None,
+    let version_hash_name = format!("{}_version_hash", contract_name);
+
+    // Create the contract package so we can store its hash in the contract's named keys.
+    let (contract_package_hash, access_uref) = storage::create_contract_package_at_hash();
+    named_keys.insert(CONTRACT_PACKAGE_HASH.to_string(), Key::from(contract_package_hash));
+
+    let entry_points = create_entry_points();
+    let message_topics = alloc::collections::BTreeMap::<String, MessageTopicOperation>::new();
+    let (contract_hash, _) = storage::add_contract_version(
+        contract_package_hash,
+        entry_points,
+        named_keys,
+        message_topics,
     );
-    runtime::put_key(&hash_name, contract_hash.into());
+
+    runtime::put_key(&hash_name, Key::from(contract_package_hash));
+    runtime::put_key(&version_hash_name, Key::from(contract_hash));
+    runtime::put_key(&format!("{}_access_uref", contract_name), access_uref.into());
 }

@@ -49,6 +49,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "build:bundle": "esbuild src/index.ts --bundle --format=esm --outfile=dist/bundle.js --platform=browser --target=es2022 --inject:buffer-shim.js --external:@mlc-ai/web-llm --external:@huggingface/transformers --external:helia --external:@helia/ipfs --external:@helia/unixfs --external:@wasmer/sdk --external:multiformats",
     "prepublishOnly": "npm run build",
     "test": "echo 'no tests yet' && exit 0"
   },
@@ -64,32 +65,55 @@
     "wasi",
     "webrtc",
     "cortensor",
-    "chutes",
-    "fortytwo",
-    "earnidle",
-    "routstr"
+    "fortytwo"
   ],
   "author": "Chimera",
   "license": "MIT",
   "dependencies": {
-    "casper-js-sdk": "^5.0.12"
+    "@noble/hashes": "^2.2.0",
+    "@toruslabs/tss-dkls-lib": "^4.1.0",
+    "@web3auth/auth": "^11.8.1",
+    "@web3auth/base": "^9.7.0",
+    "@web3auth/ethereum-provider": "^9.7.0",
+    "@web3auth/modal": "^9.7.0",
+    "@web3auth/mpc-core-kit": "^3.5.0",
+    "@web3auth/single-factor-auth": "^9.2.0",
+    "casper-js-sdk": "^5.0.12",
+    "ethers": "^6.17.0"
   },
   "peerDependencies": {
-    "@mlc-ai/web-llm": ">=0.2.0",
-    "@huggingface/transformers": ">=3.0.0",
-    "helia": ">=4.0.0",
     "@helia/ipfs": ">=4.0.0",
     "@helia/unixfs": ">=4.0.0",
+    "@huggingface/transformers": ">=3.0.0",
+    "@mlc-ai/web-llm": ">=0.2.0",
     "@wasmer/sdk": ">=0.10.0",
+    "helia": ">=4.0.0",
     "multiformats": ">=12.0.0"
   },
   "peerDependenciesMeta": {
-    "@mlc-ai/web-llm": { "optional": true },
-    "@huggingface/transformers": { "optional": true },
-    "helia": { "optional": true },
-    "@helia/ipfs": { "optional": true },
-    "@helia/unixfs": { "optional": true },
-    "@wasmer/sdk": { "optional": true },
-    "multiformats": { "optional": true }
+    "@mlc-ai/web-llm": {
+      "optional": true
+    },
+    "@huggingface/transformers": {
+      "optional": true
+    },
+    "helia": {
+      "optional": true
+    },
+    "@helia/ipfs": {
+      "optional": true
+    },
+    "@helia/unixfs": {
+      "optional": true
+    },
+    "@wasmer/sdk": {
+      "optional": true
+    },
+    "multiformats": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
   }
 }

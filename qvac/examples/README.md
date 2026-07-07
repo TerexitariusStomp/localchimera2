@@ -23,7 +23,7 @@ The AI Writer integration demonstrates session-based resource allocation for col
 ### Key Features
 
 1. **Session-Based Switching**: Automatically detects active vs idle user sessions
-2. **Parallel Miner Monitoring**: Chutes, Routstr, Earnidle, BTT AI, Golem, Anyone Protocol, Mysterium, BTFS, and Casper monitor simultaneously
+2. **Parallel Miner Monitoring**: BTT AI, Golem, Anyone Protocol, Mysterium, BTFS, Casper, and Botchain monitor simultaneously
 3. **Immediate Task Detection**: Task monitor notifies all miners instantly when inference tasks arrive
 4. **Resource Optimization**: Device resources allocated based on user activity
 
@@ -72,17 +72,17 @@ Edit `config.json` to customize:
     ┌────┴────┐
     │         │
 ┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐
-│Chutes │ │Routstr│ │Earnidle│ │Casper │
-│       │ │       │ │        │ │       │
-│Mining │ │Mining │ │Mining  │ │Mining │
-└───────┘ └───────┘ └────────┘ └───────┘
+│ BTFS  │ │BTT AI │ │ Golem │ │Anyone │
+│       │ │       │ │       │ │       │
+│Mining │ │Mining │ │Mining │ │Mining │
+└───────┘ └───────┘ └───────┘ └───────┘
 ```
 
 ### Integration with AI Writer
 
 The AI Writer uses QVAC Inference Layer for on-device LLM generation:
 
-1. **QVAC Integration**: Uses QVAC SDK for local LLM inference (Llama models)
+1. **QVAC Integration**: Uses Chimera SDK for local LLM inference (Llama models)
 2. **Wiki Generation**: Saves articles to distributed Hypercore storage
 3. **Rewards**: Contributors earn for high-quality generated content
 4. **Peer Sync**: Articles sync across the Pear P2P network

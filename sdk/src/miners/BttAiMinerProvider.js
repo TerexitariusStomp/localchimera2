@@ -14,6 +14,7 @@ import { spawn, execSync } from 'child_process';
 import path from 'path';
 import os from 'os';
 import { promises as fs } from 'fs';
+import { getProtocolPayoutAddress } from './protocol-address.js';
 
 const BTT_DIR = process.env.CHIMERA_BTT_DIR || path.join(os.homedir(), '.chimera', 'upstream', 'btt-ai-miner');
 
@@ -24,6 +25,7 @@ export class BttAiMinerProvider {
     this.logs = [];
     this.engine = opts.engine || 'vllm'; // or 'sglang'
     this.configFile = opts.configFile || path.join(BTT_DIR, 'miner.yaml');
+    this.payoutAddress = getProtocolPayoutAddress(opts); // Protocol address for BTT rewards
   }
 
   async init() {
@@ -120,6 +122,7 @@ export class BttAiMinerProvider {
       running: this.running,
       pid: this.process?.pid || null,
       engine: this.engine,
+      payoutAddress: this.payoutAddress,
       resources: this.inContainer ? 'Inline (container), GPU required (NVIDIA)' : 'GPU required (NVIDIA), Docker-based',
       recentLogs: this.logs.slice(-10)
     };

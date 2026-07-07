@@ -3,8 +3,6 @@
  *
  * Given pairwise comparison results, estimates each peer's latent quality score
  * using maximum-likelihood estimation with damping and regularization.
- *
- * Reference: Fortytwo paper (arXiv:2510.24801) Section 4.4
  */
 
 import { ComparisonPair, RankingScore } from '../types/index.js';
