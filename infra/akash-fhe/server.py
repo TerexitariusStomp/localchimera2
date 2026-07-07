@@ -21,11 +21,13 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import concrete.compiler
-from concrete.ml.deployment import FHEModelServer
+from concrete.ml.deployment import FHEModelServer, FHEModelClient
+import numpy as np
 
 app = FastAPI(title="Localchimera FHE Inference Server", version="0.2.0")
 
 SERVER_DIR = Path(os.getenv("FHE_SERVER_DIR", "/app/server_files")).resolve()
+CLIENT_DIR = Path(os.getenv("FHE_CLIENT_DIR", "/app/client_files")).resolve()
 
 # Map phase name -> loaded FHEModelServer
 servers: Dict[str, FHEModelServer] = {}
@@ -158,6 +160,91 @@ async def run_fhe_raw(request: Request) -> JSONResponse:
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid request body: {e}") from e
     return await _run_fhe(req)
+
+
+# Cache clients for benchmark
+_benchmark_clients: Dict[str, FHEModelClient] = {}
+
+
+def _get_benchmark_client(phase: str) -> FHEModelClient:
+    if phase in _benchmark_clients:
+        return _benchmark_clients[phase]
+    client_dir = CLIENT_DIR / phase
+    if not client_dir.exists():
+        raise FileNotFoundError(f"Client directory not found: {client_dir}")
+    client = FHEModelClient(str(client_dir))
+    _benchmark_clients[phase] = client
+    return client
+
+
+def _get_benchmark_shape(phase: str):
+    """Read benchmark input shape from env, with sensible defaults."""
+    import json
+    default = {
+        "phase1": (1, 1024),
+        "phase2": (1, 1024),
+        "single": (1, 1024),
+    }
+    env = os.getenv(f"FHE_BENCH_SHAPE_{phase.upper()}")
+    if env:
+        try:
+            return tuple(json.loads(env))
+        except Exception:
+            pass
+    return default.get(phase, (1, 1024))
+
+
+def _benchmark_phase(phase: str, input_shape: tuple, iterations: int = 5):
+    if phase not in servers:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Phase '{phase}' not loaded. Available: {list(servers.keys())}",
+        )
+    server = servers[phase]
+    client = _get_benchmark_client(phase)
+    eval_keys = client.get_serialized_evaluation_keys()
+    test_input = np.random.randn(*input_shape).astype(np.float32)
+    encrypted = client.quantize_encrypt_serialize(test_input)
+
+    # Warmup
+    try:
+        _ = server.run(encrypted, eval_keys)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"FHE warmup failed: {e}") from e
+
+    times = []
+    for _ in range(iterations):
+        t0 = time.time()
+        _ = server.run(encrypted, eval_keys)
+        times.append(time.time() - t0)
+
+    return {
+        "phase": phase,
+        "input_shape": list(input_shape),
+        "iterations": iterations,
+        "avg_s": sum(times) / len(times),
+        "min_s": min(times),
+        "max_s": max(times),
+    }
+
+
+@app.get("/benchmark")
+async def benchmark():
+    """Self-contained benchmark: generate encrypted inputs and time server execution."""
+    results = {}
+    for phase in servers:
+        results[phase] = _benchmark_phase(phase, _get_benchmark_shape(phase))
+
+    total = sum(r["avg_s"] for r in results.values())
+    tokens_per_min = 60 / total if total > 0 else 0
+    return JSONResponse(
+        content={
+            "results": results,
+            "total_avg_s": total,
+            "tokens_per_min": tokens_per_min,
+            "estimated_100_tokens_min": total * 100 / 60,
+        }
+    )
 
 
 if __name__ == "__main__":

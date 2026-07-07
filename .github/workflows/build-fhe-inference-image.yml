@@ -7,11 +7,15 @@ on:
       - infra/akash-fhe/Dockerfile
       - infra/akash-fhe/server.py
       - infra/akash-fhe/build.sh
+      - infra/akash-fhe/server_files/**
+      - infra/akash-fhe/client_files/**
       - .github/workflows/build-fhe-inference-image.yml
   pull_request:
     paths:
       - infra/akash-fhe/Dockerfile
       - infra/akash-fhe/server.py
+      - infra/akash-fhe/server_files/**
+      - infra/akash-fhe/client_files/**
 
 env:
   REGISTRY: ghcr.io

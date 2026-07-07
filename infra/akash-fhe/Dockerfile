@@ -38,6 +38,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # a two-phase layout with phase1/server.zip and phase2/server.zip.
 COPY server_files /app/server_files
 
+# Copy client artifacts used by the /benchmark endpoint for self-timing.
+COPY client_files /app/client_files
+
 # Copy inference server
 COPY server.py /app/server.py
 

@@ -81,16 +81,16 @@ profiles:
         host: akash
       pricing:
         fhe-h100:
-          denom: uakt
+          denom: uact
           amount: 10000000
         fhe-a100:
-          denom: uakt
+          denom: uact
           amount: 4000000
         fhe-rtx4090:
-          denom: uakt
+          denom: uact
           amount: 1500000
         fhe-cpu:
-          denom: uakt
+          denom: uact
           amount: 500000
 
 deployment:
