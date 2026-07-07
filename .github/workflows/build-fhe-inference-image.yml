@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - infra/akash-fhe/Dockerfile
+      - infra/akash-fhe/Dockerfile.optimizer
       - infra/akash-fhe/server.py
+      - infra/akash-fhe/optimizer.py
       - infra/akash-fhe/build.sh
       - infra/akash-fhe/server_files/**
       - infra/akash-fhe/client_files/**
@@ -20,6 +22,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/fhe-inference
+  OPTIMIZER_IMAGE_NAME: ${{ github.repository_owner }}/fhe-optimizer
 
 jobs:
   build-and-push:
@@ -85,3 +88,26 @@ jobs:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+      - name: Extract optimizer metadata
+        id: meta-opt
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OPTIMIZER_IMAGE_NAME }}
+          tags: |
+            type=raw,value=gpu
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push optimizer image
+        id: push-opt
+        uses: docker/build-push-action@v6
+        with:
+          context: infra/akash-fhe
+          file: infra/akash-fhe/Dockerfile.optimizer
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta-opt.outputs.tags }}
+          labels: ${{ steps.meta-opt.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
