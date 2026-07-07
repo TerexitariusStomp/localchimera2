@@ -98,9 +98,13 @@ export default function StorageHub({ provider, publicKeyHex, accountHash, onTx }
       order_id: sdk.CLValue.newCLString(orderId),
     }, '50000000000');
 
+    if (result.error) {
+      onTx({ id: Date.now().toString(), deployHash: result.deployHash, entryPoint: 'create_job', contract: 'EscrowVault', status: 'error', error: result.error });
+      throw new Error(result.error);
+    }
     if (result.deployHash) {
       const jobId = `job:${(anonymous ? ANONYMOUS_HASH : consumerHash).map(b => b.toString(16).padStart(2, '0')).join('')}:0`;
-      onTx({ id: Date.now().toString(), deployHash: result.deployHash, entryPoint: 'create_job', contract: 'EscrowVault', status: result.error ? 'error' : 'pending', error: result.error });
+      onTx({ id: Date.now().toString(), deployHash: result.deployHash, entryPoint: 'create_job', contract: 'EscrowVault', status: 'pending' });
       const next: StoredFile = {
         jobId,
         spaceName: meta.spaceName,
@@ -118,7 +122,7 @@ export default function StorageHub({ provider, publicKeyHex, accountHash, onTx }
       saveFiles([next, ...files]);
       return result.deployHash;
     }
-    return null;
+    throw new Error('Deploy failed: no deploy hash returned');
   };
 
   const handleUpload = async (e: React.FormEvent) => {

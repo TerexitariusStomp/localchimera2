@@ -102,8 +102,13 @@ export default function TaskResourcePanel({
       provider_fee_bps: sdk.CLValue.newCLUint64('0'),
       order_id: sdk.CLValue.newCLString(orderId),
     });
+    if (result.error) {
+      onTx({ id: Date.now().toString(), deployHash: result.deployHash, entryPoint: 'create_job', contract: contractLabel, status: 'error', error: result.error });
+      alert(`${contractLabel} deploy failed: ${result.error}`);
+      return;
+    }
     if (result.deployHash) {
-      onTx({ id: Date.now().toString(), deployHash: result.deployHash, entryPoint: 'create_job', contract: contractLabel, status: result.error ? 'error' : 'pending', error: result.error });
+      onTx({ id: Date.now().toString(), deployHash: result.deployHash, entryPoint: 'create_job', contract: contractLabel, status: 'pending' });
     }
     loadData();
   };

@@ -318,7 +318,14 @@ export default function ConsoleDeploy({
       else alert(`Escrow deployment ${deployment.name} (${deployment.id}) created on ${walletMode}.`);
       return;
     } catch (err: any) {
-      console.warn('Smart contract deployment failed, falling back to tasker network:', err.message);
+      console.warn('Smart contract deployment failed:', err.message);
+      const shouldFallback = window.confirm(
+        `Casper testnet deployment failed: ${err.message}\n\nFall back to tasker network (${net?.name || 'Akash'})?`
+      );
+      if (!shouldFallback) {
+        alert(`Deployment failed: ${err.message}`);
+        return;
+      }
     }
 
     // Fallback path: tasker network

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useWeb3Auth } from './web3auth';
 import { connectWallet, disconnectWallet, isWalletInstalled } from './casper-wallet';
 import { switchToBotchain, switchToEthereum, BOTCHAIN_TESTNET } from './botchain';
@@ -243,6 +243,9 @@ export default function App() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [walletMode, setWalletMode] = useState<'casper' | 'botchain' | 'evm' | null>(null);
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
+  const [txRecords, setTxRecords] = useState<TxRecord[]>([]);
+  const [txToast, setTxToast] = useState<TxRecord | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window === 'undefined') return 'dark';
     return (localStorage.getItem('chimera-theme') as 'light' | 'dark') || 'dark';
@@ -302,7 +305,20 @@ export default function App() {
     setProvider(null); setPublicKeyHex(''); setAccountHash(''); setWalletError(''); setWalletMode(null);
   }, [walletMode, logout]);
 
-  const updateTx = useCallback((_tx: TxRecord) => {}, []);
+  const updateTx = useCallback((tx: TxRecord) => {
+    setTxRecords((prev) => {
+      const idx = prev.findIndex((t) => t.id === tx.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = tx;
+        return next;
+      }
+      return [tx, ...prev].slice(0, 20);
+    });
+    setTxToast(tx);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setTxToast(null), 8000);
+  }, []);
 
   const goToPage = useCallback((p: Page, params?: string) => {
     if (params) {
@@ -464,6 +480,22 @@ export default function App() {
           <main className="flex-1 p-6 md:p-8 max-w-[1200px]">
             {renderPage()}
           </main>
+
+          {txToast && (
+            <div className={`fixed bottom-6 right-6 z-[500] max-w-sm rounded-[12px] border p-4 shadow-lg ${txToast.status === 'error' ? 'border-red-500/30 bg-red-500/10' : txToast.status === 'success' ? 'border-green-500/30 bg-green-500/10' : 'border-border bg-card'}`}>
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <div className="text-[13px] font-semibold text-foreground">{txToast.contract} — {txToast.entryPoint}</div>
+                  <div className="text-[11px] text-muted-foreground mt-1">
+                    Status: <span className={txToast.status === 'error' ? 'text-red-500' : txToast.status === 'success' ? 'text-green-500' : 'text-yellow-500'}>{txToast.status}</span>
+                  </div>
+                  {txToast.deployHash && <div className="text-[10px] font-mono text-muted-foreground mt-1 truncate">{txToast.deployHash.slice(0, 20)}...</div>}
+                  {txToast.error && <div className="text-[11px] text-red-500 mt-1">{txToast.error}</div>}
+                </div>
+                <button onClick={() => setTxToast(null)} className="text-muted-foreground hover:text-foreground text-[16px] leading-none">×</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
