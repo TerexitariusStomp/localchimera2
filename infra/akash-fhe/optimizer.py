@@ -13,7 +13,8 @@ import time
 import json
 import shutil
 import subprocess
-import threading
+import asyncio
+import concurrent.futures
 import numpy as np
 from pathlib import Path
 
@@ -174,17 +175,21 @@ async def health():
 
 _opt_status = {"running": False, "done": False, "progress": 0, "total": len(CONFIGS), "current": ""}
 _opt_results = None
-_opt_lock = threading.Lock()
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
 
 def _run_optimization():
     global _opt_results
-    with _opt_lock:
-        if _opt_status["running"]:
-            return
-        _opt_status["running"] = True
-        _opt_status["done"] = False
-        _opt_status["progress"] = 0
+    if _opt_status["running"]:
+        return
+    _opt_status["running"] = True
+    _opt_status["done"] = False
+    _opt_status["progress"] = 0
+
+    # Initialize CUDA context in this thread
+    torch.cuda.init()
+    torch.cuda.set_device(0)
+    _ = torch.zeros(1, device="cuda")  # force context creation
 
     try:
         w, config = _load()
@@ -262,9 +267,8 @@ def _run_optimization():
             r["tokens_per_min"] = batch_size * 60 / r["inference_time"]
             results.append(r)
             print(f"  {label}: {r['tokens_per_min']:.1f} tok/min, full_cos={r['full_cosine']:.4f}")
-            with _opt_lock:
-                _opt_status["progress"] = idx + 1
-                _opt_status["current"] = label
+            _opt_status["progress"] = idx + 1
+            _opt_status["current"] = label
 
         # Pick best
         best = None
@@ -305,32 +309,28 @@ def _run_optimization():
         with open(OUT_DIR / "results.json", "w") as f:
             json.dump(output, f, indent=2, default=str)
 
-        with _opt_lock:
-            _opt_results = output
-            _opt_status["done"] = True
-            _opt_status["running"] = False
+        _opt_results = output
+        _opt_status["done"] = True
+        _opt_status["running"] = False
 
     except Exception as e:
         print(f"ERROR: {e}")
         import traceback
         traceback.print_exc()
-        with _opt_lock:
-            _opt_status["done"] = True
-            _opt_status["running"] = False
-            _opt_status["error"] = str(e)
+        _opt_status["done"] = True
+        _opt_status["running"] = False
+        _opt_status["error"] = str(e)
 
 
 @app.get("/optimize")
 async def optimize():
     """Start optimization in background. Returns immediately."""
-    with _opt_lock:
-        if _opt_status["running"]:
-            return JSONResponse(content={"status": "already_running", **_opt_status})
-        if _opt_status["done"] and _opt_results is not None:
-            return JSONResponse(content={"status": "already_done", **_opt_status})
+    if _opt_status["running"]:
+        return JSONResponse(content={"status": "already_running", **_opt_status})
+    if _opt_status["done"] and _opt_results is not None:
+        return JSONResponse(content={"status": "already_done", **_opt_status})
 
-    thread = threading.Thread(target=_run_optimization, daemon=True)
-    thread.start()
+    asyncio.get_event_loop().run_in_executor(_executor, _run_optimization)
     return JSONResponse(content={"status": "started", **_opt_status})
 
 
