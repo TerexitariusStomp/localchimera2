@@ -13,6 +13,7 @@ import time
 import json
 import shutil
 import subprocess
+import threading
 import numpy as np
 from pathlib import Path
 
@@ -171,126 +172,183 @@ async def health():
     })
 
 
-@app.get("/optimize")
-async def optimize():
-    w, config = _load()
-    hidden = config["hidden_size"]
-    inter = config["intermediate_size"]
+_opt_status = {"running": False, "done": False, "progress": 0, "total": len(CONFIGS), "current": ""}
+_opt_results = None
+_opt_lock = threading.Lock()
 
-    result = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
-                          capture_output=True, text=True)
-    gpu_name = result.stdout.strip()
 
-    np.random.seed(42)
+def _run_optimization():
+    global _opt_results
+    with _opt_lock:
+        if _opt_status["running"]:
+            return
+        _opt_status["running"] = True
+        _opt_status["done"] = False
+        _opt_status["progress"] = 0
 
-    composed_all = torch.cat([
-        w["q"], w["k"], w["v"], w["o"], w["w1"], w["w3"]
-    ], dim=0)  # (8192, 1024)
+    try:
+        w, config = _load()
+        hidden = config["hidden_size"]
 
-    results = []
+        result = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                              capture_output=True, text=True)
+        gpu_name = result.stdout.strip()
 
-    for rank, n_bits, p_error, batch_size, label in CONFIGS:
-        x_np = np.random.randn(batch_size, hidden).astype(np.float32)
-        x_t = torch.from_numpy(x_np)
-        ref_full = (x_t @ composed_all.T).numpy()
+        np.random.seed(42)
 
-        if rank >= 8192:
-            # Full circuit, no SVD
-            mod = nn.Linear(hidden, composed_all.shape[0], bias=False)
-            mod.weight.data = composed_all
-            ref = ref_full
-            out_dir = OUT_DIR / label
-            r = _compile_and_test_batched(
-                mod, label, (batch_size, hidden), ref, x_np, out_dir,
-                n_bits, p_error, batch_size
-            )
-            r["full_cosine"] = r["cosine"]
-            r["strategy"] = "full"
-        else:
-            # Low-rank SVD
-            U_k, V_k = _svd_decompose(composed_all, rank)
-            mod = nn.Linear(hidden, rank, bias=False)
-            mod.weight.data = V_k
-            ref = (x_t @ V_k.T).numpy()
+        composed_all = torch.cat([
+            w["q"], w["k"], w["v"], w["o"], w["w1"], w["w3"]
+        ], dim=0)
 
-            out_dir = OUT_DIR / label
-            r = _compile_and_test_batched(
-                mod, label, (batch_size, hidden), ref, x_np, out_dir,
-                n_bits, p_error, batch_size
-            )
+        results = []
 
-            # Full quality with U reconstruction
-            client = FHEModelClient(out_dir)
-            eval_keys = client.get_serialized_evaluation_keys()
-            encrypted = client.quantize_encrypt_serialize(x_np)
-            server = FHEModelServer(out_dir)
-            enc_out = server.run(encrypted, eval_keys)
-            fhe_small = client.deserialize_decrypt_dequantize(enc_out)
+        for idx, (rank, n_bits, p_error, batch_size, label) in enumerate(CONFIGS):
+            x_np = np.random.randn(batch_size, hidden).astype(np.float32)
+            x_t = torch.from_numpy(x_np)
+            ref_full = (x_t @ composed_all.T).numpy()
 
-            U_np = U_k.numpy()
-            reconstructed = fhe_small @ U_np.T
-
-            full_cosines = []
-            for i in range(batch_size):
-                r_flat = reconstructed[i].flatten()
-                ref_flat = ref_full[i].flatten()
-                c = np.dot(r_flat, ref_flat) / (
-                    np.linalg.norm(r_flat) * np.linalg.norm(ref_flat) + 1e-10
+            if rank >= 8192:
+                # Full circuit, no SVD
+                mod = nn.Linear(hidden, composed_all.shape[0], bias=False)
+                mod.weight.data = composed_all
+                ref = ref_full
+                out_dir = OUT_DIR / label
+                r = _compile_and_test_batched(
+                    mod, label, (batch_size, hidden), ref, x_np, out_dir,
+                    n_bits, p_error, batch_size
                 )
-                full_cosines.append(c)
+                r["full_cosine"] = r["cosine"]
+                r["strategy"] = "full"
+            else:
+                # Low-rank SVD
+                U_k, V_k = _svd_decompose(composed_all, rank)
+                mod = nn.Linear(hidden, rank, bias=False)
+                mod.weight.data = V_k
+                ref = (x_t @ V_k.T).numpy()
 
-            r["full_cosine"] = float(np.mean(full_cosines))
-            r["strategy"] = "lowrank"
+                out_dir = OUT_DIR / label
+                r = _compile_and_test_batched(
+                    mod, label, (batch_size, hidden), ref, x_np, out_dir,
+                    n_bits, p_error, batch_size
+                )
 
-        r["label"] = label
-        r["rank"] = rank
-        r["n_bits"] = n_bits
-        r["p_error"] = p_error
-        r["tokens_per_min"] = batch_size * 60 / r["inference_time"]
-        results.append(r)
-        print(f"  {label}: {r['tokens_per_min']:.1f} tok/min, full_cos={r['full_cosine']:.4f}")
+                # Full quality with U reconstruction
+                client = FHEModelClient(out_dir)
+                eval_keys = client.get_serialized_evaluation_keys()
+                encrypted = client.quantize_encrypt_serialize(x_np)
+                server = FHEModelServer(out_dir)
+                enc_out = server.run(encrypted, eval_keys)
+                fhe_small = client.deserialize_decrypt_dequantize(enc_out)
 
-    # Pick best: highest tokens_per_min while full_cosine >= threshold
-    best = None
-    for r in results:
-        if r["full_cosine"] >= QUALITY_THRESHOLD:
-            if best is None or r["tokens_per_min"] > best["tokens_per_min"]:
-                best = r
+                U_np = U_k.numpy()
+                reconstructed = fhe_small @ U_np.T
 
-    if best is None:
-        # Try 0.90
+                full_cosines = []
+                for i in range(batch_size):
+                    r_flat = reconstructed[i].flatten()
+                    ref_flat = ref_full[i].flatten()
+                    c = np.dot(r_flat, ref_flat) / (
+                        np.linalg.norm(r_flat) * np.linalg.norm(ref_flat) + 1e-10
+                    )
+                    full_cosines.append(c)
+
+                r["full_cosine"] = float(np.mean(full_cosines))
+                r["strategy"] = "lowrank"
+
+            r["label"] = label
+            r["rank"] = rank
+            r["n_bits"] = n_bits
+            r["p_error"] = p_error
+            r["tokens_per_min"] = batch_size * 60 / r["inference_time"]
+            results.append(r)
+            print(f"  {label}: {r['tokens_per_min']:.1f} tok/min, full_cos={r['full_cosine']:.4f}")
+            with _opt_lock:
+                _opt_status["progress"] = idx + 1
+                _opt_status["current"] = label
+
+        # Pick best
+        best = None
         for r in results:
-            if r["full_cosine"] >= 0.90:
+            if r["full_cosine"] >= QUALITY_THRESHOLD:
                 if best is None or r["tokens_per_min"] > best["tokens_per_min"]:
                     best = r
 
-    if best is None:
-        best = max(results, key=lambda r: r["tokens_per_min"])
-        print(f"\n  WARNING: No config met quality threshold {QUALITY_THRESHOLD}")
+        if best is None:
+            for r in results:
+                if r["full_cosine"] >= 0.90:
+                    if best is None or r["tokens_per_min"] > best["tokens_per_min"]:
+                        best = r
 
-    print("\n" + "=" * 70)
-    print("ALL RESULTS (sorted by speed)")
-    print("=" * 70)
-    for r in sorted(results, key=lambda x: x["tokens_per_min"], reverse=True):
-        marker = " *** BEST" if r is best else ""
-        print(f"  {r['label']:>25s}: {r['tokens_per_min']:7.1f} tok/min, "
-              f"full_cos={r['full_cosine']:.4f}, "
-              f"time={r['inference_time']:.3f}s, batch={r['batch_size']}{marker}")
-    print("=" * 70)
-    print(f"BEST: {best['label']}, {best['tokens_per_min']:.1f} tok/min, "
-          f"quality={best['full_cosine']:.4f}")
-    print("=" * 70)
+        if best is None:
+            best = max(results, key=lambda r: r["tokens_per_min"])
+            print(f"\n  WARNING: No config met quality threshold {QUALITY_THRESHOLD}")
 
-    output = {
-        "gpu": gpu_name,
-        "quality_threshold": QUALITY_THRESHOLD,
-        "best": best,
-        "all_results": results,
-    }
-    with open(OUT_DIR / "results.json", "w") as f:
-        json.dump(output, f, indent=2, default=str)
+        print("\n" + "=" * 70)
+        print("ALL RESULTS (sorted by speed)")
+        print("=" * 70)
+        for r in sorted(results, key=lambda x: x["tokens_per_min"], reverse=True):
+            marker = " *** BEST" if r is best else ""
+            print(f"  {r['label']:>25s}: {r['tokens_per_min']:7.1f} tok/min, "
+                  f"full_cos={r['full_cosine']:.4f}, "
+                  f"time={r['inference_time']:.3f}s, batch={r['batch_size']}{marker}")
+        print("=" * 70)
+        print(f"BEST: {best['label']}, {best['tokens_per_min']:.1f} tok/min, "
+              f"quality={best['full_cosine']:.4f}")
+        print("=" * 70)
 
-    return JSONResponse(content=json.loads(json.dumps(output, default=str)))
+        output = {
+            "gpu": gpu_name,
+            "quality_threshold": QUALITY_THRESHOLD,
+            "best": best,
+            "all_results": results,
+        }
+        with open(OUT_DIR / "results.json", "w") as f:
+            json.dump(output, f, indent=2, default=str)
+
+        with _opt_lock:
+            _opt_results = output
+            _opt_status["done"] = True
+            _opt_status["running"] = False
+
+    except Exception as e:
+        print(f"ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        with _opt_lock:
+            _opt_status["done"] = True
+            _opt_status["running"] = False
+            _opt_status["error"] = str(e)
+
+
+@app.get("/optimize")
+async def optimize():
+    """Start optimization in background. Returns immediately."""
+    with _opt_lock:
+        if _opt_status["running"]:
+            return JSONResponse(content={"status": "already_running", **_opt_status})
+        if _opt_status["done"] and _opt_results is not None:
+            return JSONResponse(content={"status": "already_done", **_opt_status})
+
+    thread = threading.Thread(target=_run_optimization, daemon=True)
+    thread.start()
+    return JSONResponse(content={"status": "started", **_opt_status})
+
+
+@app.get("/status")
+async def status():
+    return JSONResponse(content=_opt_status)
+
+
+@app.get("/results")
+async def results():
+    if _opt_results is not None:
+        return JSONResponse(content=json.loads(json.dumps(_opt_results, default=str)))
+    # Try reading from file
+    results_file = OUT_DIR / "results.json"
+    if results_file.exists():
+        with open(results_file) as f:
+            return JSONResponse(content=json.load(f))
+    return JSONResponse(content={"status": "no_results", **_opt_status})
 
 
 if __name__ == "__main__":
