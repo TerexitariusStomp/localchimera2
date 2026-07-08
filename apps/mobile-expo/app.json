@@ -35,6 +35,7 @@
       "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
+      "./plugins/withIosFrontendResources.js",
       [
         "expo-build-properties",
         {

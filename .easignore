@@ -3,6 +3,8 @@ website/
 website-new/
 qvac/
 sdk/node_modules/
+inference-backend/
+releases/
 apps/mobile-expo/android/
 apps/mobile-expo/ios/
 apps/mobile-expo/node_modules/
