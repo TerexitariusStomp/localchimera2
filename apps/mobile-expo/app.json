@@ -17,7 +17,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "io.chimera.mobile",
-      "buildNumber": "1.0.22"
+      "buildNumber": "1.0.22",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -38,6 +44,9 @@
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
             "enableMinifyInReleaseBuilds": true
+          },
+          "ios": {
+            "newArchEnabled": false
           }
         }
       ]
@@ -46,7 +55,11 @@
       "qvac": {
         "modelsDir": "models",
         "defaultModel": "LLAMA_3_2_1B_INST_Q4_0"
+      },
+      "eas": {
+        "projectId": "85b071a5-0328-4772-ad14-ca5f17933e69"
       }
-    }
+    },
+    "owner": "terexitarius"
   }
 }

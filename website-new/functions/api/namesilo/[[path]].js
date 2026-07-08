@@ -1,4 +1,6 @@
 const UPSTREAM = 'https://api.localchimera.com/api/namesilo';
+
+// Casper mainnet
 const CASPER_MAINNET_RPCS = [
   'https://node.mainnet.casper.network/rpc',
   'https://casper-mainnet.gateway.tatum.io',
@@ -6,7 +8,11 @@ const CASPER_MAINNET_RPCS = [
 const PROTOCOL_MULTISIG_PUBKEY = '02038cc8406b93afa9404b47c836b7c83ce0a4e669c611b2712f3ba7fa9b79bb6f3a';
 const PROTOCOL_MULTISIG_ACCOUNT_HASH = 'account-hash-' + PROTOCOL_MULTISIG_PUBKEY.slice(2);
 
-async function verifyDeployOnChain(deployHash, expectedAmountCSPR) {
+// Botchain
+const BOTCHAIN_RPC = 'https://rpc.bohr.life';
+const PROTOCOL_MULTISIG_EVM = '0x75df9c007584ceefb8f0f5b97e9c3a20edb8ba3e';
+
+async function verifyCasperDeploy(deployHash, expectedAmountCSPR) {
   if (!deployHash) return { valid: false, error: 'No deploy hash provided' };
   const body = JSON.stringify({
     jsonrpc: '2.0', id: 1,
@@ -26,15 +32,12 @@ async function verifyDeployOnChain(deployHash, expectedAmountCSPR) {
       const execResults = data.result?.execution_results || [];
       if (!deploy) return { valid: false, error: 'Deploy not found' };
 
-      // Check deploy is a transfer
       const session = deploy.session;
       if (session.Transfer) {
-        // Verify target is the multisig
         const target = session.Transfer.target;
         if (target && target.AccountHash && target.AccountHash !== PROTOCOL_MULTISIG_ACCOUNT_HASH) {
           return { valid: false, error: 'Transfer target is not the protocol multisig' };
         }
-        // Verify amount
         const amountMotes = session.Transfer.amount;
         const expectedMotes = Math.floor(parseFloat(expectedAmountCSPR) * 1e9).toString();
         if (amountMotes && BigInt(amountMotes) < BigInt(expectedMotes)) {
@@ -46,7 +49,6 @@ async function verifyDeployOnChain(deployHash, expectedAmountCSPR) {
         return { valid: false, error: 'Deploy is not a transfer or contract call' };
       }
 
-      // Check execution result
       if (execResults.length === 0) {
         return { valid: false, error: 'Deploy not yet executed - wait for confirmation' };
       }
@@ -61,6 +63,69 @@ async function verifyDeployOnChain(deployHash, expectedAmountCSPR) {
     }
   }
   return { valid: false, error: 'Could not verify deploy on any RPC node' };
+}
+
+async function verifyBotchainTx(txHash, expectedAmountEth) {
+  if (!txHash) return { valid: false, error: 'No transaction hash provided' };
+  try {
+    const res = await fetch(BOTCHAIN_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'eth_getTransactionByHash',
+        params: [txHash],
+      }),
+    });
+    const data = await res.json();
+    if (data.error) return { valid: false, error: data.error.message };
+    const tx = data.result;
+    if (!tx) return { valid: false, error: 'Transaction not found' };
+
+    // Verify recipient is the protocol multisig
+    if (tx.to && tx.to.toLowerCase() !== PROTOCOL_MULTISIG_EVM.toLowerCase()) {
+      return { valid: false, error: 'Transfer target is not the protocol multisig' };
+    }
+
+    // Verify amount (expectedAmountEth in ETH, tx.value in wei hex)
+    const txValueWei = BigInt(tx.value);
+    const expectedWei = ethersParseEther(expectedAmountEth);
+    if (txValueWei < expectedWei) {
+      return { valid: false, error: `Insufficient payment: ${txValueWei} < ${expectedWei} wei` };
+    }
+
+    // Verify transaction was mined (check receipt)
+    const receiptRes = await fetch(BOTCHAIN_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 2,
+        method: 'eth_getTransactionReceipt',
+        params: [txHash],
+      }),
+    });
+    const receiptData = await receiptRes.json();
+    if (receiptData.error) return { valid: false, error: receiptData.error.message };
+    const receipt = receiptData.result;
+    if (!receipt) return { valid: false, error: 'Transaction not yet mined - wait for confirmation' };
+    if (receipt.status !== '0x1') {
+      return { valid: false, error: 'Transaction failed on-chain' };
+    }
+
+    return { valid: true };
+  } catch (e) {
+    return { valid: false, error: e.message || 'Failed to verify transaction' };
+  }
+}
+
+function ethersParseEther(ethStr) {
+  const num = parseFloat(ethStr);
+  if (isNaN(num)) return 0n;
+  // Convert to wei: multiply by 1e18
+  const str = num.toFixed(18).replace(/\.?0+$/, '');
+  const [whole, frac = ''] = str.split('.');
+  const padded = (frac + '0'.repeat(18)).slice(0, 18);
+  return BigInt(whole + padded);
 }
 
 export async function onRequest(context) {
@@ -91,12 +156,17 @@ export async function onRequest(context) {
 
     const { deployHash, paymentMethod, paymentAmount } = reqBody;
     if (!deployHash) {
-      return new Response(JSON.stringify({ success: false, error: 'Payment proof required: deployHash is missing. You must pay CSPR to the protocol multisig before registering a domain.' }), {
+      return new Response(JSON.stringify({ success: false, error: 'Payment proof required: txHash/deployHash is missing. You must pay to the protocol multisig before registering a domain.' }), {
         status: 402, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       });
     }
 
-    const verification = await verifyDeployOnChain(deployHash, paymentAmount || '0');
+    let verification;
+    if (paymentMethod === 'botchain') {
+      verification = await verifyBotchainTx(deployHash, paymentAmount || '0');
+    } else {
+      verification = await verifyCasperDeploy(deployHash, paymentAmount || '0');
+    }
     if (!verification.valid) {
       return new Response(JSON.stringify({ success: false, error: `Payment verification failed: ${verification.error}` }), {
         status: 402, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },

@@ -185,17 +185,7 @@
         <div id="chimeraWalletStatus" style="font-size:13px;margin-bottom:10px;">
           <span style="color:#666;">Connect your wallet to start earning.</span>
         </div>
-        <button id="chimeraConnectBtn" class="btn" style="margin-bottom:8px;">
-          <i class="fas fa-wallet"></i> Connect Casper Wallet
-        </button>
-        <iframe id="connectkit-frame" src="connectkit-wallet/dist/" style="display:none;width:100%;height:120px;border:none;margin-bottom:8px;"></iframe>
-        <button id="chimeraConnectEvmBtn" class="btn" style="margin-bottom:8px;background:linear-gradient(135deg, #764ba2 0%, #667eea 100%);">
-          <i class="fab fa-ethereum"></i> Connect EVM Wallet
-        </button>
-        <iframe id="solana-frame" src="solana-wallet-adapter/dist/" style="display:none;width:100%;height:120px;border:none;margin-bottom:8px;"></iframe>
-        <button id="chimeraConnectSolanaBtn" class="btn" style="margin-bottom:8px;background:linear-gradient(135deg, #14f195 0%, #9945ff 100%);color:#fff;">
-          <i class="fas fa-s"></i> Connect Solana Wallet
-        </button>
+        <iframe id="connectkit-frame" src="connectkit-wallet/dist/" style="width:100%;height:140px;border:none;margin-bottom:8px;"></iframe>
         <button id="chimeraDisconnectBtn" class="btn" style="display:none;background:#e53935;margin-top:8px;">
           <i class="fas fa-sign-out-alt"></i> Disconnect Wallet
         </button>
@@ -512,37 +502,6 @@
     }
 
     // Wallet helpers
-    const WALLET_TIMEOUT = 30 * 60 * 1000;
-    function getProvider() {
-      const Ctor = window.CasperWalletProvider;
-      return Ctor ? Ctor({ timeout: WALLET_TIMEOUT }) : null;
-    }
-    function isWalletInstalled() { return !!window.CasperWalletProvider; }
-
-    async function publicKeyToAccountHash(publicKeyHex) {
-      const prefix = publicKeyHex.startsWith('01') ? 'ed25519' : 'secp256k1';
-      const keyBytes = new Uint8Array(publicKeyHex.slice(2).match(/.{2}/g).map(b => parseInt(b, 16)));
-      const prefixBytes = new TextEncoder().encode(prefix);
-      const combined = new Uint8Array(prefixBytes.length + keyBytes.length);
-      combined.set(prefixBytes, 0);
-      combined.set(keyBytes, prefixBytes.length);
-      const hash = await crypto.subtle.digest('SHA-256', combined);
-      return 'account-hash-' + Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    async function connectWallet() {
-      const provider = getProvider();
-      if (!provider) return { connected: false, error: 'Casper Wallet extension not found' };
-      try {
-        const ok = await provider.requestConnection();
-        if (!ok) return { connected: false, error: 'Connection request was declined' };
-        const publicKey = await provider.getActivePublicKey();
-        const accountHash = await publicKeyToAccountHash(publicKey);
-        return { connected: true, provider, publicKey, accountHash };
-      } catch (e) {
-        return { connected: false, error: e.message || String(e) };
-      }
-    }
 
     async function connectWeb3AuthWithJwt(jwt, sub) {
       const clientId = (typeof window !== 'undefined' && window.CHIMERA_WEB3AUTH_CLIENT_ID) || web3authClientId;
@@ -565,23 +524,8 @@
       }
     }
 
-    async function disconnectWallet() {
-      try {
-        const provider = getProvider();
-        if (provider && typeof provider.disconnectFromSite === 'function') {
-          await provider.disconnectFromSite();
-        } else if (provider && typeof provider.disconnect === 'function') {
-          await provider.disconnect();
-        }
-      } catch (e) { console.warn('[wallet] disconnect error:', e); }
-    }
-
     // UI wiring
-    const connectBtn = document.getElementById('chimeraConnectBtn');
     const connectkitFrame = document.getElementById('connectkit-frame');
-    const connectEvmBtn = document.getElementById('chimeraConnectEvmBtn');
-    const solanaFrame = document.getElementById('solana-frame');
-    const connectSolanaBtn = document.getElementById('chimeraConnectSolanaBtn');
     const disconnectBtn = document.getElementById('chimeraDisconnectBtn');
     const startBtn = document.getElementById('chimeraStartBtn');
     const stopBtn = document.getElementById('chimeraStopBtn');
@@ -597,24 +541,14 @@
     function renderWalletStatus() {
       if (!walletState) {
         walletStatus.innerHTML = '<span style="color:#666;">Connect your wallet to start earning.</span>';
-        connectBtn.style.display = 'inline-flex';
-        connectEvmBtn.style.display = 'inline-flex';
-        connectSolanaBtn.style.display = 'inline-flex';
-        connectkitFrame.style.display = 'none';
-        solanaFrame.style.display = 'none';
+        connectkitFrame.style.display = 'block';
         disconnectBtn.style.display = 'none';
         nodeControls.style.display = 'none';
         return;
       }
-      const label = walletState.mode === 'web3auth'
-        ? `Web3Auth: <b>${walletState.address.slice(0, 6)}...${walletState.address.slice(-4)}</b>`
-        : `Casper: <b>${walletState.publicKey.slice(0, 16)}...</b>`;
+      const label = `Wallet: <b>${walletState.address.slice(0, 6)}...${walletState.address.slice(-4)}</b>`;
       walletStatus.innerHTML = `<span style="color:#2e7d32;">Connected: ${label}</span>`;
-      connectBtn.style.display = 'none';
-      connectEvmBtn.style.display = 'none';
-      connectSolanaBtn.style.display = 'none';
       connectkitFrame.style.display = 'none';
-      solanaFrame.style.display = 'none';
       disconnectBtn.style.display = 'inline-flex';
       nodeControls.style.display = 'block';
     }
@@ -650,33 +584,8 @@
       logsEl.innerHTML = recent;
     }
 
-    connectBtn.addEventListener('click', async () => {
-      connectBtn.disabled = true;
-      const result = await connectWallet();
-      connectBtn.disabled = false;
-      if (!result.connected) {
-        walletStatus.innerHTML = `<span style="color:#c62828;">Connection failed: ${result.error}</span>`;
-        return;
-      }
-      walletState = result;
-      renderWalletStatus();
-    });
-
-    connectEvmBtn.addEventListener('click', () => {
-      connectEvmBtn.style.display = 'none';
-      connectkitFrame.style.display = 'block';
-    });
-
-    connectSolanaBtn.addEventListener('click', () => {
-      connectSolanaBtn.style.display = 'none';
-      solanaFrame.style.display = 'block';
-    });
-
     disconnectBtn.addEventListener('click', async () => {
       if (browserNode) { browserNode.stop(); browserNode = null; }
-      if (walletState?.mode === 'casper') {
-        await disconnectWallet();
-      }
       walletState = null;
       renderWalletStatus();
       nodeStatus.innerHTML = '';
@@ -687,11 +596,7 @@
       startBtn.disabled = true;
       try {
         if (!browserNode) {
-          if (walletState.mode === 'web3auth') {
-            browserNode = new BrowserNode({ evmProvider: walletState.provider, evmAddress: walletState.address });
-          } else {
-            browserNode = new BrowserNode(walletState.provider, walletState.publicKey, walletState.accountHash);
-          }
+          browserNode = new BrowserNode({ evmProvider: walletState.provider, evmAddress: walletState.address });
           browserNode.onStatusUpdate(renderNodeStatus);
         }
         await browserNode.start();
@@ -717,20 +622,8 @@
         walletStatus.innerHTML = '<span style="color:#666;">Creating MPC wallet...</span>';
         const result = await connectWeb3AuthWithJwt(data.jwt, data.sub);
         if (!result.connected) {
-          walletStatus.innerHTML = `<span style="color:#c62828;">EVM wallet failed: ${result.error}</span>`;
-          connectEvmBtn.style.display = 'inline-flex';
-          return;
-        }
-        walletState = result;
-        renderWalletStatus();
-      }
-      if (data?.type === 'chimera-solana-jwt' && data.jwt && data.sub) {
-        solanaFrame.style.display = 'none';
-        walletStatus.innerHTML = '<span style="color:#666;">Creating MPC wallet...</span>';
-        const result = await connectWeb3AuthWithJwt(data.jwt, data.sub);
-        if (!result.connected) {
-          walletStatus.innerHTML = `<span style="color:#c62828;">Solana wallet failed: ${result.error}</span>`;
-          connectSolanaBtn.style.display = 'inline-flex';
+          walletStatus.innerHTML = `<span style="color:#c62828;">Wallet connection failed: ${result.error}</span>`;
+          connectkitFrame.style.display = 'block';
           return;
         }
         walletState = result;

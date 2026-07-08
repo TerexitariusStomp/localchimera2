@@ -1,0 +1,10 @@
+website
+website-new
+qvac/frontend/node_modules
+qvac/frontend/dist
+apps/mobile-expo/android
+apps/mobile-expo/ios
+sdk/node_modules
+**/*.apk
+**/build
+.git

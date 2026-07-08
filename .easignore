@@ -1,0 +1,12 @@
+upstream/
+website/
+website-new/
+qvac/
+sdk/node_modules/
+apps/mobile-expo/android/
+apps/mobile-expo/ios/
+apps/mobile-expo/node_modules/
+apps/mobile-expo/qvac/
+**/*.apk
+**/build/
+.git/

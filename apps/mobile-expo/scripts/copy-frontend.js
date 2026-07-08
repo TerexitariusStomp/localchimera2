@@ -79,3 +79,23 @@ console.log('Frontend assets copied to Android assets:', androidAssetsDir);
 // Fix single-file HTML ordering for mobile WebView.
 fixSingleFileHtml(path.join(destDir, 'index.html'));
 fixSingleFileHtml(path.join(androidAssetsDir, 'index.html'));
+
+// Copy to iOS bundle resources if ios/ project exists
+if (fs.existsSync(path.join(__dirname, '../ios'))) {
+  copyRecursive(srcDir, iosAssetsDir);
+  fixSingleFileHtml(path.join(iosAssetsDir, 'index.html'));
+  if (fs.existsSync(wllamaWasmSrc)) {
+    fs.copyFileSync(wllamaWasmSrc, path.join(iosAssetsDir, 'wllama.wasm'));
+  }
+  console.log('Frontend assets copied to iOS resources:', iosAssetsDir);
+
+  // Add files to Xcode project
+  try {
+    require('child_process').execSync('node scripts/add-ios-resources.js', {
+      cwd: path.join(__dirname, '..'),
+      stdio: 'inherit',
+    });
+  } catch (e) {
+    console.warn('Could not update Xcode project:', e.message);
+  }
+}

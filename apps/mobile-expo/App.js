@@ -805,8 +805,9 @@ export default function App() {
             const id = Date.now() + Math.random();
             const body = options.body ? JSON.parse(options.body) : {};
             window.__bridgeResolvers[id] = (res) => {
+              var ok = res.success || res.status === 'ok' || res.status === 'success';
               resolve(new Response(JSON.stringify(res), {
-                status: res.success ? 200 : 500,
+                status: ok ? 200 : 500,
                 headers: { 'Content-Type': 'application/json' }
               }));
             };
